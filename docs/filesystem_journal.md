@@ -98,18 +98,22 @@ journaled_fs = api.enable_filesystem_journaling(
     journal_base_path="~/.ipfs_kit/journal",
     auto_recovery=True,
     sync_interval=5,  # Sync journal every 5 seconds
-    checkpoint_interval=60  # Create checkpoint every 60 seconds
+    checkpoint_interval=60,  # Create checkpoint every 60 seconds
 )
 
 # Now you can perform filesystem operations with journaling
-journaled_fs.create_directory("/virtual_fs", metadata={"description": "Root directory for virtual filesystem"})
-journaled_fs.create_directory("/virtual_fs/documents", metadata={"category": "documents", "created_at": time.time()})
+journaled_fs.create_directory(
+    "/virtual_fs", metadata={"description": "Root directory for virtual filesystem"}
+)
+journaled_fs.create_directory(
+    "/virtual_fs/documents", metadata={"category": "documents", "created_at": time.time()}
+)
 
 # Create a file with content and metadata
 journaled_fs.create_file(
     "/virtual_fs/documents/example.txt",
-    "This is example content".encode('utf-8'),
-    metadata={"type": "text", "size": 23}
+    "This is example content".encode("utf-8"),
+    metadata={"type": "text", "size": 23},
 )
 
 journaled_fs.create_directory("/virtual_fs/images")
@@ -120,7 +124,7 @@ journaled_fs.rename("/virtual_fs/documents/example.txt", "/virtual_fs/images/mov
 # Update file metadata
 journaled_fs.update_metadata(
     "/virtual_fs/images/moved_example.txt",
-    {"description": "Example file that was moved", "version": "1.0"}
+    {"description": "Example file that was moved", "version": "1.0"},
 )
 
 # Mount an existing CID at a specific path
@@ -129,7 +133,7 @@ journaled_fs.mount(
     "/virtual_fs/mounted_content",
     example_cid,
     is_directory=False,
-    metadata={"source": "external", "imported_at": time.time()}
+    metadata={"source": "external", "imported_at": time.time()},
 )
 
 # Delete a file
@@ -190,8 +194,7 @@ The filesystem journal automatically handles recovery after crashes:
 # If the application crashes or the system loses power,
 # the next time you create a journaled filesystem, recovery happens automatically:
 journaled_fs = api.enable_filesystem_journaling(
-    journal_base_path="~/.ipfs_kit/journal",
-    auto_recovery=True
+    journal_base_path="~/.ipfs_kit/journal", auto_recovery=True
 )
 
 # You can also trigger recovery manually
@@ -258,21 +261,18 @@ You can customize the filesystem journal behavior with these configuration optio
 journal_config = {
     # Basic configuration
     "journal_base_path": "~/.ipfs_kit/journal",  # Base directory for journal files
-    "auto_recovery": True,                       # Automatically recover on startup
-    
+    "auto_recovery": True,  # Automatically recover on startup
     # Performance tuning
-    "sync_interval": 5,                          # Seconds between journal syncs to disk
-    "checkpoint_interval": 60,                   # Seconds between checkpoints
-    "max_journal_size": 1000,                    # Maximum entries before forcing checkpoint
-    
+    "sync_interval": 5,  # Seconds between journal syncs to disk
+    "checkpoint_interval": 60,  # Seconds between checkpoints
+    "max_journal_size": 1000,  # Maximum entries before forcing checkpoint
     # Recovery options
-    "max_recovery_attempts": 3,                  # Maximum number of recovery attempts
-    "recovery_timeout": 300,                     # Recovery timeout in seconds
-    
+    "max_recovery_attempts": 3,  # Maximum number of recovery attempts
+    "recovery_timeout": 300,  # Recovery timeout in seconds
     # Advanced settings
-    "journal_compaction_threshold": 10000,       # Entry threshold for journal compaction
-    "preserve_incomplete_transactions": True,    # Keep incomplete transaction data for debugging
-    "detailed_operation_logging": True           # Log detailed operation information
+    "journal_compaction_threshold": 10000,  # Entry threshold for journal compaction
+    "preserve_incomplete_transactions": True,  # Keep incomplete transaction data for debugging
+    "detailed_operation_logging": True,  # Log detailed operation information
 }
 
 # Create journaled filesystem with custom configuration
@@ -335,7 +335,7 @@ path_to_cid = {
     "/virtual_fs/documents/file2.md": "QmFile2CID",
     "/virtual_fs/images": "QmImagesDirCID",
     "/virtual_fs/images/photo.jpg": "QmPhotoCID",
-    "/virtual_fs/ipfs_mounts/QmContentHash": "QmContentHash"  # Direct mapping for mounts
+    "/virtual_fs/ipfs_mounts/QmContentHash": "QmContentHash",  # Direct mapping for mounts
 }
 ```
 
@@ -398,17 +398,16 @@ You can implement custom error handling for journal operations:
 def custom_error_handler(operation, error):
     """Custom error handler for journal operations."""
     print(f"Error during operation {operation['type']} on {operation['path']}: {error}")
-    
+
     # Determine if the operation should be retried
     if isinstance(error, (IOError, ConnectionError)):
         return True  # Retry the operation
     else:
         return False  # Don't retry
 
+
 # Configure journal with custom error handler
-journaled_fs = api.enable_filesystem_journaling(
-    error_handler=custom_error_handler
-)
+journaled_fs = api.enable_filesystem_journaling(error_handler=custom_error_handler)
 ```
 
 ## Examples
@@ -430,9 +429,13 @@ journaled_fs.create_directory("/virtual_fs/images")
 journaled_fs.create_directory("/virtual_fs/data")
 
 # Write some files
-journaled_fs.write_file("/virtual_fs/documents/readme.md", "# Project Documentation\n\nThis is a test project.")
+journaled_fs.write_file(
+    "/virtual_fs/documents/readme.md", "# Project Documentation\n\nThis is a test project."
+)
 journaled_fs.write_file("/virtual_fs/documents/notes.txt", "Important notes about the project.")
-journaled_fs.write_file("/virtual_fs/data/config.json", json.dumps({"version": "1.0", "debug": False}))
+journaled_fs.write_file(
+    "/virtual_fs/data/config.json", json.dumps({"version": "1.0", "debug": False})
+)
 
 # List directories
 root_contents = journaled_fs.list_directory("/virtual_fs")
@@ -512,20 +515,17 @@ with journaled_fs.transaction(name="create_project") as txn:
     txn.create_directory("/virtual_fs/project/src")
     txn.create_directory("/virtual_fs/project/docs")
     txn.create_directory("/virtual_fs/project/tests")
-    
+
     # Add some files
     txn.write_file("/virtual_fs/project/README.md", "# Sample Project\n\nThis is a test project.")
-    txn.write_file("/virtual_fs/project/src/main.py", "def main():\n    print('Hello, World!')\n\nif __name__ == '__main__':\n    main()")
+    txn.write_file(
+        "/virtual_fs/project/src/main.py",
+        "def main():\n    print('Hello, World!')\n\nif __name__ == '__main__':\n    main()",
+    )
     txn.write_file("/virtual_fs/project/tests/test_main.py", "def test_main():\n    assert True")
-    
+
     # Add configuration
-    config = {
-        "name": "sample-project",
-        "version": "0.1.0",
-        "dependencies": [
-            "pytest>=7.0.0"
-        ]
-    }
+    config = {"name": "sample-project", "version": "0.1.0", "dependencies": ["pytest>=7.0.0"]}
     txn.write_file("/virtual_fs/project/pyproject.toml", json.dumps(config, indent=2))
 
 # List the project structure
@@ -545,10 +545,12 @@ with journaled_fs.transaction(name="update_project") as txn:
     readme_content = journaled_fs.read_file("/virtual_fs/project/README.md")
     updated_readme = readme_content + "\n\n## Installation\n\n```\npip install sample-project\n```"
     txn.write_file("/virtual_fs/project/README.md", updated_readme)
-    
+
     # Add new file
-    txn.write_file("/virtual_fs/project/CHANGELOG.md", "# Changelog\n\n## 0.1.0\n\n- Initial release")
-    
+    txn.write_file(
+        "/virtual_fs/project/CHANGELOG.md", "# Changelog\n\n## 0.1.0\n\n- Initial release"
+    )
+
     # Update configuration
     config_content = journaled_fs.read_file("/virtual_fs/project/pyproject.toml")
     config = json.loads(config_content)
@@ -592,8 +594,8 @@ with journaled_fs.transaction(name="mount_protected_file") as txn:
         {
             "description": "File protected by WAL and journaling",
             "added_at": time.time(),
-            "protection": "dual-layer"
-        }
+            "protection": "dual-layer",
+        },
     )
 
 # Read back the file to verify
@@ -613,9 +615,7 @@ import time
 
 # Initialize API
 api = IPFSSimpleAPI()
-journaled_fs = api.enable_filesystem_journaling(
-    journal_base_path="/tmp/crash_recovery_journal"
-)
+journaled_fs = api.enable_filesystem_journaling(journal_base_path="/tmp/crash_recovery_journal")
 
 # Create some content
 journaled_fs.create_directory("/virtual_fs/before_crash")
@@ -624,7 +624,9 @@ journaled_fs.write_file("/virtual_fs/before_crash/file1.txt", "File created befo
 # Start a transaction but don't commit it (to simulate a crash during transaction)
 transaction = journaled_fs.begin_transaction()
 journaled_fs.create_directory("/virtual_fs/during_crash", transaction=transaction)
-journaled_fs.write_file("/virtual_fs/during_crash/file2.txt", "File created during crash", transaction=transaction)
+journaled_fs.write_file(
+    "/virtual_fs/during_crash/file2.txt", "File created during crash", transaction=transaction
+)
 
 print("Transaction started but not committed (simulating crash)")
 
@@ -641,8 +643,7 @@ print("Restarting with recovery...")
 # Create new instance that will trigger recovery
 new_api = IPFSSimpleAPI()
 recovered_fs = new_api.enable_filesystem_journaling(
-    journal_base_path="/tmp/crash_recovery_journal",
-    auto_recovery=True
+    journal_base_path="/tmp/crash_recovery_journal", auto_recovery=True
 )
 
 # Check recovery status

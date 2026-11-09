@@ -20,6 +20,7 @@ into ``ipfs_kit_py``, ``ipfs_datasets_py`` and ``ipfs_accelerate_py`` so the
 three servers share one implementation instead of maintaining three.  Keep
 the copies byte-identical; the canonical source lives in ``ipfs_kit_py``.
 """
+
 from __future__ import annotations
 
 import json
@@ -125,7 +126,9 @@ class MCPJSONRPCHandler:
         params = msg.get("params") or {}
         is_notification = "id" not in msg
         if not isinstance(method, str):
-            return None if is_notification else self._error(req_id, INVALID_REQUEST, "Missing method")
+            return (
+                None if is_notification else self._error(req_id, INVALID_REQUEST, "Missing method")
+            )
 
         try:
             if method == "initialize":

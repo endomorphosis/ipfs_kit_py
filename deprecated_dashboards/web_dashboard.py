@@ -31,36 +31,36 @@ logger = logging.getLogger(__name__)
 
 class WebSocketManager:
     """Manages WebSocket connections for real-time updates."""
-    
+
     def __init__(self):
         self.active_connections: Set[WebSocket] = set()
-    
+
     async def connect(self, websocket: WebSocket):
         """Accept a WebSocket connection."""
         await websocket.accept()
         self.active_connections.add(websocket)
         logger.debug(f"WebSocket connected. Total connections: {len(self.active_connections)}")
-    
+
     def disconnect(self, websocket: WebSocket):
         """Remove a WebSocket connection."""
         self.active_connections.discard(websocket)
         logger.debug(f"WebSocket disconnected. Total connections: {len(self.active_connections)}")
-    
+
     async def broadcast(self, data: Dict[str, Any]):
         """Broadcast data to all connected clients."""
         if not self.active_connections:
             return
-        
+
         message = json.dumps(data)
         disconnected = set()
-        
+
         for websocket in self.active_connections.copy():
             try:
                 await websocket.send_text(message)
             except Exception as e:
                 logger.debug(f"Failed to send WebSocket message: {e}")
                 disconnected.add(websocket)
-        
+
         # Remove disconnected clients
         for websocket in disconnected:
             self.disconnect(websocket)
@@ -69,7 +69,7 @@ class WebSocketManager:
 class WebDashboard:
     """
     Web dashboard for IPFS Kit monitoring and analytics.
-    
+
     Provides a comprehensive web interface that displays:
     - Real-time metrics and performance data
     - System health status and alerts
@@ -77,36 +77,36 @@ class WebDashboard:
     - MCP server performance
     - Interactive charts and visualizations
     """
-    
+
     def __init__(self, config: DashboardConfig):
         """Initialize the web dashboard."""
         if not WEB_FRAMEWORK_AVAILABLE:
             raise ImportError("FastAPI and uvicorn are required for the web dashboard")
-        
+
         self.config = config
         self.app = FastAPI(
             title="IPFS Kit Dashboard",
             description="Monitoring and analytics dashboard for IPFS Kit",
-            version="1.0.0"
+            version="1.0.0",
         )
-        
+
         # Initialize components
         self.data_collector = DataCollector(config)
         self.metrics_aggregator = MetricsAggregator(config, self.data_collector)
         self.websocket_manager = WebSocketManager()
-        
+
         # Dashboard state
         self.is_running = False
         self.update_task = None
-        
+
         # Setup web application
         self._setup_middleware()
         self._setup_static_files()
         self._setup_templates()
         self._setup_routes()
-        
+
         logger.info("Web dashboard initialized")
-    
+
     def _setup_middleware(self):
         """Setup middleware for the web application."""
         # CORS middleware for cross-origin requests
@@ -117,142 +117,136 @@ class WebDashboard:
             allow_methods=["*"],
             allow_headers=["*"],
         )
-    
+
     def _setup_static_files(self):
         """Setup static file serving."""
         # Create static files directory if it doesn't exist
         static_dir = Path(__file__).parent / "static"
         static_dir.mkdir(exist_ok=True)
-        
+
         # Create subdirectories
         (static_dir / "css").mkdir(exist_ok=True)
         (static_dir / "js").mkdir(exist_ok=True)
         (static_dir / "images").mkdir(exist_ok=True)
-        
+
         # Create basic CSS if it doesn't exist
         css_file = static_dir / "css" / "dashboard.css"
         if not css_file.exists():
             self._create_default_css(css_file)
-        
+
         # Create basic JavaScript if it doesn't exist
         js_file = static_dir / "js" / "dashboard.js"
         if not js_file.exists():
             self._create_default_js(js_file)
-        
+
         # Mount static files
         self.app.mount(
-            self.config.static_path,
-            StaticFiles(directory=str(static_dir)),
-            name="static"
+            self.config.static_path, StaticFiles(directory=str(static_dir)), name="static"
         )
-        
+
         logger.info(f"Static files mounted at {self.config.static_path}")
-    
+
     def _setup_templates(self):
         """Setup Jinja2 templates."""
         templates_dir = Path(__file__).parent / "templates"
         templates_dir.mkdir(exist_ok=True)
-        
+
         # Create default templates if they don't exist
         if not (templates_dir / "index.html").exists():
             self._create_default_templates(templates_dir)
-        
+
         self.templates = Jinja2Templates(directory=str(templates_dir))
         logger.info(f"Templates configured from {templates_dir}")
-    
+
     def _setup_routes(self):
         """Setup web application routes."""
-        
+
         @self.app.get("/", response_class=HTMLResponse)
         async def dashboard_home(request: Request):
             """Dashboard home page redirect."""
-            return self.templates.TemplateResponse("redirect.html", {
-                "request": request,
-                "dashboard_url": self.config.dashboard_path
-            })
-        
+            return self.templates.TemplateResponse(
+                "redirect.html", {"request": request, "dashboard_url": self.config.dashboard_path}
+            )
+
         @self.app.get(self.config.dashboard_path, response_class=HTMLResponse)
         async def dashboard_index(request: Request):
             """Main dashboard page."""
-            return self.templates.TemplateResponse("index.html", {
-                "request": request,
-                "config": self.config.to_dict()
-            })
-        
+            return self.templates.TemplateResponse(
+                "index.html", {"request": request, "config": self.config.to_dict()}
+            )
+
         @self.app.get(f"{self.config.dashboard_path}/metrics", response_class=HTMLResponse)
         async def dashboard_metrics(request: Request):
             """Metrics page."""
-            return self.templates.TemplateResponse("metrics.html", {
-                "request": request,
-                "config": self.config.to_dict()
-            })
-        
+            return self.templates.TemplateResponse(
+                "metrics.html", {"request": request, "config": self.config.to_dict()}
+            )
+
         @self.app.get(f"{self.config.dashboard_path}/health", response_class=HTMLResponse)
         async def dashboard_health(request: Request):
             """Health status page."""
-            return self.templates.TemplateResponse("health.html", {
-                "request": request,
-                "config": self.config.to_dict()
-            })
-        
+            return self.templates.TemplateResponse(
+                "health.html", {"request": request, "config": self.config.to_dict()}
+            )
+
         @self.app.get(f"{self.config.dashboard_path}/vfs", response_class=HTMLResponse)
         async def dashboard_vfs(request: Request):
             """Virtual filesystem analytics page."""
-            return self.templates.TemplateResponse("vfs.html", {
-                "request": request,
-            "config": self.config.to_dict()
-        })
-        
+            return self.templates.TemplateResponse(
+                "vfs.html", {"request": request, "config": self.config.to_dict()}
+            )
+
         @self.app.get(f"{self.config.dashboard_path}/file_manager", response_class=HTMLResponse)
         async def dashboard_file_manager(request: Request):
             """File manager page."""
-            return self.templates.TemplateResponse("file_manager.html", {
-                "request": request,
-                "config": self.config.to_dict()
-            })
+            return self.templates.TemplateResponse(
+                "file_manager.html", {"request": request, "config": self.config.to_dict()}
+            )
 
         @self.app.get(f"{self.config.api_path}/summary")
         async def api_summary():
             """Get dashboard summary data."""
             self.metrics_aggregator.update_aggregations()
             return self.metrics_aggregator.get_dashboard_summary()
-        
+
         @self.app.get(f"{self.config.api_path}/metrics")
         async def api_metrics():
             """Get all metrics data."""
             metrics = self.data_collector.get_latest_values()
             aggregated = {
-                name: metric.to_dict() 
+                name: metric.to_dict()
                 for name, metric in self.metrics_aggregator.get_aggregated_metrics().items()
             }
             return {
                 "latest_values": metrics,
                 "aggregated_metrics": aggregated,
-                "collection_summary": self.data_collector.get_metric_summary()
+                "collection_summary": self.data_collector.get_metric_summary(),
             }
-        
+
         @self.app.get(f"{self.config.api_path}/health")
         async def api_health():
             """Get health status."""
             self.metrics_aggregator.update_aggregations()
             health_status = self.metrics_aggregator.get_health_status()
             active_alerts, alert_history = self.metrics_aggregator.get_alerts()
-            
+
             return {
                 "health_status": health_status.to_dict(),
                 "active_alerts": [alert.to_dict() for alert in active_alerts],
-                "alert_history": [alert.to_dict() for alert in alert_history[-10:]]  # Last 10 alerts
+                "alert_history": [
+                    alert.to_dict() for alert in alert_history[-10:]
+                ],  # Last 10 alerts
             }
-        
+
         @self.app.get(f"{self.config.api_path}/analytics")
         async def api_analytics():
             """Get performance and VFS analytics."""
             self.metrics_aggregator.update_aggregations()
             return {
                 "performance_analytics": self.metrics_aggregator.get_performance_analytics(),
-                "vfs_analytics": self.metrics_aggregator.get_vfs_analytics()
+                "vfs_analytics": self.metrics_aggregator.get_vfs_analytics(),
             }
-        
+
         @self.app.post(f"{self.config.api_path}/alerts/{{alert_id}}/acknowledge")
         async def api_acknowledge_alert(alert_id: str):
             """Acknowledge an alert."""
@@ -261,39 +255,39 @@ class WebDashboard:
                 return {"status": "acknowledged", "alert_id": alert_id}
             else:
                 raise HTTPException(status_code=404, detail="Alert not found")
-        
+
         @self.app.websocket(f"{self.config.dashboard_path}/ws")
         async def websocket_endpoint(websocket: WebSocket):
             """WebSocket endpoint for real-time updates."""
             await self.websocket_manager.connect(websocket)
-            
+
             try:
                 # Send initial data
                 await self._send_websocket_update(websocket)
-                
+
                 # Keep connection alive
                 while True:
                     # Wait for client messages (like ping/pong)
                     try:
                         with anyio.fail_after(30.0):
                             data = await websocket.receive_text()
-                        
+
                         # Handle client requests
                         if data == "get_update":
                             await self._send_websocket_update(websocket)
-                        
+
                     except TimeoutError:
                         # Send periodic update
                         await self._send_websocket_update(websocket)
-                    
+
             except WebSocketDisconnect:
                 self.websocket_manager.disconnect(websocket)
             except Exception as e:
                 logger.error(f"WebSocket error: {e}")
                 self.websocket_manager.disconnect(websocket)
-        
+
         logger.info("Dashboard routes configured")
-    
+
     async def _send_websocket_update(self, websocket: WebSocket):
         """Send update data to a specific WebSocket."""
         try:
@@ -301,12 +295,12 @@ class WebDashboard:
             data = {
                 "timestamp": time.time(),
                 "summary": self.metrics_aggregator.get_dashboard_summary(),
-                "latest_metrics": self.data_collector.get_latest_values()
+                "latest_metrics": self.data_collector.get_latest_values(),
             }
             await websocket.send_text(json.dumps(data))
         except Exception as e:
             logger.debug(f"Failed to send WebSocket update: {e}")
-    
+
     def _create_default_css(self, css_file: Path):
         """Create default CSS file."""
         css_content = """
@@ -560,7 +554,7 @@ nav a:hover {
 """
         css_file.write_text(css_content)
         logger.info(f"Created default CSS file: {css_file}")
-    
+
     def _create_default_js(self, js_file: Path):
         """Create default JavaScript file."""
         js_content = """
@@ -1007,7 +1001,7 @@ document.addEventListener('DOMContentLoaded', () => {
 """
         js_file.write_text(js_content)
         logger.info(f"Created default JavaScript file: {js_file}")
-    
+
     def _create_default_templates(self, templates_dir: Path):
         """Create default HTML templates."""
         # Base template
@@ -1046,7 +1040,7 @@ document.addEventListener('DOMContentLoaded', () => {
     {% block scripts %}{% endblock %}
 </body>
 </html>"""
-        
+
         # Index template
         index_template = """{% extends "base.html" %}
 
@@ -1108,7 +1102,7 @@ document.addEventListener('DOMContentLoaded', () => {
     <span class="connection-status ml-2">Connecting...</span>
 </div>
 {% endblock %}"""
-        
+
         # Metrics template
         metrics_template = """{% extends "base.html" %}
 
@@ -1146,7 +1140,7 @@ document.addEventListener('DOMContentLoaded', () => {
     <span class="last-updated">Loading...</span>
 </div>
 {% endblock %}"""
-        
+
         # Health template
         health_template = """{% extends "base.html" %}
 
@@ -1180,7 +1174,7 @@ document.addEventListener('DOMContentLoaded', () => {
     <span class="last-updated">Loading...</span>
 </div>
 {% endblock %}"""
-        
+
         # VFS template
         vfs_template = """{% extends "base.html" %}
 
@@ -1218,7 +1212,7 @@ document.addEventListener('DOMContentLoaded', () => {
     <span class="last-updated">Loading...</span>
 </div>
 {% endblock %}"""
-        
+
         # Redirect template
         redirect_template = """<!DOCTYPE html>
 <html lang="en">
@@ -1232,7 +1226,7 @@ document.addEventListener('DOMContentLoaded', () => {
     <p>Redirecting to <a href="{{ dashboard_url }}">IPFS Kit Dashboard</a>...</p>
 </body>
 </html>"""
-        
+
         # Write templates
         (templates_dir / "base.html").write_text(base_template)
         (templates_dir / "index.html").write_text(index_template)
@@ -1240,52 +1234,52 @@ document.addEventListener('DOMContentLoaded', () => {
         (templates_dir / "health.html").write_text(health_template)
         (templates_dir / "vfs.html").write_text(vfs_template)
         (templates_dir / "redirect.html").write_text(redirect_template)
-        
+
         logger.info(f"Created default templates in {templates_dir}")
-    
+
     async def start(self, host: Optional[str] = None, port: Optional[int] = None):
         """Start the web dashboard server."""
         if self.is_running:
             logger.warning("Dashboard is already running")
             return
-        
+
         # Start data collection
         await self.data_collector.start()
-        
+
         # Start periodic metric aggregation
         self.update_task = anyio.lowlevel.spawn_system_task(self._update_metrics_loop)
-        
+
         # Configure server
         server_host = host or self.config.host
         server_port = port or self.config.port
-        
+
         logger.info(f"Starting dashboard web server on {server_host}:{server_port}")
-        
+
         # Run the server
         self.is_running = True
         config = uvicorn.Config(
             self.app,
             host=server_host,
             port=server_port,
-            log_level="info" if self.config.debug else "warning"
+            log_level="info" if self.config.debug else "warning",
         )
         server = uvicorn.Server(config)
-        
+
         try:
             await server.serve()
         except Exception as e:
             logger.error(f"Dashboard server error: {e}")
         finally:
             await self.stop()
-    
+
     async def stop(self):
         """Stop the web dashboard server."""
         if not self.is_running:
             return
-        
+
         logger.info("Stopping dashboard web server")
         self.is_running = False
-        
+
         # Stop update task
         if self.update_task:
             self.update_task.cancel()
@@ -1293,30 +1287,32 @@ document.addEventListener('DOMContentLoaded', () => {
                 await self.update_task
             except anyio.get_cancelled_exc_class():
                 pass
-        
+
         # Stop data collection
         await self.data_collector.stop()
-        
+
         logger.info("Dashboard stopped")
-    
+
     async def _update_metrics_loop(self):
         """Periodic metrics update loop."""
         try:
             while self.is_running:
                 # Update aggregations
                 self.metrics_aggregator.update_aggregations()
-                
+
                 # Broadcast to WebSocket clients
                 summary = self.metrics_aggregator.get_dashboard_summary()
-                await self.websocket_manager.broadcast({
-                    "timestamp": time.time(),
-                    "summary": summary,
-                    "latest_metrics": self.data_collector.get_latest_values()
-                })
-                
+                await self.websocket_manager.broadcast(
+                    {
+                        "timestamp": time.time(),
+                        "summary": summary,
+                        "latest_metrics": self.data_collector.get_latest_values(),
+                    }
+                )
+
                 # Wait for next update
                 await anyio.sleep(self.config.metrics_update_interval)
-                
+
         except anyio.get_cancelled_exc_class():
             logger.info("Metrics update loop cancelled")
         except Exception as e:

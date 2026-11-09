@@ -18,12 +18,13 @@ import uuid
 # Mock Mode Configuration
 # ============================================================================
 
+
 def get_mock_mode(backend_name):
     """Get mock mode for specific backend from environment.
-    
+
     Args:
         backend_name: Name of the backend (e.g., 'IPFS', 'S3', 'SSHFS')
-    
+
     Returns:
         bool: True if mock mode is enabled
     """
@@ -35,6 +36,7 @@ def get_mock_mode(backend_name):
 # Common Fixtures
 # ============================================================================
 
+
 @pytest.fixture
 def temp_dir():
     """Create a temporary directory for tests."""
@@ -42,6 +44,7 @@ def temp_dir():
     yield temp_path
     # Cleanup
     import shutil
+
     if os.path.exists(temp_path):
         shutil.rmtree(temp_path, ignore_errors=True)
 
@@ -50,7 +53,7 @@ def temp_dir():
 def temp_file(temp_dir):
     """Create a temporary file for tests."""
     temp_path = os.path.join(temp_dir, "test_file.txt")
-    with open(temp_path, 'w') as f:
+    with open(temp_path, "w") as f:
         f.write("Test content")
     yield temp_path
 
@@ -59,7 +62,7 @@ def temp_file(temp_dir):
 def temp_binary_file(temp_dir):
     """Create a temporary binary file for tests."""
     temp_path = os.path.join(temp_dir, "test_file.bin")
-    with open(temp_path, 'wb') as f:
+    with open(temp_path, "wb") as f:
         f.write(b"Binary test content \x00\xff\xfe")
     yield temp_path
 
@@ -68,7 +71,7 @@ def temp_binary_file(temp_dir):
 def large_temp_file(temp_dir):
     """Create a large temporary file (10MB) for tests."""
     temp_path = os.path.join(temp_dir, "large_file.bin")
-    with open(temp_path, 'wb') as f:
+    with open(temp_path, "wb") as f:
         # Write 10MB of data
         f.write(b"X" * (10 * 1024 * 1024))
     yield temp_path
@@ -83,6 +86,7 @@ def correlation_id():
 # ============================================================================
 # Mock HTTP Responses
 # ============================================================================
+
 
 @pytest.fixture
 def mock_http_success():
@@ -124,6 +128,7 @@ def mock_http_server_error():
 # Test Data Fixtures
 # ============================================================================
 
+
 @pytest.fixture
 def test_content_string():
     """Provide test string content."""
@@ -148,7 +153,7 @@ def test_cids():
     return {
         "v0": "QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG",
         "v1": "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi",
-        "invalid": "invalid_cid_format"
+        "invalid": "invalid_cid_format",
     }
 
 
@@ -159,7 +164,7 @@ def test_metadata():
         "type": "test",
         "description": "Test metadata",
         "version": "1.0",
-        "created": time.time()
+        "created": time.time(),
     }
 
 
@@ -167,9 +172,10 @@ def test_metadata():
 # Helper Functions
 # ============================================================================
 
+
 def assert_result_dict(result, expected_success=True):
     """Assert that a result follows the standard result dictionary pattern.
-    
+
     Args:
         result: Result dictionary to check
         expected_success: Expected success value
@@ -177,7 +183,7 @@ def assert_result_dict(result, expected_success=True):
     assert isinstance(result, dict), "Result should be a dictionary"
     assert "success" in result, "Result should have 'success' key"
     assert result["success"] == expected_success, f"Expected success={expected_success}"
-    
+
     if expected_success:
         assert "error" not in result or result["error"] is None
     else:
@@ -186,7 +192,7 @@ def assert_result_dict(result, expected_success=True):
 
 def assert_valid_cid(cid):
     """Assert that a string is a valid CID format.
-    
+
     Args:
         cid: CID string to validate
     """

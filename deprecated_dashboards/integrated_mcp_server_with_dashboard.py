@@ -11,7 +11,7 @@ This server combines:
 
 The server provides:
 - HTTP JSON-RPC endpoint for MCP protocol communication
-- WebSocket support for real-time MCP communication  
+- WebSocket support for real-time MCP communication
 - Web dashboard interface for monitoring
 - Metrics and health endpoints
 - Static asset serving
@@ -35,8 +35,7 @@ from pathlib import Path
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger("integrated-mcp-dashboard-server")
 
@@ -47,7 +46,11 @@ sys.path.insert(0, str(project_root))
 
 # Import MCP server functionality
 try:
-    from mcp.enhanced_mcp_server_with_daemon_mgmt import EnhancedMCPServerWithDaemonMgmt, handle_message
+    from mcp.enhanced_mcp_server_with_daemon_mgmt import (
+        EnhancedMCPServerWithDaemonMgmt,
+        handle_message,
+    )
+
     MCP_SERVER_AVAILABLE = True
     logger.info("✓ MCP server components imported successfully")
 except ImportError as e:
@@ -60,6 +63,7 @@ try:
     from dashboard.web_dashboard import WebDashboard
     from dashboard.data_collector import DataCollector
     from dashboard.metrics_aggregator import MetricsAggregator
+
     DASHBOARD_AVAILABLE = True
     logger.info("✓ Dashboard components imported successfully")
 except ImportError as e:
@@ -69,6 +73,7 @@ except ImportError as e:
 # Import backend health monitor
 try:
     from ipfs_kit_py.mcp.ipfs_kit.backends.health_monitor import BackendHealthMonitor
+
     BACKEND_HEALTH_AVAILABLE = True
     logger.info("✓ Backend health monitor imported successfully")
 except ImportError as e:
@@ -82,6 +87,7 @@ try:
     from fastapi.middleware.cors import CORSMiddleware
     from fastapi.staticfiles import StaticFiles
     import uvicorn
+
     WEB_FRAMEWORK_AVAILABLE = True
     logger.info("✓ Web framework imports successful")
 except ImportError as e:
@@ -92,35 +98,35 @@ except ImportError as e:
 class IntegratedMCPDashboardServer:
     """
     Integrated server combining MCP functionality with web dashboard.
-    
+
     Provides unified access to:
     - MCP JSON-RPC API via HTTP POST and WebSocket
     - Web dashboard interface
     - Metrics and health endpoints
     - Real-time monitoring and analytics
     """
-    
+
     def __init__(self, host: str = "127.0.0.1", port: int = 8765, dashboard_enabled: bool = True):
         """Initialize the integrated server."""
         self.host = host
         self.port = port
         self.dashboard_enabled = dashboard_enabled and DASHBOARD_AVAILABLE
-        
+
         # Initialize FastAPI app
         self.app = FastAPI(
             title="IPFS Kit MCP Server with Dashboard",
             description="Integrated MCP server and monitoring dashboard",
             version="1.0.0",
             docs_url="/docs",
-            redoc_url="/redoc"
+            redoc_url="/redoc",
         )
-        
+
         # Initialize MCP server
         self.mcp_server = None
         if MCP_SERVER_AVAILABLE:
             self.mcp_server = EnhancedMCPServerWithDaemonMgmt()
             logger.info("✓ MCP server initialized")
-        
+
         # Initialize the enhanced backend health monitor for performance optimization
         # This is separate from dashboard initialization to ensure it's always available
         if BACKEND_HEALTH_AVAILABLE:
@@ -133,7 +139,7 @@ class IntegratedMCPDashboardServer:
         else:
             logger.warning("Backend health monitor not available - import failed")
             self.backend_health_monitor = None
-        
+
         # Initialize dashboard components (without FastAPI app)
         self.dashboard = None
         self.dashboard_config = None
@@ -147,19 +153,21 @@ class IntegratedMCPDashboardServer:
                     static_path="/dashboard/static",
                     mcp_server_url=f"http://{host}:{port}",
                     ipfs_kit_url=f"http://{host}:{port}",  # Self-reference for metrics
-                    debug=True
+                    debug=True,
                 )
-                
+
                 # Create dashboard components manually instead of WebDashboard
                 from dashboard.data_collector import DataCollector
                 from dashboard.metrics_aggregator import MetricsAggregator
                 from dashboard.web_dashboard import WebSocketManager
                 from fastapi.templating import Jinja2Templates
-                
+
                 self.dashboard_data_collector = DataCollector(self.dashboard_config)
-                self.dashboard_metrics_aggregator = MetricsAggregator(self.dashboard_config, self.dashboard_data_collector)
+                self.dashboard_metrics_aggregator = MetricsAggregator(
+                    self.dashboard_config, self.dashboard_data_collector
+                )
                 self.dashboard_websocket_manager = WebSocketManager()
-                
+
                 # Setup templates
                 templates_dir = Path(__file__).parent.parent / "dashboard" / "templates"
                 if templates_dir.exists():
@@ -167,16 +175,16 @@ class IntegratedMCPDashboardServer:
                 else:
                     self.dashboard_templates = None
                     logger.warning("Dashboard templates directory not found")
-                
+
                 logger.info("✓ Dashboard components initialized")
             except Exception as e:
                 logger.error(f"Failed to initialize dashboard: {e}")
                 self.dashboard_enabled = False
-        
+
         # Setup middleware and routes
         self._setup_middleware()
         self._setup_routes()
-        
+
         # Server state
         self.websocket_connections = set()
         self.metrics_data = {
@@ -184,39 +192,41 @@ class IntegratedMCPDashboardServer:
             "mcp_requests_success": 0,
             "mcp_requests_error": 0,
             "server_start_time": time.time(),
-            "last_request_time": None
+            "last_request_time": None,
         }
-        
+
         logger.info(f"✓ Integrated server initialized on {host}:{port}")
-    
+
     def _get_basic_filesystem_status(self):
         """Get basic filesystem status as fallback."""
         try:
             import os
             import psutil
-            
+
             # Basic filesystem info
-            statvfs = os.statvfs('/')
+            statvfs = os.statvfs("/")
             total_space = statvfs.f_frsize * statvfs.f_blocks
             free_space = statvfs.f_frsize * statvfs.f_bavail
             used_space = total_space - free_space
-            
+
             return {
                 "filesystem": {
                     "total_space_gb": round(total_space / (1024**3), 2),
                     "free_space_gb": round(free_space / (1024**3), 2),
                     "used_space_gb": round(used_space / (1024**3), 2),
-                    "usage_percent": round((used_space / total_space) * 100, 2) if total_space > 0 else 0
+                    "usage_percent": round((used_space / total_space) * 100, 2)
+                    if total_space > 0
+                    else 0,
                 },
                 "performance": {
                     "cpu_usage_percent": psutil.cpu_percent(),
-                    "memory_usage_percent": psutil.virtual_memory().percent
+                    "memory_usage_percent": psutil.virtual_memory().percent,
                 },
-                "note": "Basic fallback status - comprehensive monitoring unavailable"
+                "note": "Basic fallback status - comprehensive monitoring unavailable",
             }
         except Exception as e:
             return {"error": f"Could not get basic filesystem status: {e}"}
-    
+
     def _setup_middleware(self):
         """Setup FastAPI middleware."""
         # CORS middleware
@@ -227,43 +237,47 @@ class IntegratedMCPDashboardServer:
             allow_methods=["*"],
             allow_headers=["*"],
         )
-    
+
     def _setup_routes(self):
         """Setup all server routes."""
-        
+
         # Root endpoint - redirect to dashboard or docs
         @self.app.get("/")
         async def root():
             if self.dashboard_enabled:
-                return {"message": "IPFS Kit MCP Server with Dashboard", "dashboard": "/dashboard", "docs": "/docs"}
+                return {
+                    "message": "IPFS Kit MCP Server with Dashboard",
+                    "dashboard": "/dashboard",
+                    "docs": "/docs",
+                }
             else:
                 return {"message": "IPFS Kit MCP Server", "docs": "/docs"}
-        
+
         # MCP JSON-RPC endpoint
         @self.app.post("/mcp")
         async def mcp_jsonrpc(request: Request):
             """Handle MCP JSON-RPC requests via HTTP POST."""
             if not self.mcp_server:
                 raise HTTPException(status_code=503, detail="MCP server not available")
-            
+
             try:
                 # Get JSON payload
                 payload = await request.json()
-                
+
                 # Update metrics
                 self.metrics_data["mcp_requests_total"] += 1
                 self.metrics_data["last_request_time"] = time.time()
-                
+
                 # Handle MCP message
                 response = await handle_message(self.mcp_server, payload)
-                
+
                 if response:
                     self.metrics_data["mcp_requests_success"] += 1
                     return JSONResponse(content=response)
                 else:
                     self.metrics_data["mcp_requests_error"] += 1
                     raise HTTPException(status_code=500, detail="No response from MCP server")
-                    
+
             except json.JSONDecodeError:
                 self.metrics_data["mcp_requests_error"] += 1
                 raise HTTPException(status_code=400, detail="Invalid JSON")
@@ -271,7 +285,7 @@ class IntegratedMCPDashboardServer:
                 self.metrics_data["mcp_requests_error"] += 1
                 logger.error(f"MCP request error: {e}")
                 raise HTTPException(status_code=500, detail=str(e))
-        
+
         # MCP WebSocket endpoint
         @self.app.websocket("/mcp/ws")
         async def mcp_websocket(websocket: WebSocket):
@@ -279,39 +293,39 @@ class IntegratedMCPDashboardServer:
             if not self.mcp_server:
                 await websocket.close(code=1011, reason="MCP server not available")
                 return
-            
+
             await websocket.accept()
             self.websocket_connections.add(websocket)
-            
+
             try:
                 while True:
                     # Receive message
                     data = await websocket.receive_text()
-                    
+
                     try:
                         # Parse JSON-RPC message
                         message = json.loads(data)
-                        
+
                         # Update metrics
                         self.metrics_data["mcp_requests_total"] += 1
                         self.metrics_data["last_request_time"] = time.time()
-                        
+
                         # Handle MCP message
                         response = await handle_message(self.mcp_server, message)
-                        
+
                         # Send response
                         if response:
                             await websocket.send_text(json.dumps(response))
                             self.metrics_data["mcp_requests_success"] += 1
                         else:
                             self.metrics_data["mcp_requests_error"] += 1
-                            
+
                     except json.JSONDecodeError:
                         self.metrics_data["mcp_requests_error"] += 1
                         error_response = {
                             "jsonrpc": "2.0",
                             "id": None,
-                            "error": {"code": -32700, "message": "Parse error"}
+                            "error": {"code": -32700, "message": "Parse error"},
                         }
                         await websocket.send_text(json.dumps(error_response))
                     except Exception as e:
@@ -320,23 +334,23 @@ class IntegratedMCPDashboardServer:
                         error_response = {
                             "jsonrpc": "2.0",
                             "id": None,
-                            "error": {"code": -32603, "message": "Internal error"}
+                            "error": {"code": -32603, "message": "Internal error"},
                         }
                         await websocket.send_text(json.dumps(error_response))
-                        
+
             except WebSocketDisconnect:
                 pass
             except Exception as e:
                 logger.error(f"WebSocket error: {e}")
             finally:
                 self.websocket_connections.discard(websocket)
-        
+
         # Health endpoint
         @self.app.get("/health")
         async def health():
             """Health check endpoint."""
             uptime = time.time() - self.metrics_data["server_start_time"]
-            
+
             health_data = {
                 "status": "healthy",
                 "timestamp": time.time(),
@@ -344,13 +358,13 @@ class IntegratedMCPDashboardServer:
                 "services": {
                     "mcp_server": self.mcp_server is not None,
                     "dashboard": self.dashboard_enabled,
-                    "websocket_connections": len(self.websocket_connections)
+                    "websocket_connections": len(self.websocket_connections),
                 },
-                "version": "1.0.0"
+                "version": "1.0.0",
             }
-            
+
             return JSONResponse(content=health_data)
-        
+
         # Metrics endpoint (Prometheus-style)
         @self.app.get("/metrics")
         async def metrics():
@@ -358,8 +372,11 @@ class IntegratedMCPDashboardServer:
             uptime = time.time() - self.metrics_data["server_start_time"]
             success_rate = 0
             if self.metrics_data["mcp_requests_total"] > 0:
-                success_rate = self.metrics_data["mcp_requests_success"] / self.metrics_data["mcp_requests_total"]
-            
+                success_rate = (
+                    self.metrics_data["mcp_requests_success"]
+                    / self.metrics_data["mcp_requests_total"]
+                )
+
             metrics_text = f"""# HELP mcp_requests_total Total number of MCP requests
 # TYPE mcp_requests_total counter
 mcp_requests_total {self.metrics_data["mcp_requests_total"]}
@@ -384,16 +401,16 @@ server_uptime_seconds {uptime}
 # TYPE websocket_connections_active gauge
 websocket_connections_active {len(self.websocket_connections)}
 """
-            
+
             return PlainTextResponse(content=metrics_text, media_type="text/plain")
-        
+
         # MCP server status endpoint
         @self.app.get("/mcp/status")
         async def mcp_status():
             """Get MCP server status and capabilities."""
             if not self.mcp_server:
                 raise HTTPException(status_code=503, detail="MCP server not available")
-            
+
             # Get server info
             status_data = {
                 "server_name": "IPFS Kit MCP Server",
@@ -402,199 +419,237 @@ websocket_connections_active {len(self.websocket_connections)}
                 "endpoints": {
                     "jsonrpc_http": "/mcp",
                     "websocket": "/mcp/ws",
-                    "status": "/mcp/status"
+                    "status": "/mcp/status",
                 },
                 "capabilities": [
                     "ipfs_operations",
-                    "vfs_operations", 
+                    "vfs_operations",
                     "daemon_management",
                     "file_operations",
-                    "cluster_operations"
+                    "cluster_operations",
                 ],
                 "metrics": self.metrics_data,
-                "connections": {
-                    "websocket_active": len(self.websocket_connections)
-                }
+                "connections": {"websocket_active": len(self.websocket_connections)},
             }
-            
+
             return JSONResponse(content=status_data)
-        
+
         # Dashboard integration (if enabled)
         if self.dashboard_enabled and self.dashboard_config:
             # Dashboard routes integration
             logger.info("Setting up dashboard routes...")
-            
+
             try:
                 # Dashboard pages
                 @self.app.get(self.dashboard_config.dashboard_path, response_class=HTMLResponse)
                 async def dashboard_index(request: Request):
                     # Use the new functional dashboard
-                    dashboard_html_path = Path(__file__).parent.parent / "dashboard" / "templates" / "functional_dashboard.html"
+                    dashboard_html_path = (
+                        Path(__file__).parent.parent
+                        / "dashboard"
+                        / "templates"
+                        / "functional_dashboard.html"
+                    )
                     if dashboard_html_path.exists():
-                        with open(dashboard_html_path, 'r', encoding='utf-8') as f:
+                        with open(dashboard_html_path, "r", encoding="utf-8") as f:
                             return HTMLResponse(content=f.read())
                     else:
                         return HTMLResponse(content=self._get_fallback_dashboard_html("Dashboard"))
-                
-                @self.app.get(f"{self.dashboard_config.dashboard_path}/metrics", response_class=HTMLResponse)
+
+                @self.app.get(
+                    f"{self.dashboard_config.dashboard_path}/metrics", response_class=HTMLResponse
+                )
                 async def dashboard_metrics_page(request: Request):
                     if self.dashboard_templates:
-                        return self.dashboard_templates.TemplateResponse("metrics.html", {
-                            "request": request,
-                            "config": self.dashboard_config.to_dict()
-                        })
+                        return self.dashboard_templates.TemplateResponse(
+                            "metrics.html",
+                            {"request": request, "config": self.dashboard_config.to_dict()},
+                        )
                     else:
                         return HTMLResponse(content=self._get_fallback_dashboard_html("Metrics"))
-                
-                @self.app.get(f"{self.dashboard_config.dashboard_path}/health", response_class=HTMLResponse)
+
+                @self.app.get(
+                    f"{self.dashboard_config.dashboard_path}/health", response_class=HTMLResponse
+                )
                 async def dashboard_health_page(request: Request):
                     if self.dashboard_templates:
-                        return self.dashboard_templates.TemplateResponse("health.html", {
-                            "request": request,
-                            "config": self.dashboard_config.to_dict()
-                        })
+                        return self.dashboard_templates.TemplateResponse(
+                            "health.html",
+                            {"request": request, "config": self.dashboard_config.to_dict()},
+                        )
                     else:
                         return HTMLResponse(content=self._get_fallback_dashboard_html("Health"))
-                
-                @self.app.get(f"{self.dashboard_config.dashboard_path}/vfs", response_class=HTMLResponse)
+
+                @self.app.get(
+                    f"{self.dashboard_config.dashboard_path}/vfs", response_class=HTMLResponse
+                )
                 async def dashboard_vfs_page(request: Request):
                     if self.dashboard_templates:
-                        return self.dashboard_templates.TemplateResponse("vfs.html", {
-                            "request": request,
-                            "config": self.dashboard_config.to_dict()
-                        })
+                        return self.dashboard_templates.TemplateResponse(
+                            "vfs.html",
+                            {"request": request, "config": self.dashboard_config.to_dict()},
+                        )
                     else:
                         return HTMLResponse(content=self._get_vfs_analytics_html())
-                
+
                 # Dashboard API endpoints
                 @self.app.get(f"{self.dashboard_config.api_path}/summary")
                 async def dashboard_api_summary():
                     if self.dashboard_metrics_aggregator:
                         self.dashboard_metrics_aggregator.update_aggregations()
                         summary = self.dashboard_metrics_aggregator.get_dashboard_summary()
-                        
+
                         # Add real backend health metrics if available
                         if self.backend_health_monitor:
                             try:
                                 # Get cached backend health metrics (non-blocking)
-                                cached_backends = self.backend_health_monitor.get_cached_backend_health()
-                                
+                                cached_backends = (
+                                    self.backend_health_monitor.get_cached_backend_health()
+                                )
+
                                 if cached_backends:
                                     # Extract IPFS performance metrics
                                     ipfs_backend = cached_backends.get("ipfs", {})
                                     if ipfs_backend:
                                         metrics = ipfs_backend.get("metrics", {})
                                         detailed_info = ipfs_backend.get("detailed_info", {})
-                                        
+
                                         # Map real IPFS metrics to dashboard format
-                                        summary['performance'] = {
-                                            'repo_size': metrics.get('repo_size_bytes_cached', metrics.get('repo_size_bytes', 0)),
-                                            'storage_max': detailed_info.get('storage_max_bytes', 0),  # May need to be calculated
-                                            'objects': metrics.get('pins_count_cached', metrics.get('repo_objects', 0)),
-                                            'peers': detailed_info.get('peer_count', 0),
-                                            'pins': metrics.get('pins_count_cached', detailed_info.get('pins_count', 0)),
-                                            'bandwidth_in': metrics.get('bandwidth_in_bytes', 0),
-                                            'bandwidth_out': metrics.get('bandwidth_out_bytes', 0),
-                                            'performance_optimized': detailed_info.get('performance_optimized', False)
+                                        summary["performance"] = {
+                                            "repo_size": metrics.get(
+                                                "repo_size_bytes_cached",
+                                                metrics.get("repo_size_bytes", 0),
+                                            ),
+                                            "storage_max": detailed_info.get(
+                                                "storage_max_bytes", 0
+                                            ),  # May need to be calculated
+                                            "objects": metrics.get(
+                                                "pins_count_cached", metrics.get("repo_objects", 0)
+                                            ),
+                                            "peers": detailed_info.get("peer_count", 0),
+                                            "pins": metrics.get(
+                                                "pins_count_cached",
+                                                detailed_info.get("pins_count", 0),
+                                            ),
+                                            "bandwidth_in": metrics.get("bandwidth_in_bytes", 0),
+                                            "bandwidth_out": metrics.get("bandwidth_out_bytes", 0),
+                                            "performance_optimized": detailed_info.get(
+                                                "performance_optimized", False
+                                            ),
                                         }
-                                        
+
                                         # Add other backend summaries
-                                        summary['backends'] = {}
+                                        summary["backends"] = {}
                                         for backend_name, backend_data in cached_backends.items():
-                                            summary['backends'][backend_name] = {
-                                                'status': backend_data.get('status', 'unknown'),
-                                                'health': backend_data.get('health', 'unknown'),
-                                                'last_check': backend_data.get('last_check'),
-                                                'metrics': backend_data.get('metrics', {})
+                                            summary["backends"][backend_name] = {
+                                                "status": backend_data.get("status", "unknown"),
+                                                "health": backend_data.get("health", "unknown"),
+                                                "last_check": backend_data.get("last_check"),
+                                                "metrics": backend_data.get("metrics", {}),
                                             }
-                                        
-                                        logger.debug(f"Enhanced summary with cached backend metrics: {len(cached_backends)} backends")
+
+                                        logger.debug(
+                                            f"Enhanced summary with cached backend metrics: {len(cached_backends)} backends"
+                                        )
                                     else:
-                                        logger.warning("No IPFS backend data available from cached health")
+                                        logger.warning(
+                                            "No IPFS backend data available from cached health"
+                                        )
                                 else:
                                     logger.warning("No cached backend health data available")
                             except Exception as e:
                                 logger.error(f"Error getting cached backend health metrics: {e}")
-                                summary['performance_error'] = str(e)
-                        
+                                summary["performance_error"] = str(e)
+
                         # Add VFS deep insights if available
-                        if hasattr(self.dashboard_data_collector, 'get_vfs_deep_insights'):
+                        if hasattr(self.dashboard_data_collector, "get_vfs_deep_insights"):
                             try:
-                                vfs_insights = await self.dashboard_data_collector.get_vfs_deep_insights()
-                                summary['vfs_insights'] = vfs_insights
+                                vfs_insights = (
+                                    await self.dashboard_data_collector.get_vfs_deep_insights()
+                                )
+                                summary["vfs_insights"] = vfs_insights
                             except Exception as e:
                                 logger.error(f"Error getting VFS insights: {e}")
-                                summary['vfs_insights'] = {'error': str(e)}
-                        
+                                summary["vfs_insights"] = {"error": str(e)}
+
                         return summary
                     else:
                         return {"error": "Dashboard not available"}
-                
+
                 @self.app.get(f"{self.dashboard_config.api_path}/metrics")
                 async def dashboard_api_metrics():
                     if self.dashboard_data_collector and self.dashboard_metrics_aggregator:
                         metrics = self.dashboard_data_collector.get_latest_values()
                         aggregated = {
-                            name: metric.to_dict() 
+                            name: metric.to_dict()
                             for name, metric in self.dashboard_metrics_aggregator.get_aggregated_metrics().items()
                         }
-                        
+
                         # Include real backend metrics if available
                         backend_metrics = {}
                         consolidated_storage = {}
                         if self.backend_health_monitor:
                             try:
                                 # Get cached backend health metrics (non-blocking)
-                                cached_backends = self.backend_health_monitor.get_cached_backend_health()
-                                
+                                cached_backends = (
+                                    self.backend_health_monitor.get_cached_backend_health()
+                                )
+
                                 for backend_name, backend_data in cached_backends.items():
-                                    backend_metrics[f"{backend_name}_metrics"] = backend_data.get("metrics", {})
-                                    backend_metrics[f"{backend_name}_status"] = backend_data.get("status", "unknown")
-                                    backend_metrics[f"{backend_name}_health"] = backend_data.get("health", "unknown")
-                                
+                                    backend_metrics[f"{backend_name}_metrics"] = backend_data.get(
+                                        "metrics", {}
+                                    )
+                                    backend_metrics[f"{backend_name}_status"] = backend_data.get(
+                                        "status", "unknown"
+                                    )
+                                    backend_metrics[f"{backend_name}_health"] = backend_data.get(
+                                        "health", "unknown"
+                                    )
+
                                 # Get consolidated storage and bandwidth statistics (optimized)
                                 consolidated_storage = await self.backend_health_monitor.get_consolidated_storage_metrics()
-                                
+
                             except Exception as e:
                                 logger.error(f"Error getting cached backend metrics: {e}")
                                 backend_metrics["backend_error"] = str(e)
-                        
+
                         return {
                             "latest_values": metrics,
                             "aggregated_metrics": aggregated,
                             "collection_summary": self.dashboard_data_collector.get_metric_summary(),
                             "mcp_metrics": self.metrics_data,  # Include MCP-specific metrics
                             "backend_metrics": backend_metrics,  # Include real backend metrics
-                            "consolidated_storage": consolidated_storage  # Include consolidated storage/bandwidth stats
+                            "consolidated_storage": consolidated_storage,  # Include consolidated storage/bandwidth stats
                         }
                     else:
                         return {"error": "Dashboard not available"}
-                
+
                 @self.app.get(f"{self.dashboard_config.api_path}/health")
                 async def dashboard_api_health():
                     if self.dashboard_metrics_aggregator:
                         self.dashboard_metrics_aggregator.update_aggregations()
                         health_status = self.dashboard_metrics_aggregator.get_health_status()
-                        active_alerts, alert_history = self.dashboard_metrics_aggregator.get_alerts()
-                        
+                        active_alerts, alert_history = (
+                            self.dashboard_metrics_aggregator.get_alerts()
+                        )
+
                         return {
                             "health_status": health_status.to_dict(),
                             "active_alerts": [alert.to_dict() for alert in active_alerts],
-                            "alert_history": [alert.to_dict() for alert in alert_history[-10:]]
+                            "alert_history": [alert.to_dict() for alert in alert_history[-10:]],
                         }
                     else:
                         return {"error": "Dashboard not available"}
-                
+
                 @self.app.get(f"{self.dashboard_config.api_path}/storage")
                 async def dashboard_api_storage():
                     """Get consolidated storage and bandwidth statistics from all backends."""
                     if self.backend_health_monitor:
                         try:
-                            storage_metrics = await self.backend_health_monitor.get_consolidated_storage_metrics()
-                            return {
-                                "success": True,
-                                "storage_metrics": storage_metrics
-                            }
+                            storage_metrics = (
+                                await self.backend_health_monitor.get_consolidated_storage_metrics()
+                            )
+                            return {"success": True, "storage_metrics": storage_metrics}
                         except Exception as e:
                             logger.error(f"Error getting storage metrics: {e}")
                             return {
@@ -607,8 +662,8 @@ websocket_connections_active {len(self.websocket_connections)}
                                     "total_objects": 0,
                                     "backend_breakdown": {},
                                     "active_backends": 0,
-                                    "healthy_backends": 0
-                                }
+                                    "healthy_backends": 0,
+                                },
                             }
                     else:
                         return {
@@ -621,221 +676,269 @@ websocket_connections_active {len(self.websocket_connections)}
                                 "total_objects": 0,
                                 "backend_breakdown": {},
                                 "active_backends": 0,
-                                "healthy_backends": 0
-                            }
+                                "healthy_backends": 0,
+                            },
                         }
-                
+
                 @self.app.get(f"{self.dashboard_config.api_path}/analytics")
                 async def dashboard_api_analytics():
                     if self.dashboard_metrics_aggregator:
                         self.dashboard_metrics_aggregator.update_aggregations()
-                        
+
                         # Get standard analytics
                         analytics = {
                             "performance_analytics": self.dashboard_metrics_aggregator.get_performance_analytics(),
                             "vfs_analytics": self.dashboard_metrics_aggregator.get_vfs_analytics(),
-                            "mcp_analytics": self._get_mcp_analytics()
+                            "mcp_analytics": self._get_mcp_analytics(),
                         }
-                        
+
                         # Add enhanced VFS analytics if available
-                        if hasattr(self.dashboard_data_collector, 'get_vfs_deep_insights'):
+                        if hasattr(self.dashboard_data_collector, "get_vfs_deep_insights"):
                             try:
-                                vfs_deep = await self.dashboard_data_collector.get_vfs_deep_insights()
-                                analytics['vfs_deep_analytics'] = vfs_deep
+                                vfs_deep = (
+                                    await self.dashboard_data_collector.get_vfs_deep_insights()
+                                )
+                                analytics["vfs_deep_analytics"] = vfs_deep
                             except Exception as e:
                                 logger.error(f"Error getting VFS deep analytics: {e}")
-                                analytics['vfs_deep_analytics'] = {'error': str(e)}
-                        
+                                analytics["vfs_deep_analytics"] = {"error": str(e)}
+
                         return analytics
                     else:
                         return {"error": "Dashboard not available"}
-                
+
                 # Enhanced VFS Analytics endpoints
                 @self.app.get(f"{self.dashboard_config.api_path}/vfs/health")
                 async def dashboard_api_vfs_health():
                     """Get comprehensive VFS health status and alerts."""
-                    if hasattr(self.dashboard_data_collector, 'get_vfs_deep_insights'):
+                    if hasattr(self.dashboard_data_collector, "get_vfs_deep_insights"):
                         try:
                             insights = await self.dashboard_data_collector.get_vfs_deep_insights()
-                            if insights.get('available'):
+                            if insights.get("available"):
                                 return {
-                                    "health_summary": insights.get('health_summary', {}),
-                                    "alerts": insights.get('comprehensive_report', {}).get('alerts', []),
-                                    "overall_health": insights.get('comprehensive_report', {}).get('overall_health', {}),
-                                    "timestamp": time.time()
+                                    "health_summary": insights.get("health_summary", {}),
+                                    "alerts": insights.get("comprehensive_report", {}).get(
+                                        "alerts", []
+                                    ),
+                                    "overall_health": insights.get("comprehensive_report", {}).get(
+                                        "overall_health", {}
+                                    ),
+                                    "timestamp": time.time(),
                                 }
                         except Exception as e:
                             logger.error(f"Error getting VFS health: {e}")
                             return {"error": str(e)}
-                    
+
                     return {"available": False, "error": "VFS health analytics not available"}
-                
+
                 @self.app.get(f"{self.dashboard_config.api_path}/vfs/performance")
                 async def dashboard_api_vfs_performance():
                     """Get detailed VFS performance metrics and analysis."""
-                    if hasattr(self.dashboard_data_collector, 'get_vfs_deep_insights'):
+                    if hasattr(self.dashboard_data_collector, "get_vfs_deep_insights"):
                         try:
                             insights = await self.dashboard_data_collector.get_vfs_deep_insights()
-                            if insights.get('available'):
+                            if insights.get("available"):
                                 return {
-                                    "realtime_metrics": insights.get('detailed_analyses', {}).get('realtime', {}),
-                                    "bandwidth_analysis": insights.get('detailed_analyses', {}).get('bandwidth', {}),
-                                    "operation_analysis": insights.get('detailed_analyses', {}).get('operations', {}),
-                                    "trends": insights.get('trends', {}),
-                                    "insights": insights.get('insights', []),
-                                    "timestamp": time.time()
+                                    "realtime_metrics": insights.get("detailed_analyses", {}).get(
+                                        "realtime", {}
+                                    ),
+                                    "bandwidth_analysis": insights.get("detailed_analyses", {}).get(
+                                        "bandwidth", {}
+                                    ),
+                                    "operation_analysis": insights.get("detailed_analyses", {}).get(
+                                        "operations", {}
+                                    ),
+                                    "trends": insights.get("trends", {}),
+                                    "insights": insights.get("insights", []),
+                                    "timestamp": time.time(),
                                 }
                         except Exception as e:
                             logger.error(f"Error getting VFS performance: {e}")
                             return {"error": str(e)}
-                    
+
                     return {"available": False, "error": "VFS performance analytics not available"}
-                
+
                 @self.app.get(f"{self.dashboard_config.api_path}/vfs/recommendations")
                 async def dashboard_api_vfs_recommendations():
                     """Get VFS optimization recommendations."""
-                    if hasattr(self.dashboard_data_collector, 'get_vfs_deep_insights'):
+                    if hasattr(self.dashboard_data_collector, "get_vfs_deep_insights"):
                         try:
                             insights = await self.dashboard_data_collector.get_vfs_deep_insights()
-                            if insights.get('available'):
+                            if insights.get("available"):
                                 return {
-                                    "recommendations": insights.get('recommendations', []),
-                                    "insights": insights.get('insights', []),
+                                    "recommendations": insights.get("recommendations", []),
+                                    "insights": insights.get("insights", []),
                                     "priority_actions": [
-                                        rec for rec in insights.get('recommendations', [])
-                                        if rec.get('priority') in ['critical', 'high']
+                                        rec
+                                        for rec in insights.get("recommendations", [])
+                                        if rec.get("priority") in ["critical", "high"]
                                     ],
-                                    "timestamp": time.time()
+                                    "timestamp": time.time(),
                                 }
                         except Exception as e:
                             logger.error(f"Error getting VFS recommendations: {e}")
                             return {"error": str(e)}
-                    
+
                     return {"available": False, "error": "VFS recommendations not available"}
-                
+
                 @self.app.get(f"{self.dashboard_config.api_path}/vfs/backends")
                 async def dashboard_api_vfs_backends():
                     """Get VFS backend health and performance details."""
-                    if hasattr(self.dashboard_data_collector, 'get_vfs_deep_insights'):
+                    if hasattr(self.dashboard_data_collector, "get_vfs_deep_insights"):
                         try:
                             insights = await self.dashboard_data_collector.get_vfs_deep_insights()
-                            if insights.get('available'):
-                                backend_data = insights.get('detailed_analyses', {}).get('backends', {})
+                            if insights.get("available"):
+                                backend_data = insights.get("detailed_analyses", {}).get(
+                                    "backends", {}
+                                )
                                 return {
                                     "backend_health": backend_data,
-                                    "summary": backend_data.get('summary', {}),
-                                    "individual_backends": backend_data.get('backends', {}),
-                                    "timestamp": time.time()
+                                    "summary": backend_data.get("summary", {}),
+                                    "individual_backends": backend_data.get("backends", {}),
+                                    "timestamp": time.time(),
                                 }
                         except Exception as e:
                             logger.error(f"Error getting VFS backends: {e}")
                             return {"error": str(e)}
-                    
+
                     return {"available": False, "error": "VFS backend analytics not available"}
-                
+
                 @self.app.get(f"{self.dashboard_config.api_path}/vfs/replication")
                 async def dashboard_api_vfs_replication():
                     """Get VFS replication health and status."""
-                    if hasattr(self.dashboard_data_collector, 'get_vfs_deep_insights'):
+                    if hasattr(self.dashboard_data_collector, "get_vfs_deep_insights"):
                         try:
                             insights = await self.dashboard_data_collector.get_vfs_deep_insights()
-                            if insights.get('available'):
-                                replication_data = insights.get('detailed_analyses', {}).get('replication', {})
+                            if insights.get("available"):
+                                replication_data = insights.get("detailed_analyses", {}).get(
+                                    "replication", {}
+                                )
                                 return {
                                     "replication_health": replication_data,
-                                    "current_status": replication_data.get('current_status', {}),
-                                    "trends": replication_data.get('trends', {}),
-                                    "alerts": replication_data.get('alerts', []),
-                                    "timestamp": time.time()
+                                    "current_status": replication_data.get("current_status", {}),
+                                    "trends": replication_data.get("trends", {}),
+                                    "alerts": replication_data.get("alerts", []),
+                                    "timestamp": time.time(),
                                 }
                         except Exception as e:
                             logger.error(f"Error getting VFS replication: {e}")
                             return {"error": str(e)}
-                    
+
                     return {"available": False, "error": "VFS replication analytics not available"}
-                
+
                 @self.app.get(f"{self.dashboard_config.api_path}/vfs/cache")
                 async def dashboard_api_vfs_cache():
                     """Get VFS cache performance and efficiency metrics."""
-                    if hasattr(self.dashboard_data_collector, 'get_vfs_deep_insights'):
+                    if hasattr(self.dashboard_data_collector, "get_vfs_deep_insights"):
                         try:
                             insights = await self.dashboard_data_collector.get_vfs_deep_insights()
-                            if insights.get('available'):
-                                cache_data = insights.get('detailed_analyses', {}).get('cache', {})
+                            if insights.get("available"):
+                                cache_data = insights.get("detailed_analyses", {}).get("cache", {})
                                 return {
                                     "cache_analysis": cache_data,
-                                    "current_metrics": cache_data.get('current_metrics', {}),
-                                    "historical_averages": cache_data.get('historical_averages', {}),
-                                    "alerts": cache_data.get('alerts', []),
-                                    "timestamp": time.time()
+                                    "current_metrics": cache_data.get("current_metrics", {}),
+                                    "historical_averages": cache_data.get(
+                                        "historical_averages", {}
+                                    ),
+                                    "alerts": cache_data.get("alerts", []),
+                                    "timestamp": time.time(),
                                 }
                         except Exception as e:
                             logger.error(f"Error getting VFS cache: {e}")
                             return {"error": str(e)}
-                    
+
                     return {"available": False, "error": "VFS cache analytics not available"}
-                
+
                 @self.app.get(f"{self.dashboard_config.api_path}/vfs/analytics")
                 async def dashboard_api_vfs_analytics():
                     """Get comprehensive VFS analytics - the main endpoint for all VFS data."""
-                    if hasattr(self.dashboard_data_collector, 'get_vfs_deep_insights'):
+                    if hasattr(self.dashboard_data_collector, "get_vfs_deep_insights"):
                         try:
                             insights = await self.dashboard_data_collector.get_vfs_deep_insights()
-                            if insights.get('available'):
+                            if insights.get("available"):
                                 return {
                                     "available": True,
-                                    "comprehensive_report": insights.get('comprehensive_report', {}),
-                                    "detailed_analyses": insights.get('detailed_analyses', {}),
-                                    "health_summary": insights.get('health_summary', {}),
-                                    "trends": insights.get('trends', {}),
-                                    "insights": insights.get('insights', []),
-                                    "recommendations": insights.get('recommendations', []),
-                                    "timestamp": time.time()
+                                    "comprehensive_report": insights.get(
+                                        "comprehensive_report", {}
+                                    ),
+                                    "detailed_analyses": insights.get("detailed_analyses", {}),
+                                    "health_summary": insights.get("health_summary", {}),
+                                    "trends": insights.get("trends", {}),
+                                    "insights": insights.get("insights", []),
+                                    "recommendations": insights.get("recommendations", []),
+                                    "timestamp": time.time(),
                                 }
                             else:
-                                return {"available": False, "message": "VFS analytics not available"}
+                                return {
+                                    "available": False,
+                                    "message": "VFS analytics not available",
+                                }
                         except Exception as e:
                             logger.error(f"Error getting VFS analytics: {e}")
                             return {"available": False, "error": str(e)}
-                    
-                    return {"available": False, "error": "VFS analytics not available - data collector missing method"}
-                
+
+                    return {
+                        "available": False,
+                        "error": "VFS analytics not available - data collector missing method",
+                    }
+
                 @self.app.get(f"{self.dashboard_config.api_path}/filesystem/status")
                 async def dashboard_api_filesystem_status_comprehensive():
                     """Get comprehensive filesystem and backend status."""
                     try:
                         # Import the comprehensive backend monitor
-                        from dashboard.comprehensive_backend_monitor import get_comprehensive_backend_status, get_backend_recommendations
-                        
+                        from dashboard.comprehensive_backend_monitor import (
+                            get_comprehensive_backend_status,
+                            get_backend_recommendations,
+                        )
+
                         # Get comprehensive status
                         status = await get_comprehensive_backend_status()
                         recommendations = await get_backend_recommendations()
-                        
+
                         return {
                             "success": True,
                             "comprehensive_status": status,
                             "recommendations": recommendations,
                             "summary": {
                                 "total_backends": len(status.get("backends", {})),
-                                "running_backends": len([b for b in status.get("backends", {}).values() if b.get("status") == "running"]),
+                                "running_backends": len(
+                                    [
+                                        b
+                                        for b in status.get("backends", {}).values()
+                                        if b.get("status") == "running"
+                                    ]
+                                ),
                                 "total_daemons": len(status.get("daemons", {})),
-                                "running_daemons": len([d for d in status.get("daemons", {}).values() if d.get("status") == "running"]),
+                                "running_daemons": len(
+                                    [
+                                        d
+                                        for d in status.get("daemons", {}).values()
+                                        if d.get("status") == "running"
+                                    ]
+                                ),
                                 "alerts_count": len(status.get("alerts", [])),
-                                "critical_alerts": len([a for a in status.get("alerts", []) if a.get("level") == "critical"])
+                                "critical_alerts": len(
+                                    [
+                                        a
+                                        for a in status.get("alerts", [])
+                                        if a.get("level") == "critical"
+                                    ]
+                                ),
                             },
-                            "timestamp": time.time()
+                            "timestamp": time.time(),
                         }
                     except Exception as e:
                         logger.error(f"Error getting comprehensive filesystem status: {e}")
-                        # Return fallback status  
+                        # Return fallback status
                         fallback_status = self._get_basic_filesystem_status()
                         return {
                             "success": False,
                             "error": str(e),
                             "fallback_status": fallback_status,
-                            "timestamp": time.time()
+                            "timestamp": time.time(),
                         }
-                
+
                 @self.app.post(f"{self.dashboard_config.api_path}/alerts/{{alert_id}}/acknowledge")
                 async def dashboard_api_acknowledge_alert(alert_id: str):
                     if self.dashboard_metrics_aggregator:
@@ -846,31 +949,31 @@ websocket_connections_active {len(self.websocket_connections)}
                             raise HTTPException(status_code=404, detail="Alert not found")
                     else:
                         raise HTTPException(status_code=503, detail="Dashboard not available")
-                
+
                 # Dashboard WebSocket
                 @self.app.websocket(f"{self.dashboard_config.dashboard_path}/ws")
                 async def dashboard_websocket(websocket: WebSocket):
                     if self.dashboard_websocket_manager:
                         await self.dashboard_websocket_manager.connect(websocket)
-                        
+
                         try:
                             # Send initial data
                             await self._send_dashboard_websocket_update(websocket)
-                            
+
                             # Keep connection alive
                             while True:
                                 try:
                                     with anyio.fail_after(30.0):
                                         data = await websocket.receive_text()
-                                    
+
                                     # Handle client requests
                                     if data == "get_update":
                                         await self._send_dashboard_websocket_update(websocket)
-                                    
+
                                 except TimeoutError:
                                     # Send periodic update
                                     await self._send_dashboard_websocket_update(websocket)
-                            
+
                         except WebSocketDisconnect:
                             self.dashboard_websocket_manager.disconnect(websocket)
                         except Exception as e:
@@ -878,54 +981,54 @@ websocket_connections_active {len(self.websocket_connections)}
                             self.dashboard_websocket_manager.disconnect(websocket)
                     else:
                         await websocket.close(code=1011, reason="Dashboard not available")
-                
+
                 # Mount static files
                 static_dir = Path(__file__).parent.parent / "dashboard" / "static"
                 if static_dir.exists():
                     self.app.mount(
                         self.dashboard_config.static_path,
                         StaticFiles(directory=str(static_dir)),
-                        name="dashboard_static"
+                        name="dashboard_static",
                     )
-                
+
                 logger.info("✓ Dashboard routes integrated successfully")
-                
+
             except Exception as e:
                 logger.error(f"Failed to setup dashboard routes: {e}")
                 self.dashboard_enabled = False
-    
+
     async def start_background_services(self):
         """Start background services like dashboard data collection."""
         if self.dashboard_enabled and self.dashboard_data_collector:
             try:
                 # Start dashboard background services
                 await self.dashboard_data_collector.start()
-                
+
                 # Start backend health monitor background services
                 if self.backend_health_monitor:
                     await self.backend_health_monitor.start_background_services()
-                
+
                 # Start metrics update task
                 anyio.lowlevel.spawn_system_task(self._metrics_update_loop)
-                
+
                 logger.info("✓ Background services started")
             except Exception as e:
                 logger.error(f"Failed to start background services: {e}")
-    
+
     async def stop_background_services(self):
         """Stop background services."""
         if self.dashboard_enabled and self.dashboard_data_collector:
             try:
                 await self.dashboard_data_collector.stop()
-                
+
                 # Stop backend health monitor background services
                 if self.backend_health_monitor:
                     await self.backend_health_monitor.stop_background_services()
-                
+
                 logger.info("✓ Background services stopped")
             except Exception as e:
                 logger.error(f"Error stopping background services: {e}")
-    
+
     def _get_fallback_dashboard_html(self, page_title: str) -> str:
         """Get fallback HTML when templates are not available."""
         return f"""<!DOCTYPE html>
@@ -1024,7 +1127,7 @@ websocket_connections_active {len(self.websocket_connections)}
     </script>
 </body>
 </html>"""
-    
+
     def _get_vfs_analytics_html(self) -> str:
         """Get enhanced VFS analytics HTML page."""
         return """<!DOCTYPE html>
@@ -1476,22 +1579,22 @@ websocket_connections_active {len(self.websocket_connections)}
     </script>
 </body>
 </html>"""
-    
+
     def _get_mcp_analytics(self) -> Dict[str, Any]:
         """Get MCP-specific analytics."""
         uptime = time.time() - self.metrics_data["server_start_time"]
         total_requests = self.metrics_data["mcp_requests_total"]
         success_requests = self.metrics_data["mcp_requests_success"]
         error_requests = self.metrics_data["mcp_requests_error"]
-        
+
         success_rate = 0
         if total_requests > 0:
             success_rate = success_requests / total_requests
-        
+
         requests_per_second = 0
         if uptime > 0:
             requests_per_second = total_requests / uptime
-        
+
         return {
             "total_operations": total_requests,
             "success_operations": success_requests,
@@ -1501,9 +1604,9 @@ websocket_connections_active {len(self.websocket_connections)}
             "uptime_seconds": uptime,
             "active_websocket_connections": len(self.websocket_connections),
             "last_request_time": self.metrics_data["last_request_time"],
-            "server_start_time": self.metrics_data["server_start_time"]
+            "server_start_time": self.metrics_data["server_start_time"],
         }
-    
+
     async def _send_dashboard_websocket_update(self, websocket: WebSocket):
         """Send update data to a dashboard WebSocket."""
         try:
@@ -1514,12 +1617,12 @@ websocket_connections_active {len(self.websocket_connections)}
                     "summary": self.dashboard.metrics_aggregator.get_dashboard_summary(),
                     "latest_metrics": self.dashboard.data_collector.get_latest_values(),
                     "mcp_metrics": self.metrics_data,
-                    "mcp_analytics": self._get_mcp_analytics()
+                    "mcp_analytics": self._get_mcp_analytics(),
                 }
                 await websocket.send_text(json.dumps(data))
         except Exception as e:
             logger.debug(f"Failed to send dashboard WebSocket update: {e}")
-    
+
     async def _metrics_update_loop(self):
         """Background task to update metrics and dashboard."""
         try:
@@ -1527,44 +1630,42 @@ websocket_connections_active {len(self.websocket_connections)}
                 # Update dashboard metrics if available
                 if self.dashboard_enabled and self.dashboard_metrics_aggregator:
                     self.dashboard_metrics_aggregator.update_aggregations()
-                    
+
                     # Broadcast updates to dashboard WebSocket clients
                     if self.dashboard_websocket_manager:
                         summary = self.dashboard_metrics_aggregator.get_dashboard_summary()
-                        await self.dashboard_websocket_manager.broadcast({
-                            "timestamp": time.time(),
-                            "summary": summary,
-                            "mcp_metrics": self.metrics_data,
-                            "mcp_analytics": self._get_mcp_analytics()
-                        })
-                
+                        await self.dashboard_websocket_manager.broadcast(
+                            {
+                                "timestamp": time.time(),
+                                "summary": summary,
+                                "mcp_metrics": self.metrics_data,
+                                "mcp_analytics": self._get_mcp_analytics(),
+                            }
+                        )
+
                 # Wait for next update
                 await anyio.sleep(5)  # Update every 5 seconds
-                
+
         except anyio.get_cancelled_exc_class():
             logger.info("Metrics update loop cancelled")
         except Exception as e:
             logger.error(f"Error in metrics update loop: {e}")
-    
+
     async def run(self):
         """Run the integrated server."""
         logger.info(f"Starting integrated MCP server with dashboard on {self.host}:{self.port}")
-        
+
         # Start background services
         await self.start_background_services()
-        
+
         try:
             # Configure uvicorn
             config = uvicorn.Config(
-                app=self.app,
-                host=self.host,
-                port=self.port,
-                log_level="info",
-                access_log=True
+                app=self.app, host=self.host, port=self.port, log_level="info", access_log=True
             )
-            
+
             server = uvicorn.Server(config)
-            
+
             logger.info("🚀 Server starting...")
             logger.info(f"📊 Dashboard: http://{self.host}:{self.port}/dashboard")
             logger.info(f"🔌 MCP HTTP: http://{self.host}:{self.port}/mcp")
@@ -1572,9 +1673,9 @@ websocket_connections_active {len(self.websocket_connections)}
             logger.info(f"📈 Metrics: http://{self.host}:{self.port}/metrics")
             logger.info(f"💚 Health: http://{self.host}:{self.port}/health")
             logger.info(f"📚 API Docs: http://{self.host}:{self.port}/docs")
-            
+
             await server.serve()
-            
+
         except Exception as e:
             logger.error(f"Server error: {e}")
             raise
@@ -1583,45 +1684,37 @@ websocket_connections_active {len(self.websocket_connections)}
 
 
 def create_integrated_server(
-    host: str = "127.0.0.1",
-    port: int = 8765,
-    dashboard_enabled: bool = True
+    host: str = "127.0.0.1", port: int = 8765, dashboard_enabled: bool = True
 ) -> IntegratedMCPDashboardServer:
     """Create an integrated MCP server with dashboard."""
-    return IntegratedMCPDashboardServer(
-        host=host,
-        port=port,
-        dashboard_enabled=dashboard_enabled
-    )
+    return IntegratedMCPDashboardServer(host=host, port=port, dashboard_enabled=dashboard_enabled)
 
 
 async def main():
     """Main entry point."""
     import argparse
-    
+
     parser = argparse.ArgumentParser(description="Integrated MCP Server with Dashboard")
     parser.add_argument("--host", default="127.0.0.1", help="Server host")
     parser.add_argument("--port", type=int, default=8765, help="Server port")
     parser.add_argument("--no-dashboard", action="store_true", help="Disable dashboard")
-    
+
     args = parser.parse_args()
-    
+
     # Check dependencies
     if not WEB_FRAMEWORK_AVAILABLE:
         logger.error("FastAPI and uvicorn are required. Install with: pip install fastapi uvicorn")
         return 1
-    
+
     if not MCP_SERVER_AVAILABLE:
         logger.error("MCP server components not available")
         return 1
-    
+
     # Create and run server
     server = create_integrated_server(
-        host=args.host,
-        port=args.port,
-        dashboard_enabled=not args.no_dashboard
+        host=args.host, port=args.port, dashboard_enabled=not args.no_dashboard
     )
-    
+
     try:
         await server.run()
     except KeyboardInterrupt:
@@ -1634,6 +1727,7 @@ async def main():
 
 if __name__ == "__main__":
     import sys
+
     try:
         exit_code = anyio.run(main)
         sys.exit(exit_code or 0)

@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 import re
 
-filepath = 'ipfs_kit_py/mcp/extensions/metrics.py'
+filepath = "ipfs_kit_py/mcp/extensions/metrics.py"
 
-with open(filepath, 'r') as file:
+with open(filepath, "r") as file:
     content = file.read()
 
 # Fix missing commas in dictionary
@@ -15,10 +15,10 @@ fixed_content = pattern.sub(replacement, content)
 fixed_content = re.sub(
     r'success": True\s+"status": "available"\s+"system_info": system_info\s+"prometheus_enabled": PROMETHEUS_AVAILABLE',
     r'success": True,\n            "status": "available",\n            "system_info": system_info,\n            "prometheus_enabled": PROMETHEUS_AVAILABLE',
-    fixed_content
+    fixed_content,
 )
 
-with open(filepath, 'w') as file:
+with open(filepath, "w") as file:
     file.write(fixed_content)
 
 print(f"Fixed dictionary syntax in {filepath}")

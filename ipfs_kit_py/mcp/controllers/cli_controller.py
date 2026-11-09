@@ -26,40 +26,59 @@ try:
     from ipfs_kit_py.high_level_api import IPFSSimpleAPI
 except ImportError as e:
     logger.error(f"Failed to import IPFSSimpleAPI: {e}. CLI controller may not function correctly.")
+
     # Define a basic stub if import fails
     class IPFSSimpleAPI:
-        def __init__(self, *args, **kwargs): logger.warning("Using STUB IPFSSimpleAPI")
+        def __init__(self, *args, **kwargs):
+            logger.warning("Using STUB IPFSSimpleAPI")
+
         def __getattr__(self, name):
-            def dummy(*args, **kwargs): return {"success": False, "error": f"IPFSSimpleAPI.{name} unavailable (stub)"}
+            def dummy(*args, **kwargs):
+                return {"success": False, "error": f"IPFSSimpleAPI.{name} unavailable (stub)"}
+
             return dummy
+
 
 # Try to import FastAPI/Pydantic components (Improved Stubbing)
 try:
     from fastapi import APIRouter, HTTPException, Response
     from pydantic import BaseModel, Field
+
     FASTAPI_AVAILABLE = True
     logger.info("FastAPI and Pydantic imported successfully.")
 except ImportError:
     logger.warning("FastAPI or Pydantic not found. Using stubs.")
     FASTAPI_AVAILABLE = False
+
     # Define stubs if imports fail
     class BaseModel:
         # Add a basic __init__ to allow instantiation
         def __init__(self, **kwargs):
             for key, value in kwargs.items():
                 setattr(self, key, value)
+
     # Make Field stub return the default value if provided, else None
     def Field(*args, default=None, **kwargs):
         return default
+
     class APIRouter:
-        def add_api_route(self, *args, **kwargs): pass
+        def add_api_route(self, *args, **kwargs):
+            pass
+
     class HTTPException(Exception):
-         def __init__(self, status_code: int, detail: Any = None):
+        def __init__(self, status_code: int, detail: Any = None):
             self.status_code = status_code
             self.detail = detail
             super().__init__(detail)
+
     class Response:
-         def __init__(self, content: Any = None, status_code: int = 200, headers: Optional[Dict[str, str]] = None, media_type: Optional[str] = None):
+        def __init__(
+            self,
+            content: Any = None,
+            status_code: int = 200,
+            headers: Optional[Dict[str, str]] = None,
+            media_type: Optional[str] = None,
+        ):
             self.content = content
             self.status_code = status_code
             self.headers = headers or {}
@@ -69,6 +88,7 @@ except ImportError:
 # Check for WAL integration support
 try:
     from ipfs_kit_py.wal_cli_integration import handle_wal_command
+
     WAL_CLI_AVAILABLE = True
 except ImportError:
     WAL_CLI_AVAILABLE = False
@@ -77,6 +97,7 @@ except ImportError:
 # Define Pydantic models for requests and responses
 class FormatType(str, Enum):
     """Output format types."""
+
     JSON = "json"
     YAML = "yaml"
     TEXT = "text"
@@ -84,6 +105,7 @@ class FormatType(str, Enum):
 
 class CliCommandRequest(BaseModel):
     """Request model for executing CLI commands."""
+
     command: str = Field(..., description="CLI command to execute")
     args: List[Any] = Field(default=[], description="Command arguments")
     kwargs: Dict[str, Any] = Field(default={}, description="Keyword arguments")
@@ -93,6 +115,7 @@ class CliCommandRequest(BaseModel):
 
 class CliCommandResponse(BaseModel):
     """Response model for CLI command execution."""
+
     success: bool = Field(..., description="Whether the command was successful")
     result: Any = Field(None, description="Command result")
     operation_id: Optional[str] = Field(None, description="Operation ID for async operations")
@@ -101,6 +124,7 @@ class CliCommandResponse(BaseModel):
 
 class CliVersionResponse(BaseModel):
     """Response model for CLI version information."""
+
     ipfs_kit_py_version: str = Field(..., description="IPFS Kit Python package version")
     python_version: Optional[str] = Field(None, description="Python version")
     platform: Optional[str] = Field(None, description="Platform information")
@@ -109,6 +133,7 @@ class CliVersionResponse(BaseModel):
 
 class CliWalStatusResponse(BaseModel):
     """Response model for WAL status information."""
+
     success: bool = Field(..., description="Whether the operation was successful")
     total_operations: int = Field(..., description="Total WAL operations")
     pending: int = Field(..., description="Pending operations")
@@ -145,86 +170,283 @@ class CliController:
         # Basic implementation attempt
         import platform
         import sys
+
         try:
             import ipfs_kit_py
+
             kit_version = ipfs_kit_py.__version__
         except ImportError:
             kit_version = "unknown"
         try:
-            ipfs_version_result = await self.api.version() # Assuming api has async version
-            ipfs_daemon_version = ipfs_version_result.get("version") if ipfs_version_result.get("success") else "unavailable"
+            ipfs_version_result = await self.api.version()  # Assuming api has async version
+            ipfs_daemon_version = (
+                ipfs_version_result.get("version")
+                if ipfs_version_result.get("success")
+                else "unavailable"
+            )
         except Exception:
-             ipfs_daemon_version = "unavailable"
+            ipfs_daemon_version = "unavailable"
 
         return {
             "success": True,
             "ipfs_kit_py_version": kit_version,
             "python_version": sys.version,
             "platform": platform.platform(),
-            "ipfs_daemon_version": ipfs_daemon_version
+            "ipfs_daemon_version": ipfs_daemon_version,
         }
 
-    async def get_version(self, *args, **kwargs): return await self._get_version_info()
-    async def add_content(self, *args, **kwargs): logger.warning("Called stub method: add_content"); return {"success": False, "error": "Method not implemented"}
-    async def get_content(self, *args, **kwargs): logger.warning("Called stub method: get_content"); return Response(content='{"success": False, "error": "Method not implemented"}', media_type="application/json")
-    async def pin_content(self, *args, **kwargs): logger.warning("Called stub method: pin_content"); return {"success": False, "error": "Method not implemented"}
-    async def unpin_content(self, *args, **kwargs): logger.warning("Called stub method: unpin_content"); return {"success": False, "error": "Method not implemented"}
-    async def list_pins(self, *args, **kwargs): logger.warning("Called stub method: list_pins"); return {"success": False, "error": "Method not implemented"}
-    async def publish_content(self, *args, **kwargs): logger.warning("Called stub method: publish_content"); return {"success": False, "error": "Method not implemented"}
-    async def resolve_name(self, *args, **kwargs): logger.warning("Called stub method: resolve_name"); return {"success": False, "error": "Method not implemented"}
-    async def connect_peer(self, *args, **kwargs): logger.warning("Called stub method: connect_peer"); return {"success": False, "error": "Method not implemented"}
-    async def list_peers(self, *args, **kwargs): logger.warning("Called stub method: list_peers"); return {"success": False, "error": "Method not implemented"}
-    async def check_existence(self, *args, **kwargs): logger.warning("Called stub method: check_existence"); return {"success": False, "error": "Method not implemented"}
-    async def list_directory(self, *args, **kwargs): logger.warning("Called stub method: list_directory"); return {"success": False, "error": "Method not implemented"}
-    async def generate_sdk(self, *args, **kwargs): logger.warning("Called stub method: generate_sdk"); return {"success": False, "error": "Method not implemented"}
-    async def check_webrtc_dependencies(self, *args, **kwargs): logger.warning("Called stub method: check_webrtc_dependencies"); return {"success": False, "error": "Method not implemented"}
-    async def start_webrtc_stream(self, *args, **kwargs): logger.warning("Called stub method: start_webrtc_stream"); return {"success": False, "error": "Method not implemented"}
-    async def run_webrtc_benchmark(self, *args, **kwargs): logger.warning("Called stub method: run_webrtc_benchmark"); return {"success": False, "error": "Method not implemented"}
-    async def compare_webrtc_benchmarks(self, *args, **kwargs): logger.warning("Called stub method: compare_webrtc_benchmarks"); return {"success": False, "error": "Method not implemented"}
-    async def visualize_webrtc_benchmark(self, *args, **kwargs): logger.warning("Called stub method: visualize_webrtc_benchmark"); return {"success": False, "error": "Method not implemented"}
-    async def list_webrtc_benchmarks(self, *args, **kwargs): logger.warning("Called stub method: list_webrtc_benchmarks"); return {"success": False, "error": "Method not implemented"}
-    async def ipld_import(self, *args, **kwargs): logger.warning("Called stub method: ipld_import"); return {"success": False, "error": "Method not implemented"}
-    async def ipld_link(self, *args, **kwargs): logger.warning("Called stub method: ipld_link"); return {"success": False, "error": "Method not implemented"}
-    async def ipld_get(self, *args, **kwargs): logger.warning("Called stub method: ipld_get"); return {"success": False, "error": "Method not implemented"}
-    async def start_mcp_server(self, *args, **kwargs): logger.warning("Called stub method: start_mcp_server"); return {"success": False, "error": "Method not implemented"}
-    async def stop_mcp_server(self, *args, **kwargs): logger.warning("Called stub method: stop_mcp_server"); return {"success": False, "error": "Method not implemented"}
-    async def get_mcp_server_status(self, *args, **kwargs): logger.warning("Called stub method: get_mcp_server_status"); return {"success": False, "error": "Method not implemented"}
-    async def ai_register_model(self, *args, **kwargs): logger.warning("Called stub method: ai_register_model"); return {"success": False, "error": "Method not implemented"}
-    async def ai_list_models(self, *args, **kwargs): logger.warning("Called stub method: ai_list_models"); return {"success": False, "error": "Method not implemented"}
-    async def ai_benchmark_model(self, *args, **kwargs): logger.warning("Called stub method: ai_benchmark_model"); return {"success": False, "error": "Method not implemented"}
-    async def ai_register_dataset(self, *args, **kwargs): logger.warning("Called stub method: ai_register_dataset"); return {"success": False, "error": "Method not implemented"}
-    async def ai_list_datasets(self, *args, **kwargs): logger.warning("Called stub method: ai_list_datasets"); return {"success": False, "error": "Method not implemented"}
-    async def ai_create_embeddings(self, *args, **kwargs): logger.warning("Called stub method: ai_create_embeddings"); return {"success": False, "error": "Method not implemented"}
-    async def ai_vector_search(self, *args, **kwargs): logger.warning("Called stub method: ai_vector_search"); return {"success": False, "error": "Method not implemented"}
-    async def ai_hybrid_search(self, *args, **kwargs): logger.warning("Called stub method: ai_hybrid_search"); return {"success": False, "error": "Method not implemented"}
-    async def ai_create_knowledge_graph(self, *args, **kwargs): logger.warning("Called stub method: ai_create_knowledge_graph"); return {"success": False, "error": "Method not implemented"}
-    async def ai_query_knowledge_graph(self, *args, **kwargs): logger.warning("Called stub method: ai_query_knowledge_graph"); return {"success": False, "error": "Method not implemented"}
-    async def ai_calculate_graph_metrics(self, *args, **kwargs): logger.warning("Called stub method: ai_calculate_graph_metrics"); return {"success": False, "error": "Method not implemented"}
-    async def ai_distributed_training_submit_job(self, *args, **kwargs): logger.warning("Called stub method: ai_distributed_training_submit_job"); return {"success": False, "error": "Method not implemented"}
-    async def ai_distributed_training_get_status(self, *args, **kwargs): logger.warning("Called stub method: ai_distributed_training_get_status"); return {"success": False, "error": "Method not implemented"}
-    async def ai_distributed_training_aggregate_results(self, *args, **kwargs): logger.warning("Called stub method: ai_distributed_training_aggregate_results"); return {"success": False, "error": "Method not implemented"}
-    async def ai_deploy_model(self, *args, **kwargs): logger.warning("Called stub method: ai_deploy_model"); return {"success": False, "error": "Method not implemented"}
-    async def ai_optimize_model(self, *args, **kwargs): logger.warning("Called stub method: ai_optimize_model"); return {"success": False, "error": "Method not implemented"}
-    async def ai_langchain_create_vectorstore(self, *args, **kwargs): logger.warning("Called stub method: ai_langchain_create_vectorstore"); return {"success": False, "error": "Method not implemented"}
-    async def ai_langchain_query(self, *args, **kwargs): logger.warning("Called stub method: ai_langchain_query"); return {"success": False, "error": "Method not implemented"}
-    async def ai_llama_index_create_index(self, *args, **kwargs): logger.warning("Called stub method: ai_llama_index_create_index"); return {"success": False, "error": "Method not implemented"}
-    async def ai_llama_index_query(self, *args, **kwargs): logger.warning("Called stub method: ai_llama_index_query"); return {"success": False, "error": "Method not implemented"}
-    async def get_filesystem(self, *args, **kwargs): logger.warning("Called stub method: get_filesystem"); return {"success": False, "error": "Method not implemented"}
-    async def open_file(self, *args, **kwargs): logger.warning("Called stub method: open_file"); return Response(content='{"success": False, "error": "Method not implemented"}', media_type="application/json")
-    async def stream_media(self, *args, **kwargs): logger.warning("Called stub method: stream_media"); return Response(content='{"success": False, "error": "Method not implemented"}', media_type="application/json")
-    async def stream_to_ipfs(self, *args, **kwargs): logger.warning("Called stub method: stream_to_ipfs"); return {"success": False, "error": "Method not implemented"}
-    async def enable_filesystem_journaling(self, *args, **kwargs): logger.warning("Called stub method: enable_filesystem_journaling"); return {"success": False, "error": "Method not implemented"}
-    async def get_journal_status(self, *args, **kwargs): logger.warning("Called stub method: get_journal_status"); return {"success": False, "error": "Method not implemented"}
-    async def analyze_wal_telemetry_with_ai(self, *args, **kwargs): logger.warning("Called stub method: analyze_wal_telemetry_with_ai"); return {"success": False, "error": "Method not implemented"}
-    async def visualize_wal_telemetry(self, *args, **kwargs): logger.warning("Called stub method: visualize_wal_telemetry"); return {"success": False, "error": "Method not implemented"}
-    async def save_config(self, *args, **kwargs): logger.warning("Called stub method: save_config"); return {"success": False, "error": "Method not implemented"}
-    async def get_config(self, *args, **kwargs): logger.warning("Called stub method: get_config"); return {"success": False, "error": "Method not implemented"}
-    async def get_wal_status(self, *args, **kwargs): logger.warning("Called stub method: get_wal_status"); return {"success": False, "error": "Method not implemented"}
-    async def list_wal_operations(self, *args, **kwargs): logger.warning("Called stub method: list_wal_operations"); return {"success": False, "error": "Method not implemented"}
-    async def show_wal_operation(self, *args, **kwargs): logger.warning("Called stub method: show_wal_operation"); return {"success": False, "error": "Method not implemented"}
-    async def retry_wal_operation(self, *args, **kwargs): logger.warning("Called stub method: retry_wal_operation"); return {"success": False, "error": "Method not implemented"}
-    async def cleanup_wal(self, *args, **kwargs): logger.warning("Called stub method: cleanup_wal"); return {"success": False, "error": "Method not implemented"}
-    async def get_wal_metrics(self, *args, **kwargs): logger.warning("Called stub method: get_wal_metrics"); return {"success": False, "error": "Method not implemented"}
+    async def get_version(self, *args, **kwargs):
+        return await self._get_version_info()
+
+    async def add_content(self, *args, **kwargs):
+        logger.warning("Called stub method: add_content")
+        return {"success": False, "error": "Method not implemented"}
+
+    async def get_content(self, *args, **kwargs):
+        logger.warning("Called stub method: get_content")
+        return Response(
+            content='{"success": False, "error": "Method not implemented"}',
+            media_type="application/json",
+        )
+
+    async def pin_content(self, *args, **kwargs):
+        logger.warning("Called stub method: pin_content")
+        return {"success": False, "error": "Method not implemented"}
+
+    async def unpin_content(self, *args, **kwargs):
+        logger.warning("Called stub method: unpin_content")
+        return {"success": False, "error": "Method not implemented"}
+
+    async def list_pins(self, *args, **kwargs):
+        logger.warning("Called stub method: list_pins")
+        return {"success": False, "error": "Method not implemented"}
+
+    async def publish_content(self, *args, **kwargs):
+        logger.warning("Called stub method: publish_content")
+        return {"success": False, "error": "Method not implemented"}
+
+    async def resolve_name(self, *args, **kwargs):
+        logger.warning("Called stub method: resolve_name")
+        return {"success": False, "error": "Method not implemented"}
+
+    async def connect_peer(self, *args, **kwargs):
+        logger.warning("Called stub method: connect_peer")
+        return {"success": False, "error": "Method not implemented"}
+
+    async def list_peers(self, *args, **kwargs):
+        logger.warning("Called stub method: list_peers")
+        return {"success": False, "error": "Method not implemented"}
+
+    async def check_existence(self, *args, **kwargs):
+        logger.warning("Called stub method: check_existence")
+        return {"success": False, "error": "Method not implemented"}
+
+    async def list_directory(self, *args, **kwargs):
+        logger.warning("Called stub method: list_directory")
+        return {"success": False, "error": "Method not implemented"}
+
+    async def generate_sdk(self, *args, **kwargs):
+        logger.warning("Called stub method: generate_sdk")
+        return {"success": False, "error": "Method not implemented"}
+
+    async def check_webrtc_dependencies(self, *args, **kwargs):
+        logger.warning("Called stub method: check_webrtc_dependencies")
+        return {"success": False, "error": "Method not implemented"}
+
+    async def start_webrtc_stream(self, *args, **kwargs):
+        logger.warning("Called stub method: start_webrtc_stream")
+        return {"success": False, "error": "Method not implemented"}
+
+    async def run_webrtc_benchmark(self, *args, **kwargs):
+        logger.warning("Called stub method: run_webrtc_benchmark")
+        return {"success": False, "error": "Method not implemented"}
+
+    async def compare_webrtc_benchmarks(self, *args, **kwargs):
+        logger.warning("Called stub method: compare_webrtc_benchmarks")
+        return {"success": False, "error": "Method not implemented"}
+
+    async def visualize_webrtc_benchmark(self, *args, **kwargs):
+        logger.warning("Called stub method: visualize_webrtc_benchmark")
+        return {"success": False, "error": "Method not implemented"}
+
+    async def list_webrtc_benchmarks(self, *args, **kwargs):
+        logger.warning("Called stub method: list_webrtc_benchmarks")
+        return {"success": False, "error": "Method not implemented"}
+
+    async def ipld_import(self, *args, **kwargs):
+        logger.warning("Called stub method: ipld_import")
+        return {"success": False, "error": "Method not implemented"}
+
+    async def ipld_link(self, *args, **kwargs):
+        logger.warning("Called stub method: ipld_link")
+        return {"success": False, "error": "Method not implemented"}
+
+    async def ipld_get(self, *args, **kwargs):
+        logger.warning("Called stub method: ipld_get")
+        return {"success": False, "error": "Method not implemented"}
+
+    async def start_mcp_server(self, *args, **kwargs):
+        logger.warning("Called stub method: start_mcp_server")
+        return {"success": False, "error": "Method not implemented"}
+
+    async def stop_mcp_server(self, *args, **kwargs):
+        logger.warning("Called stub method: stop_mcp_server")
+        return {"success": False, "error": "Method not implemented"}
+
+    async def get_mcp_server_status(self, *args, **kwargs):
+        logger.warning("Called stub method: get_mcp_server_status")
+        return {"success": False, "error": "Method not implemented"}
+
+    async def ai_register_model(self, *args, **kwargs):
+        logger.warning("Called stub method: ai_register_model")
+        return {"success": False, "error": "Method not implemented"}
+
+    async def ai_list_models(self, *args, **kwargs):
+        logger.warning("Called stub method: ai_list_models")
+        return {"success": False, "error": "Method not implemented"}
+
+    async def ai_benchmark_model(self, *args, **kwargs):
+        logger.warning("Called stub method: ai_benchmark_model")
+        return {"success": False, "error": "Method not implemented"}
+
+    async def ai_register_dataset(self, *args, **kwargs):
+        logger.warning("Called stub method: ai_register_dataset")
+        return {"success": False, "error": "Method not implemented"}
+
+    async def ai_list_datasets(self, *args, **kwargs):
+        logger.warning("Called stub method: ai_list_datasets")
+        return {"success": False, "error": "Method not implemented"}
+
+    async def ai_create_embeddings(self, *args, **kwargs):
+        logger.warning("Called stub method: ai_create_embeddings")
+        return {"success": False, "error": "Method not implemented"}
+
+    async def ai_vector_search(self, *args, **kwargs):
+        logger.warning("Called stub method: ai_vector_search")
+        return {"success": False, "error": "Method not implemented"}
+
+    async def ai_hybrid_search(self, *args, **kwargs):
+        logger.warning("Called stub method: ai_hybrid_search")
+        return {"success": False, "error": "Method not implemented"}
+
+    async def ai_create_knowledge_graph(self, *args, **kwargs):
+        logger.warning("Called stub method: ai_create_knowledge_graph")
+        return {"success": False, "error": "Method not implemented"}
+
+    async def ai_query_knowledge_graph(self, *args, **kwargs):
+        logger.warning("Called stub method: ai_query_knowledge_graph")
+        return {"success": False, "error": "Method not implemented"}
+
+    async def ai_calculate_graph_metrics(self, *args, **kwargs):
+        logger.warning("Called stub method: ai_calculate_graph_metrics")
+        return {"success": False, "error": "Method not implemented"}
+
+    async def ai_distributed_training_submit_job(self, *args, **kwargs):
+        logger.warning("Called stub method: ai_distributed_training_submit_job")
+        return {"success": False, "error": "Method not implemented"}
+
+    async def ai_distributed_training_get_status(self, *args, **kwargs):
+        logger.warning("Called stub method: ai_distributed_training_get_status")
+        return {"success": False, "error": "Method not implemented"}
+
+    async def ai_distributed_training_aggregate_results(self, *args, **kwargs):
+        logger.warning("Called stub method: ai_distributed_training_aggregate_results")
+        return {"success": False, "error": "Method not implemented"}
+
+    async def ai_deploy_model(self, *args, **kwargs):
+        logger.warning("Called stub method: ai_deploy_model")
+        return {"success": False, "error": "Method not implemented"}
+
+    async def ai_optimize_model(self, *args, **kwargs):
+        logger.warning("Called stub method: ai_optimize_model")
+        return {"success": False, "error": "Method not implemented"}
+
+    async def ai_langchain_create_vectorstore(self, *args, **kwargs):
+        logger.warning("Called stub method: ai_langchain_create_vectorstore")
+        return {"success": False, "error": "Method not implemented"}
+
+    async def ai_langchain_query(self, *args, **kwargs):
+        logger.warning("Called stub method: ai_langchain_query")
+        return {"success": False, "error": "Method not implemented"}
+
+    async def ai_llama_index_create_index(self, *args, **kwargs):
+        logger.warning("Called stub method: ai_llama_index_create_index")
+        return {"success": False, "error": "Method not implemented"}
+
+    async def ai_llama_index_query(self, *args, **kwargs):
+        logger.warning("Called stub method: ai_llama_index_query")
+        return {"success": False, "error": "Method not implemented"}
+
+    async def get_filesystem(self, *args, **kwargs):
+        logger.warning("Called stub method: get_filesystem")
+        return {"success": False, "error": "Method not implemented"}
+
+    async def open_file(self, *args, **kwargs):
+        logger.warning("Called stub method: open_file")
+        return Response(
+            content='{"success": False, "error": "Method not implemented"}',
+            media_type="application/json",
+        )
+
+    async def stream_media(self, *args, **kwargs):
+        logger.warning("Called stub method: stream_media")
+        return Response(
+            content='{"success": False, "error": "Method not implemented"}',
+            media_type="application/json",
+        )
+
+    async def stream_to_ipfs(self, *args, **kwargs):
+        logger.warning("Called stub method: stream_to_ipfs")
+        return {"success": False, "error": "Method not implemented"}
+
+    async def enable_filesystem_journaling(self, *args, **kwargs):
+        logger.warning("Called stub method: enable_filesystem_journaling")
+        return {"success": False, "error": "Method not implemented"}
+
+    async def get_journal_status(self, *args, **kwargs):
+        logger.warning("Called stub method: get_journal_status")
+        return {"success": False, "error": "Method not implemented"}
+
+    async def analyze_wal_telemetry_with_ai(self, *args, **kwargs):
+        logger.warning("Called stub method: analyze_wal_telemetry_with_ai")
+        return {"success": False, "error": "Method not implemented"}
+
+    async def visualize_wal_telemetry(self, *args, **kwargs):
+        logger.warning("Called stub method: visualize_wal_telemetry")
+        return {"success": False, "error": "Method not implemented"}
+
+    async def save_config(self, *args, **kwargs):
+        logger.warning("Called stub method: save_config")
+        return {"success": False, "error": "Method not implemented"}
+
+    async def get_config(self, *args, **kwargs):
+        logger.warning("Called stub method: get_config")
+        return {"success": False, "error": "Method not implemented"}
+
+    async def get_wal_status(self, *args, **kwargs):
+        logger.warning("Called stub method: get_wal_status")
+        return {"success": False, "error": "Method not implemented"}
+
+    async def list_wal_operations(self, *args, **kwargs):
+        logger.warning("Called stub method: list_wal_operations")
+        return {"success": False, "error": "Method not implemented"}
+
+    async def show_wal_operation(self, *args, **kwargs):
+        logger.warning("Called stub method: show_wal_operation")
+        return {"success": False, "error": "Method not implemented"}
+
+    async def retry_wal_operation(self, *args, **kwargs):
+        logger.warning("Called stub method: retry_wal_operation")
+        return {"success": False, "error": "Method not implemented"}
+
+    async def cleanup_wal(self, *args, **kwargs):
+        logger.warning("Called stub method: cleanup_wal")
+        return {"success": False, "error": "Method not implemented"}
+
+    async def get_wal_metrics(self, *args, **kwargs):
+        logger.warning("Called stub method: get_wal_metrics")
+        return {"success": False, "error": "Method not implemented"}
+
     # --- End Stub Methods ---
 
     def register_routes(self, router: APIRouter):
@@ -887,56 +1109,56 @@ class CliController:
             logger.debug(f"Executing CLI command: {command_request.command} {command_request.args}")
 
             # Execute the command using the high-level API
-            if command_request.command == "add": # Removed comma
+            if command_request.command == "add":  # Removed comma
                 result = self.api.add(command_request.args[0], **command_request.params)
-            elif command_request.command == "get": # Removed comma
+            elif command_request.command == "get":  # Removed comma
                 result = self.api.get(command_request.args[0], **command_request.params)
-            elif command_request.command == "pin": # Removed comma
+            elif command_request.command == "pin":  # Removed comma
                 result = self.api.pin(command_request.args[0], **command_request.params)
-            elif command_request.command == "unpin": # Removed comma
+            elif command_request.command == "unpin":  # Removed comma
                 result = self.api.unpin(command_request.args[0], **command_request.params)
-            elif command_request.command == "list-pins": # Removed comma
+            elif command_request.command == "list-pins":  # Removed comma
                 result = self.api.list_pins(**command_request.params)
-            elif command_request.command == "version": # Removed comma
+            elif command_request.command == "version":  # Removed comma
                 result = self._get_version_info()
-            elif command_request.command == "publish": # Removed comma
+            elif command_request.command == "publish":  # Removed comma
                 cid = (
                     command_request.args[0]
                     if len(command_request.args) > 0
                     else command_request.params.get("cid")
                 )
                 result = self.api.publish(cid, **command_request.params)
-            elif command_request.command == "resolve": # Removed comma
+            elif command_request.command == "resolve":  # Removed comma
                 name = (
                     command_request.args[0]
                     if len(command_request.args) > 0
                     else command_request.params.get("name")
                 )
                 result = self.api.resolve(name, **command_request.params)
-            elif command_request.command == "connect": # Removed comma
+            elif command_request.command == "connect":  # Removed comma
                 peer = (
                     command_request.args[0]
                     if len(command_request.args) > 0
                     else command_request.params.get("peer")
                 )
                 result = self.api.connect(peer, **command_request.params)
-            elif command_request.command == "peers": # Removed comma
+            elif command_request.command == "peers":  # Removed comma
                 result = self.api.peers(**command_request.params)
-            elif command_request.command == "exists": # Removed comma
+            elif command_request.command == "exists":  # Removed comma
                 path = (
                     command_request.args[0]
                     if len(command_request.args) > 0
                     else command_request.params.get("path")
                 )
                 result = {"exists": self.api.exists(path, **command_request.params)}
-            elif command_request.command == "ls": # Removed comma
+            elif command_request.command == "ls":  # Removed comma
                 path = (
                     command_request.args[0]
                     if len(command_request.args) > 0
                     else command_request.params.get("path")
                 )
                 result = self.api.ls(path, **command_request.params)
-            elif command_request.command == "generate-sdk": # Removed comma
+            elif command_request.command == "generate-sdk":  # Removed comma
                 language = (
                     command_request.args[0]
                     if len(command_request.args) > 0
@@ -948,7 +1170,7 @@ class CliController:
                     else command_request.params.get("output_dir")
                 )
                 result = self.api.generate_sdk(language, output_dir)
-            elif command_request.command == "webrtc": # Removed comma
+            elif command_request.command == "webrtc":  # Removed comma
                 # Handle WebRTC commands
                 webrtc_command = (
                     command_request.args[0]
@@ -956,18 +1178,18 @@ class CliController:
                     else command_request.params.get("webrtc_command")
                 )
 
-                if webrtc_command == "check-deps": # Removed comma
+                if webrtc_command == "check-deps":  # Removed comma
                     result = self.api.check_webrtc_dependencies()
-                elif webrtc_command == "stream": # Removed comma
+                elif webrtc_command == "stream":  # Removed comma
                     cid = (
                         command_request.args[1]
                         if len(command_request.args) > 1
                         else command_request.params.get("cid")
                     )
                     result = self.api.start_webrtc_stream(cid=cid, **command_request.params)
-                elif webrtc_command == "benchmark": # Removed comma
+                elif webrtc_command == "benchmark":  # Removed comma
                     result = self.api.run_webrtc_benchmark(**command_request.params)
-                elif webrtc_command == "benchmark-compare": # Removed comma
+                elif webrtc_command == "benchmark-compare":  # Removed comma
                     benchmark1 = (
                         command_request.args[1]
                         if len(command_request.args) > 1
@@ -983,7 +1205,7 @@ class CliController:
                         benchmark2=benchmark2,
                         **command_request.params,
                     )
-                elif webrtc_command == "benchmark-visualize": # Removed comma
+                elif webrtc_command == "benchmark-visualize":  # Removed comma
                     report = (
                         command_request.args[1]
                         if len(command_request.args) > 1
@@ -992,14 +1214,14 @@ class CliController:
                     result = self.api.visualize_webrtc_benchmark(
                         report_path=report, **command_request.params
                     )
-                elif webrtc_command == "benchmark-list": # Removed comma
+                elif webrtc_command == "benchmark-list":  # Removed comma
                     result = self.api.list_webrtc_benchmarks(**command_request.params)
                 else:
                     return {
                         "success": False,
                         "result": {"error": f"Unsupported WebRTC command: {webrtc_command}"},
                     }
-            elif command_request.command == "ipld": # Removed comma
+            elif command_request.command == "ipld":  # Removed comma
                 # Handle IPLD commands
                 ipld_command = (
                     command_request.args[0]
@@ -1007,14 +1229,14 @@ class CliController:
                     else command_request.params.get("ipld_command")
                 )
 
-                if ipld_command == "import": # Removed comma
+                if ipld_command == "import":  # Removed comma
                     file = (
                         command_request.args[1]
                         if len(command_request.args) > 1
                         else command_request.params.get("file")
                     )
                     result = self.api.ipld_import(file=file, **command_request.params)
-                elif ipld_command == "link": # Removed comma
+                elif ipld_command == "link":  # Removed comma
                     from_cid = (
                         command_request.args[1]
                         if len(command_request.args) > 1
@@ -1033,7 +1255,7 @@ class CliController:
                     result = self.api.ipld_link(
                         from_cid=from_cid, to_cid=to_cid, link_name=link_name
                     )
-                elif ipld_command == "get": # Removed comma
+                elif ipld_command == "get":  # Removed comma
                     cid = (
                         command_request.args[1]
                         if len(command_request.args) > 1
@@ -1046,7 +1268,7 @@ class CliController:
                         "success": False,
                         "result": {"error": f"Unsupported IPLD command: {ipld_command}"},
                     }
-            elif command_request.command == "mcp": # Removed comma
+            elif command_request.command == "mcp":  # Removed comma
                 # Handle MCP server commands
                 mcp_command = (
                     command_request.args[0]
@@ -1054,18 +1276,18 @@ class CliController:
                     else command_request.params.get("mcp_command")
                 )
 
-                if mcp_command == "start": # Removed comma
+                if mcp_command == "start":  # Removed comma
                     result = self.api.start_mcp_server(**command_request.params)
-                elif mcp_command == "stop": # Removed comma
+                elif mcp_command == "stop":  # Removed comma
                     result = self.api.stop_mcp_server(**command_request.params)
-                elif mcp_command == "status": # Removed comma
+                elif mcp_command == "status":  # Removed comma
                     result = self.api.get_mcp_server_status(**command_request.params)
                 else:
                     return {
                         "success": False,
                         "result": {"error": f"Unsupported MCP command: {mcp_command}"},
                     }
-            elif command_request.command == "ai": # Removed comma
+            elif command_request.command == "ai":  # Removed comma
                 # Handle AI/ML commands
                 ai_command = (
                     command_request.args[0]
@@ -1073,7 +1295,7 @@ class CliController:
                     else command_request.params.get("ai_command")
                 )
 
-                if ai_command == "model": # Removed comma
+                if ai_command == "model":  # Removed comma
                     # Model operations
                     model_action = (
                         command_request.args[1]
@@ -1081,18 +1303,18 @@ class CliController:
                         else command_request.params.get("model_action")
                     )
 
-                    if model_action == "register": # Removed comma
+                    if model_action == "register":  # Removed comma
                         result = self.api.ai_register_model(**command_request.params)
-                    elif model_action == "list": # Removed comma
+                    elif model_action == "list":  # Removed comma
                         result = self.api.ai_list_models(**command_request.params)
-                    elif model_action == "benchmark": # Removed comma
+                    elif model_action == "benchmark":  # Removed comma
                         result = self.api.ai_benchmark_model(**command_request.params)
                     else:
                         return {
                             "success": False,
                             "result": {"error": f"Unsupported model action: {model_action}"},
                         }
-                elif ai_command == "dataset": # Removed comma
+                elif ai_command == "dataset":  # Removed comma
                     # Dataset operations
                     dataset_action = (
                         command_request.args[1]
@@ -1100,16 +1322,16 @@ class CliController:
                         else command_request.params.get("dataset_action")
                     )
 
-                    if dataset_action == "register": # Removed comma
+                    if dataset_action == "register":  # Removed comma
                         result = self.api.ai_register_dataset(**command_request.params)
-                    elif dataset_action == "list": # Removed comma
+                    elif dataset_action == "list":  # Removed comma
                         result = self.api.ai_list_datasets(**command_request.params)
                     else:
                         return {
                             "success": False,
                             "result": {"error": f"Unsupported dataset action: {dataset_action}"},
                         }
-                elif ai_command == "vector": # Removed comma
+                elif ai_command == "vector":  # Removed comma
                     # Vector operations
                     vector_action = (
                         command_request.args[1]
@@ -1117,18 +1339,18 @@ class CliController:
                         else command_request.params.get("vector_action")
                     )
 
-                    if vector_action == "create-embeddings": # Removed comma
+                    if vector_action == "create-embeddings":  # Removed comma
                         result = self.api.ai_create_embeddings(**command_request.params)
-                    elif vector_action == "search": # Removed comma
+                    elif vector_action == "search":  # Removed comma
                         result = self.api.ai_vector_search(**command_request.params)
-                    elif vector_action == "hybrid-search": # Removed comma
+                    elif vector_action == "hybrid-search":  # Removed comma
                         result = self.api.ai_hybrid_search(**command_request.params)
                     else:
                         return {
                             "success": False,
                             "result": {"error": f"Unsupported vector action: {vector_action}"},
                         }
-                elif ai_command == "knowledge-graph": # Removed comma
+                elif ai_command == "knowledge-graph":  # Removed comma
                     # Knowledge graph operations
                     kg_action = (
                         command_request.args[1]
@@ -1136,18 +1358,18 @@ class CliController:
                         else command_request.params.get("kg_action")
                     )
 
-                    if kg_action == "create": # Removed comma
+                    if kg_action == "create":  # Removed comma
                         result = self.api.ai_create_knowledge_graph(**command_request.params)
-                    elif kg_action == "query": # Removed comma
+                    elif kg_action == "query":  # Removed comma
                         result = self.api.ai_query_knowledge_graph(**command_request.params)
-                    elif kg_action == "metrics": # Removed comma
+                    elif kg_action == "metrics":  # Removed comma
                         result = self.api.ai_calculate_graph_metrics(**command_request.params)
                     else:
                         return {
                             "success": False,
                             "result": {"error": f"Unsupported knowledge graph action: {kg_action}"},
                         }
-                elif ai_command == "training": # Removed comma
+                elif ai_command == "training":  # Removed comma
                     # Distributed training operations
                     training_action = (
                         command_request.args[1]
@@ -1155,15 +1377,15 @@ class CliController:
                         else command_request.params.get("training_action")
                     )
 
-                    if training_action == "submit-job": # Removed comma
+                    if training_action == "submit-job":  # Removed comma
                         result = self.api.ai_distributed_training_submit_job(
                             **command_request.params
                         )
-                    elif training_action == "status": # Removed comma
+                    elif training_action == "status":  # Removed comma
                         result = self.api.ai_distributed_training_get_status(
                             **command_request.params
                         )
-                    elif training_action == "aggregate-results": # Removed comma
+                    elif training_action == "aggregate-results":  # Removed comma
                         result = self.api.ai_distributed_training_aggregate_results(
                             **command_request.params
                         )
@@ -1172,7 +1394,7 @@ class CliController:
                             "success": False,
                             "result": {"error": f"Unsupported training action: {training_action}"},
                         }
-                elif ai_command == "deployment": # Removed comma
+                elif ai_command == "deployment":  # Removed comma
                     # Model deployment operations
                     deployment_action = (
                         command_request.args[1]
@@ -1180,9 +1402,9 @@ class CliController:
                         else command_request.params.get("deployment_action")
                     )
 
-                    if deployment_action == "deploy-model": # Removed comma
+                    if deployment_action == "deploy-model":  # Removed comma
                         result = self.api.ai_deploy_model(**command_request.params)
-                    elif deployment_action == "optimize-model": # Removed comma
+                    elif deployment_action == "optimize-model":  # Removed comma
                         result = self.api.ai_optimize_model(**command_request.params)
                     else:
                         return {
@@ -1191,7 +1413,7 @@ class CliController:
                                 "error": f"Unsupported deployment action: {deployment_action}"
                             },
                         }
-                elif ai_command == "langchain": # Removed comma
+                elif ai_command == "langchain":  # Removed comma
                     # Langchain operations
                     langchain_action = (
                         command_request.args[1]
@@ -1199,9 +1421,9 @@ class CliController:
                         else command_request.params.get("langchain_action")
                     )
 
-                    if langchain_action == "create-vectorstore": # Removed comma
+                    if langchain_action == "create-vectorstore":  # Removed comma
                         result = self.api.ai_langchain_create_vectorstore(**command_request.params)
-                    elif langchain_action == "query": # Removed comma
+                    elif langchain_action == "query":  # Removed comma
                         result = self.api.ai_langchain_query(**command_request.params)
                     else:
                         return {
@@ -1210,7 +1432,7 @@ class CliController:
                                 "error": f"Unsupported Langchain action: {langchain_action}"
                             },
                         }
-                elif ai_command == "llama-index": # Removed comma
+                elif ai_command == "llama-index":  # Removed comma
                     # LlamaIndex operations
                     llama_action = (
                         command_request.args[1]
@@ -1218,9 +1440,9 @@ class CliController:
                         else command_request.params.get("llama_action")
                     )
 
-                    if llama_action == "create-index": # Removed comma
+                    if llama_action == "create-index":  # Removed comma
                         result = self.api.ai_llama_index_create_index(**command_request.params)
-                    elif llama_action == "query": # Removed comma
+                    elif llama_action == "query":  # Removed comma
                         result = self.api.ai_llama_index_query(**command_request.params)
                     else:
                         return {
@@ -1232,7 +1454,7 @@ class CliController:
                         "success": False,
                         "result": {"error": f"Unsupported AI command: {ai_command}"},
                     }
-            elif command_request.command == "filesystem": # Removed comma
+            elif command_request.command == "filesystem":  # Removed comma
                 # Handle filesystem commands
                 fs_command = (
                     command_request.args[0]
@@ -1240,28 +1462,28 @@ class CliController:
                     else command_request.params.get("fs_command")
                 )
 
-                if fs_command == "get": # Removed comma
+                if fs_command == "get":  # Removed comma
                     result = self.api.get_filesystem(**command_request.params)
                     result = {
                         "success": True,
                         "message": "Filesystem interface created",
                         "filesystem_info": {"ready": True},
                     }
-                elif fs_command == "enable-journal": # Removed comma
+                elif fs_command == "enable-journal":  # Removed comma
                     result = self.api.enable_filesystem_journal(**command_request.params)
                     result = {
                         "success": True,
                         "message": "Filesystem journaling enabled",
                         "journal_info": result,
                     }
-                elif fs_command == "disable-journal": # Removed comma
+                elif fs_command == "disable-journal":  # Removed comma
                     result = self.api.disable_filesystem_journal()
                     result = {
                         "success": True,
                         "message": "Filesystem journaling disabled",
                         "journal_info": result,
                     }
-                elif fs_command == "journal-status": # Removed comma
+                elif fs_command == "journal-status":  # Removed comma
                     result = self.api.get_filesystem_journal_status()
                     result = {"success": True, "journal_status": result}
                 else:
@@ -1365,11 +1587,11 @@ class CliController:
             # For sync methods, we need to handle differently
             elif hasattr(self.api, "sync_shutdown"):
                 # Use anyio to run in a thread if available
-                if HAS_ANYIO: # Guard added
+                if HAS_ANYIO:  # Guard added
                     try:
                         # Ensure imports are available
-                        sniffio.current_async_library() # Now guarded
-                        await anyio.to_thread.run_sync(self.api.sync_shutdown) # Now guarded
+                        sniffio.current_async_library()  # Now guarded
+                        await anyio.to_thread.run_sync(self.api.sync_shutdown)  # Now guarded
                     except Exception as e:
                         logger.error(f"Error during API sync_shutdown via anyio: {e}")
                         errors.append(str(e))

@@ -17,39 +17,50 @@ backup_dir = f"mcp_backup_{os.popen('date +%Y%m%d_%H%M%S').read().strip()}"
 print(f"Creating backup in {backup_dir}")
 os.system(f"cp -r {TARGET_DIR} {backup_dir}")
 
+
 def fix_file(file_path):
     """Fix common syntax issues in Python files."""
     try:
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with open(file_path, "r", encoding="utf-8") as f:
             content = f.read()
 
         # Fix common syntax issues
         fixed_content = content
 
         # Fix trailing commas in import lists
-        fixed_content = re.sub(r'from\s+(.*?)\s+import\s+\((.*?),\s*\)', r'from \1 import (\2)', fixed_content, flags=re.DOTALL)
+        fixed_content = re.sub(
+            r"from\s+(.*?)\s+import\s+\((.*?),\s*\)",
+            r"from \1 import (\2)",
+            fixed_content,
+            flags=re.DOTALL,
+        )
 
         # Fix incomplete imports with typing
-        fixed_content = re.sub(r'from typing import \(,', r'from typing import (', fixed_content)
+        fixed_content = re.sub(r"from typing import \(,", r"from typing import (", fixed_content)
 
         # Fix trailing commas in function parameters
-        fixed_content = re.sub(r'(\s+)self,$', r'\1self', fixed_content, flags=re.MULTILINE)
+        fixed_content = re.sub(r"(\s+)self,$", r"\1self", fixed_content, flags=re.MULTILINE)
 
         # Fix dangling commas in parameter definitions
-        fixed_content = re.sub(r'(\s+)([a-zA-Z0-9_]+):\s+([a-zA-Z0-9_\[\], .]+),(\s+)$', r'\1\2: \3\4', fixed_content, flags=re.MULTILINE)
+        fixed_content = re.sub(
+            r"(\s+)([a-zA-Z0-9_]+):\s+([a-zA-Z0-9_\[\], .]+),(\s+)$",
+            r"\1\2: \3\4",
+            fixed_content,
+            flags=re.MULTILINE,
+        )
 
         # Fix multiline strings with mixed indentation
         fixed_content = re.sub(r'"""(?:\s*\n)+(\s+)(?!""")', r'"""\n\1', fixed_content)
 
         # Fix indentation issues
-        fixed_content = fixed_content.replace('\t', '    ')
+        fixed_content = fixed_content.replace("\t", "    ")
 
         # Fix issues with Union types
-        fixed_content = re.sub(r'Union\[(.*?), \]', r'Union[\1]', fixed_content)
+        fixed_content = re.sub(r"Union\[(.*?), \]", r"Union[\1]", fixed_content)
 
         # Write back the fixed content if changes were made
         if fixed_content != content:
-            with open(file_path, 'w', encoding='utf-8') as f:
+            with open(file_path, "w", encoding="utf-8") as f:
                 f.write(fixed_content)
             return True
         return False
@@ -57,31 +68,28 @@ def fix_file(file_path):
         print(f"Error fixing {file_path}: {e}")
         return False
 
+
 def apply_black(file_path):
     """Apply Black formatting to a file."""
     try:
-        result = subprocess.run(
-            ["black", "--quiet", file_path],
-            capture_output=True,
-            text=True
-        )
+        result = subprocess.run(["black", "--quiet", file_path], capture_output=True, text=True)
         return result.returncode == 0
     except Exception as e:
         print(f"Error applying Black to {file_path}: {e}")
         return False
 
+
 def apply_ruff(file_path):
     """Apply Ruff fixes to a file."""
     try:
         result = subprocess.run(
-            ["ruff", "check", "--fix", "--quiet", file_path],
-            capture_output=True,
-            text=True
+            ["ruff", "check", "--fix", "--quiet", file_path], capture_output=True, text=True
         )
         return result.returncode == 0
     except Exception as e:
         print(f"Error applying Ruff to {file_path}: {e}")
         return False
+
 
 def process_files():
     """Process all Python files in the target directory."""
@@ -121,6 +129,7 @@ def process_files():
     print(f"Files with syntax fixes: {fixed_syntax}")
     print(f"Files successfully formatted with Black: {black_success}")
     print(f"Files successfully fixed with Ruff: {ruff_success}")
+
 
 if __name__ == "__main__":
     process_files()

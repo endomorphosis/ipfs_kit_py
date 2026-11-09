@@ -7,33 +7,28 @@ Manual MCP Server Tool Count Test
 import re
 import os
 
+
 def count_tools_from_file():
     """Count tools by parsing the file directly"""
     file_path = "/home/barberb/ipfs_kit_py/mcp/enhanced_mcp_server_with_daemon_mgmt.py"
-    
+
     if not os.path.exists(file_path):
         print(f"File not found: {file_path}")
         return
-    
-    with open(file_path, 'r') as f:
+
+    with open(file_path, "r") as f:
         content = f.read()
-    
+
     # Find all tool definitions
     tool_pattern = r'"([a-z_]+)": \{\s*"name": "\1"'
     tools = re.findall(tool_pattern, content)
-    
+
     print(f"Tools found in {file_path}:")
     print(f"Total: {len(tools)} tools")
-    
+
     # Categorize
-    categories = {
-        "IPFS Core": [],
-        "IPFS Advanced": [],
-        "IPFS MFS": [],
-        "VFS": [],
-        "System": []
-    }
-    
+    categories = {"IPFS Core": [], "IPFS Advanced": [], "IPFS MFS": [], "VFS": [], "System": []}
+
     for tool in tools:
         if tool.startswith("ipfs_"):
             if any(x in tool for x in ["dht_", "name_", "pubsub_"]):
@@ -46,7 +41,7 @@ def count_tools_from_file():
             categories["VFS"].append(tool)
         else:
             categories["System"].append(tool)
-    
+
     print("\nBreakdown by category:")
     total_check = 0
     for category, tool_list in categories.items():
@@ -55,18 +50,12 @@ def count_tools_from_file():
             for tool in sorted(tool_list):
                 print(f"    - {tool}")
             total_check += len(tool_list)
-    
+
     print(f"\nVerification: {total_check} tools total")
-    
+
     # Expected counts
-    expected = {
-        "IPFS Core": 18,
-        "IPFS Advanced": 8, 
-        "IPFS MFS": 10,
-        "VFS": 12,
-        "System": 1
-    }
-    
+    expected = {"IPFS Core": 18, "IPFS Advanced": 8, "IPFS MFS": 10, "VFS": 12, "System": 1}
+
     print(f"\nExpected vs Actual:")
     all_good = True
     for category, expected_count in expected.items():
@@ -75,11 +64,12 @@ def count_tools_from_file():
         print(f"  {status} {category}: {actual_count}/{expected_count}")
         if actual_count != expected_count:
             all_good = False
-    
+
     total_expected = sum(expected.values())
     print(f"\nOverall: {total_check}/{total_expected} tools {'✓' if all_good else '✗'}")
-    
+
     return all_good
+
 
 if __name__ == "__main__":
     success = count_tools_from_file()

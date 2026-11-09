@@ -20,6 +20,7 @@ from pydantic import BaseModel, Field
 # Import anyio with fallback
 try:
     import anyio
+
     HAS_ANYIO = True
 except ImportError:
     HAS_ANYIO = False
@@ -34,7 +35,8 @@ try:
         create_peer_info_from_ipfs_kit,
         PeerRole,
         MessageType,
-        WEBSOCKET_AVAILABLE)
+        WEBSOCKET_AVAILABLE,
+    )
 
     HAS_PEER_WEBSOCKET = True
 except ImportError:
@@ -100,6 +102,7 @@ def _run_async_from_sync(async_fn, *args, **kwargs):
 # Define Pydantic models for requests and responses
 class PeerWebSocketResponse(BaseModel):
     """Base response model for peer WebSocket operations."""
+
     success: bool = Field(..., description="Whether the operation was successful")
     operation_id: Optional[str] = Field(None, description="Unique identifier for this operation")
     timestamp: float = Field(..., description="Operation timestamp")
@@ -107,6 +110,7 @@ class PeerWebSocketResponse(BaseModel):
 
 class StartServerRequest(BaseModel):
     """Request model for starting a peer WebSocket server."""
+
     host: str = Field("0.0.0.0", description="Host address to bind to")
     port: int = Field(8765, description="Port to listen on")
     max_peers: int = Field(100, description="Maximum number of peers to track")
@@ -120,12 +124,14 @@ class StartServerRequest(BaseModel):
 
 class StartServerResponse(PeerWebSocketResponse):
     """Response model for starting a peer WebSocket server."""
+
     server_url: Optional[str] = Field(None, description="WebSocket URL of the server")
     peer_info: Optional[Dict[str, Any]] = Field(None, description="Local peer information")
 
 
 class ConnectToServerRequest(BaseModel):
     """Request model for connecting to a peer WebSocket server."""
+
     server_url: str = Field(..., description="WebSocket URL of the peer discovery server")
     auto_connect: bool = Field(
         True, description="Whether to automatically connect to discovered peers"
@@ -136,12 +142,14 @@ class ConnectToServerRequest(BaseModel):
 
 class ConnectToServerResponse(PeerWebSocketResponse):
     """Response model for connecting to a peer WebSocket server."""
+
     connected: bool = Field(..., description="Whether connection was successful")
     server_url: str = Field(..., description="WebSocket URL of the server")
 
 
 class DiscoveredPeersResponse(PeerWebSocketResponse):
     """Response model for listing discovered peers."""
+
     peers: List[Dict[str, Any]] = Field(default=[], description="List of discovered peers")
     count: int = Field(0, description="Number of discovered peers")
 
@@ -152,6 +160,7 @@ class PeerWebSocketController:
 
     Handles HTTP requests related to peer discovery via WebSockets.
     """
+
     def __init__(self, ipfs_model):
         """
         Initialize the peer WebSocket controller.
@@ -186,7 +195,8 @@ class PeerWebSocketController:
             methods=["GET"],
             response_model=PeerWebSocketResponse,
             summary="Check WebSocket support",
-            description="Check if WebSocket support is available for peer discovery")
+            description="Check if WebSocket support is available for peer discovery",
+        )
 
         # Start WebSocket server
         router.add_api_route(

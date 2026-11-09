@@ -11,8 +11,8 @@ setup(
         "ipfs_kit_py",
     ],
     entry_points={
-        'console_scripts': [
-            'wal-cli=ipfs_kit_py.wal_cli:main',
+        "console_scripts": [
+            "wal-cli=ipfs_kit_py.wal_cli:main",
         ],
     },
     description="Command-line interface for the IPFS Kit WAL system",

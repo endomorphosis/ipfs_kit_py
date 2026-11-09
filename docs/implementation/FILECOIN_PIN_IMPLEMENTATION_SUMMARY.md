@@ -41,14 +41,12 @@ from ipfs_kit_py.mcp.storage_manager.backends import FilecoinPinBackend
 
 # Initialize backend
 backend = FilecoinPinBackend(
-    resources={"api_key": "your_api_key"},
-    metadata={"default_replication": 3}
+    resources={"api_key": "your_api_key"}, metadata={"default_replication": 3}
 )
 
 # Pin content
 result = backend.add_content(
-    content=b"Hello Filecoin Pin!",
-    metadata={"name": "my-pin", "tags": ["test"]}
+    content=b"Hello Filecoin Pin!", metadata={"name": "my-pin", "tags": ["test"]}
 )
 # Returns: {"success": True, "cid": "bafybeib...", "status": "pinned", ...}
 ```
@@ -77,9 +75,7 @@ service = UnifiedPinService()
 
 # Pin to multiple backends
 result = await service.pin(
-    cid="bafybeib...",
-    name="important-data",
-    backends=["ipfs", "filecoin_pin", "storacha"]
+    cid="bafybeib...", name="important-data", backends=["ipfs", "filecoin_pin", "storacha"]
 )
 
 # Check status across all backends
@@ -204,22 +200,21 @@ from ipfs_kit_py.mcp.storage_manager.backends import FilecoinPinBackend
 
 backend = FilecoinPinBackend(
     resources={"api_key": "your_api_key"},  # Optional for testing
-    metadata={"default_replication": 3}
+    metadata={"default_replication": 3},
 )
 
 # 2. Pin content
 result = backend.add_content(
-    content=b"Important data",
-    metadata={"name": "my-dataset", "tags": ["ml", "training"]}
+    content=b"Important data", metadata={"name": "my-dataset", "tags": ["ml", "training"]}
 )
 print(f"Pinned! CID: {result['cid']}")
 
 # 3. Check status
-status = backend.get_metadata(result['cid'])
+status = backend.get_metadata(result["cid"])
 print(f"Status: {status['status']}, Deals: {len(status['deals'])}")
 
 # 4. Retrieve content
-content_result = backend.get_content(result['cid'])
+content_result = backend.get_content(result["cid"])
 print(f"Retrieved {content_result['size']} bytes from {content_result['source']}")
 ```
 
@@ -232,9 +227,7 @@ service = UnifiedPinService()
 
 # Pin to multiple backends at once
 await service.pin(
-    cid="bafybeib...",
-    name="redundant-backup",
-    backends=["ipfs", "filecoin_pin", "storacha"]
+    cid="bafybeib...", name="redundant-backup", backends=["ipfs", "filecoin_pin", "storacha"]
 )
 
 # List all pins
@@ -343,13 +336,13 @@ gateway_fallback:
 custom_gateways = [
     {"url": "http://localhost:8080/ipfs/", "priority": 1, "timeout": 5},
     {"url": "https://ipfs.io/ipfs/", "priority": 2, "timeout": 30},
-    {"url": "https://dweb.link/ipfs/", "priority": 3, "timeout": 30}
+    {"url": "https://dweb.link/ipfs/", "priority": 3, "timeout": 30},
 ]
 
 chain = GatewayChain(
     gateways=custom_gateways,
     enable_parallel=True,
-    cache_duration=3600  # 1 hour
+    cache_duration=3600,  # 1 hour
 )
 ```
 

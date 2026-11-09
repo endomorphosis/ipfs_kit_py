@@ -76,12 +76,12 @@ content = cache.get("QmZ4tDuvesekSs4qM5ZBKpXiZGun7S2CYtEZRB3DYXkjGx")
 ```python
 # Configure cache tiers with custom sizes and paths
 config = {
-    'memory_cache_size': 500 * 1024 * 1024,  # 500MB memory cache
-    'local_cache_size': 10 * 1024 * 1024 * 1024,  # 10GB disk cache
-    'local_cache_path': '/data/ipfs_cache',
-    'max_item_size': 100 * 1024 * 1024,  # Items up to 100MB go to memory
-    'min_access_count': 3,  # Items need 3+ accesses to stay in memory
-    'enable_memory_mapping': True
+    "memory_cache_size": 500 * 1024 * 1024,  # 500MB memory cache
+    "local_cache_size": 10 * 1024 * 1024 * 1024,  # 10GB disk cache
+    "local_cache_path": "/data/ipfs_cache",
+    "max_item_size": 100 * 1024 * 1024,  # Items up to 100MB go to memory
+    "min_access_count": 3,  # Items need 3+ accesses to stay in memory
+    "enable_memory_mapping": True,
 }
 
 cache = TieredCacheManager(config=config)
@@ -105,7 +105,7 @@ chunk = mmap_obj[1024:2048]  # Read a 1KB chunk at offset 1KB
 
 ```python
 # Clear specific tiers
-cache.clear(tiers=['memory'])  # Clear only memory tier
+cache.clear(tiers=["memory"])  # Clear only memory tier
 cache.clear()  # Clear all tiers
 
 # Get statistics about the cache
@@ -146,8 +146,7 @@ The tiered cache system integrates with the FSSpec implementation to provide:
 import fsspec
 
 # Open the FSSpec filesystem with caching enabled
-fs = fsspec.filesystem("ipfs", cache_type="tiered", 
-                      cache_options={"memory_cache_size": "500MB"})
+fs = fsspec.filesystem("ipfs", cache_type="tiered", cache_options={"memory_cache_size": "500MB"})
 
 # Files are now automatically cached with tiered approach
 with fs.open("ipfs://QmZ4tDuvesekSs4qM5ZBKpXiZGun7S2CYtEZRB3DYXkjGx", "rb") as f:

@@ -54,6 +54,7 @@ def _bootstrap_symai_engines() -> None:
         except Exception:
             return
 
+
 repo_root = Path(__file__).resolve().parent.parent
 repo_root_str = str(repo_root)
 if repo_root_str not in sys.path:

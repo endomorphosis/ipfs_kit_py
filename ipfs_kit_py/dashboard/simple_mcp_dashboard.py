@@ -30,6 +30,7 @@ import uvicorn
 try:
     from ipfs_kit_py.libp2p.peer_manager import Libp2pPeerManager
     from ipfs_kit_py.peer_manager import PeerManager
+
     LIBP2P_AVAILABLE = True
 except ImportError as e:
     LIBP2P_AVAILABLE = False
@@ -37,39 +38,40 @@ except ImportError as e:
 
 logger = logging.getLogger(__name__)
 
+
 class SimpleMCPDashboard:
     """Simple MCP Dashboard with clean 3-tab layout and working configuration management."""
-    
+
     def __init__(self, host="127.0.0.1", port=8004):
         self.host = host
         self.port = port
         self.start_time = datetime.now()
-        
+
         # Enhanced logging for debugging
         logger.info(f"🚀 Starting Simple MCP Dashboard on {host}:{port}")
-        
+
         # Create ~/.ipfs_kit directory structure
         self.data_dir = Path.home() / ".ipfs_kit"
         self.buckets_dir = self.data_dir / "buckets"
         self.metadata_dir = self.data_dir / "metadata"
-        
+
         # Create directories
         self.data_dir.mkdir(exist_ok=True)
-        self.buckets_dir.mkdir(exist_ok=True)  
+        self.buckets_dir.mkdir(exist_ok=True)
         self.metadata_dir.mkdir(exist_ok=True)
-        
+
         logger.info(f"📁 Virtual filesystem root: {self.data_dir}")
         logger.info(f"🪣 Buckets directory: {self.buckets_dir}")
         logger.info(f"📋 Metadata directory: {self.metadata_dir}")
-        
+
         # Initialize peer managers
         self.peer_manager = None
         self.libp2p_peer_manager = None
         self._initialize_peer_managers()
-        
+
         # Initialize FastAPI
         self.app = FastAPI(title="IPFS Kit - Simple Dashboard")
-        
+
         # Add CORS middleware
         self.app.add_middleware(
             CORSMiddleware,
@@ -78,10 +80,10 @@ class SimpleMCPDashboard:
             allow_methods=["*"],
             allow_headers=["*"],
         )
-        
+
         # Setup routes
         self.setup_routes()
-        
+
     def _initialize_peer_managers(self):
         """Initialize peer management components."""
         try:
@@ -89,7 +91,7 @@ class SimpleMCPDashboard:
             if LIBP2P_AVAILABLE:
                 self.peer_manager = PeerManager()
                 logger.info("✓ Basic peer manager initialized")
-                
+
                 # Initialize libp2p peer manager if available
                 try:
                     self.libp2p_peer_manager = Libp2pPeerManager()
@@ -100,10 +102,10 @@ class SimpleMCPDashboard:
                 logger.warning("Peer managers not available - using mock mode")
         except Exception as e:
             logger.error(f"Failed to initialize peer managers: {e}")
-        
+
     def setup_routes(self):
         """Setup all API routes."""
-        
+
         # Mount static files
         # Setup static files and templates with resilient path resolution
         base_pkg = Path(__file__).resolve().parent / "mcp" / "dashboard"
@@ -116,47 +118,42 @@ class SimpleMCPDashboard:
             Path.cwd() / "templates",
         ]
         static_dir = next((p for p in static_candidates if p.exists()), static_candidates[0])
-        templates_dir = next((p for p in templates_candidates if p.exists()), templates_candidates[0])
+        templates_dir = next(
+            (p for p in templates_candidates if p.exists()), templates_candidates[0]
+        )
         self.app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
         templates = Jinja2Templates(directory=str(templates_dir))
-        
+
         # Setup templates
-        
+
         # Main dashboard route
         @self.app.get("/", response_class=HTMLResponse)
         async def dashboard(request: Request):
             # Use dashboard.html if enhanced_dashboard.html is not available
             template_name = "dashboard.html"  # Use a template that exists
-            return templates.TemplateResponse(template_name, {
-                "request": request,
-                "title": "IPFS Kit - Comprehensive MCP Dashboard"
-            })
-        
+            return templates.TemplateResponse(
+                template_name,
+                {"request": request, "title": "IPFS Kit - Comprehensive MCP Dashboard"},
+            )
+
         # MCP Routes - JSON-RPC endpoint
         @self.app.post("/mcp/tools/call")
         async def mcp_tools_call(request: Request):
             data = await request.json()
             return await self._handle_mcp_call(data)
-        
+
         # Alternative API endpoint that JavaScript SDK expects
         @self.app.post("/api/call_mcp_tool")
         async def api_call_mcp_tool(request: Request):
             data = await request.json()
             # Convert from JavaScript SDK format to internal format
             mcp_data = {
-                "params": {
-                    "name": data.get("tool_name"),
-                    "arguments": data.get("arguments", {})
-                }
+                "params": {"name": data.get("tool_name"), "arguments": data.get("arguments", {})}
             }
             result = await self._handle_mcp_call(mcp_data)
             # Return in JSON-RPC format that the JavaScript SDK expects
-            return {
-                "jsonrpc": "2.0",
-                "result": result,
-                "id": data.get("id", "1")
-            }
-            
+            return {"jsonrpc": "2.0", "result": result, "id": data.get("id", "1")}
+
         # MCP Tools list endpoint for client discovery
         @self.app.get("/mcp/tools/list")
         async def mcp_tools_list():
@@ -167,8 +164,14 @@ class SimpleMCPDashboard:
                     {"name": "list_pins", "description": "List IPFS pins"},
                     {"name": "list_config_files", "description": "List configuration files"},
                     {"name": "read_config_file", "description": "Read configuration file content"},
-                    {"name": "write_config_file", "description": "Write configuration file content"},
-                    {"name": "get_config_metadata", "description": "Get configuration file metadata"},
+                    {
+                        "name": "write_config_file",
+                        "description": "Write configuration file content",
+                    },
+                    {
+                        "name": "get_config_metadata",
+                        "description": "Get configuration file metadata",
+                    },
                     {"name": "list_buckets", "description": "List storage buckets"},
                     {"name": "list_bucket_files", "description": "List files in a specific bucket"},
                     {"name": "list_services", "description": "List available services"},
@@ -179,23 +182,22 @@ class SimpleMCPDashboard:
                     {"name": "discover_peers", "description": "Discover new IPFS peers"},
                     {"name": "get_peer_info", "description": "Get detailed peer information"},
                     {"name": "get_peer_stats", "description": "Get peer statistics"},
-                    {"name": "bootstrap_peers", "description": "Bootstrap connection to default peers"}
+                    {
+                        "name": "bootstrap_peers",
+                        "description": "Bootstrap connection to default peers",
+                    },
                 ]
             }
-        
+
         # Add missing caselaw endpoint (stub implementation)
         @self.app.get("/mcp/caselaw")
         async def mcp_caselaw():
             return {
                 "status": "success",
                 "message": "Caselaw endpoint available",
-                "data": {
-                    "cases": [],
-                    "total": 0,
-                    "note": "This is a placeholder endpoint"
-                }
+                "data": {"cases": [], "total": 0, "note": "This is a placeholder endpoint"},
             }
-        
+
         # Add missing MCP status endpoint
         @self.app.get("/api/mcp/status")
         async def api_mcp_status():
@@ -203,9 +205,9 @@ class SimpleMCPDashboard:
                 "status": "healthy",
                 "uptime": (datetime.now() - self.start_time).total_seconds(),
                 "version": "1.0.0",
-                "endpoints": ["/mcp/tools/call", "/mcp/tools/list", "/mcp/caselaw"]
+                "endpoints": ["/mcp/tools/call", "/mcp/tools/list", "/mcp/caselaw"],
             }
-        
+
         # Add missing bucket REST API endpoints that the frontend is trying to use
         @self.app.post("/api/v0/buckets")
         async def api_create_bucket(request: Request):
@@ -215,34 +217,28 @@ class SimpleMCPDashboard:
                     "name": form.get("name"),
                     "backend": form.get("backend", "filesystem"),
                     "description": form.get("description", ""),
-                    "created": datetime.now().isoformat()
+                    "created": datetime.now().isoformat(),
                 }
                 # You could call the MCP tool here instead of direct implementation
                 return {
                     "status": "success",
                     "message": f"Bucket '{bucket_data['name']}' created successfully",
-                    "data": bucket_data
+                    "data": bucket_data,
                 }
             except Exception as e:
-                return {
-                    "status": "error",
-                    "message": f"Failed to create bucket: {str(e)}"
-                }
-        
+                return {"status": "error", "message": f"Failed to create bucket: {str(e)}"}
+
         @self.app.delete("/api/v0/buckets/{bucket_name}")
         async def api_delete_bucket(bucket_name: str, force: bool = False):
             try:
                 # This would call the actual bucket deletion logic
                 return {
                     "status": "success",
-                    "message": f"Bucket '{bucket_name}' deleted successfully"
+                    "message": f"Bucket '{bucket_name}' deleted successfully",
                 }
             except Exception as e:
-                return {
-                    "status": "error",
-                    "message": f"Failed to delete bucket: {str(e)}"
-                }
-        
+                return {"status": "error", "message": f"Failed to delete bucket: {str(e)}"}
+
         # Add bucket file upload endpoint
         @self.app.post("/api/v0/buckets/{bucket_name}/upload")
         async def api_upload_file(bucket_name: str, request: Request):
@@ -251,73 +247,69 @@ class SimpleMCPDashboard:
                 data_dir = Path.home() / ".ipfs_kit"
                 buckets_dir = data_dir / "buckets" / bucket_name
                 buckets_dir.mkdir(parents=True, exist_ok=True)
-                
+
                 form = await request.form()
                 files = []
-                
+
                 logger.info(f"📁 Uploading files to bucket '{bucket_name}' in {buckets_dir}")
-                
+
                 # Handle multiple file uploads
                 for field_name, field_value in form.items():
-                    if hasattr(field_value, 'filename') and field_value.filename:
+                    if hasattr(field_value, "filename") and field_value.filename:
                         content = await field_value.read()
-                        
+
                         # Save file to the virtual filesystem
                         file_path = buckets_dir / field_value.filename
                         logger.info(f"💾 Saving file: {file_path}")
-                        
-                        with open(file_path, 'wb') as f:
+
+                        with open(file_path, "wb") as f:
                             f.write(content)
-                        
+
                         file_info = {
                             "name": field_value.filename,
                             "size": len(content),
                             "path": str(file_path.relative_to(data_dir)),
                             "bucket": bucket_name,
                             "uploaded": datetime.now().isoformat(),
-                            "hash": None  # Will be computed by daemon
+                            "hash": None,  # Will be computed by daemon
                         }
                         files.append(file_info)
-                        
+
                         # Create metadata file for the bucket
                         await self._update_bucket_metadata(bucket_name, file_info, "add")
-                
-                logger.info(f"✅ Successfully uploaded {len(files)} file(s) to bucket '{bucket_name}'")
+
+                logger.info(
+                    f"✅ Successfully uploaded {len(files)} file(s) to bucket '{bucket_name}'"
+                )
                 return {
                     "status": "success",
                     "message": f"Uploaded {len(files)} file(s) to bucket '{bucket_name}'",
                     "files": files,
-                    "bucket_path": str(buckets_dir)
+                    "bucket_path": str(buckets_dir),
                 }
             except Exception as e:
                 logger.error(f"❌ Failed to upload files to bucket '{bucket_name}': {e}")
-                return {
-                    "status": "error",
-                    "message": f"Failed to upload files: {str(e)}"
-                }
-    
+                return {"status": "error", "message": f"Failed to upload files: {str(e)}"}
+
     async def _handle_mcp_call(self, data):
         """Handle MCP JSON-RPC calls with full configuration management support."""
         try:
             # Add debug logging to understand what we're receiving
             logger.info(f"MCP call received: {data}")
-            
+
             tool_name = data.get("params", {}).get("name")
             arguments = data.get("params", {}).get("arguments", {})
-            
+
             logger.info(f"Extracted tool_name: '{tool_name}', arguments: {arguments}")
-            
+
             if not tool_name:
                 logger.warning("Missing tool name in MCP call")
                 return {
                     "jsonrpc": "2.0",
-                    "error": {
-                        "code": -32602,
-                        "message": "Missing tool name"
-                    },
-                    "id": data.get("id")
+                    "error": {"code": -32602, "message": "Missing tool name"},
+                    "id": data.get("id"),
                 }
-            
+
             # Handle different MCP tools
             if tool_name == "health_check":
                 result = {"status": "healthy", "timestamp": datetime.now().isoformat()}
@@ -329,8 +321,7 @@ class SimpleMCPDashboard:
                 result = await self._read_config_file(arguments.get("filename"))
             elif tool_name == "write_config_file":
                 result = await self._write_config_file(
-                    arguments.get("filename"),
-                    arguments.get("content")
+                    arguments.get("filename"), arguments.get("content")
                 )
             elif tool_name == "list_config_files":
                 result = await self._list_config_files()
@@ -342,7 +333,7 @@ class SimpleMCPDashboard:
                 result = await self._list_bucket_files(
                     arguments.get("bucket"),
                     arguments.get("path", ""),
-                    arguments.get("metadata_first", True)
+                    arguments.get("metadata_first", True),
                 )
             elif tool_name == "list_services":
                 result = await self._list_services()
@@ -353,7 +344,9 @@ class SimpleMCPDashboard:
                 result = await self._list_peers()
                 logger.info(f"list_peers result: {result}")
             elif tool_name == "connect_peer":
-                result = await self._connect_peer(arguments.get("peer_address"), arguments.get("peer_id"))
+                result = await self._connect_peer(
+                    arguments.get("peer_address"), arguments.get("peer_id")
+                )
             elif tool_name == "disconnect_peer":
                 result = await self._disconnect_peer(arguments.get("peer_id"))
             elif tool_name == "discover_peers":
@@ -365,11 +358,15 @@ class SimpleMCPDashboard:
             elif tool_name == "bootstrap_peers":
                 result = await self._bootstrap_peers()
             elif tool_name == "create_bucket":
-                result = await self._create_bucket(arguments.get("name"), arguments.get("config", {}))
+                result = await self._create_bucket(
+                    arguments.get("name"), arguments.get("config", {})
+                )
             elif tool_name == "delete_bucket":
                 result = await self._delete_bucket(arguments.get("name"))
             elif tool_name == "update_bucket":
-                result = await self._update_bucket(arguments.get("name"), arguments.get("config", {}))
+                result = await self._update_bucket(
+                    arguments.get("name"), arguments.get("config", {})
+                )
             elif tool_name == "get_bucket_stats":
                 result = await self._get_bucket_stats(arguments.get("name"))
             elif tool_name == "get_bucket":
@@ -377,7 +374,9 @@ class SimpleMCPDashboard:
             elif tool_name == "get_bucket_policy":
                 result = await self._get_bucket_policy(arguments.get("name"))
             elif tool_name == "update_bucket_policy":
-                result = await self._update_bucket_policy(arguments.get("name"), arguments.get("policy", {}))
+                result = await self._update_bucket_policy(
+                    arguments.get("name"), arguments.get("policy", {})
+                )
             elif tool_name == "get_bucket_usage":
                 result = await self._get_bucket_usage(arguments.get("name"))
             elif tool_name == "bucket_list_files":
@@ -387,7 +386,9 @@ class SimpleMCPDashboard:
                 result = await self._list_bucket_files_real(bucket_name, arguments.get("path", ""))
             elif tool_name == "bucket_upload_file":
                 bucket_name = arguments.get("bucket_name") or arguments.get("bucket")
-                result = await self._bucket_upload_file(bucket_name, arguments.get("file_path"), arguments.get("content"))
+                result = await self._bucket_upload_file(
+                    bucket_name, arguments.get("file_path"), arguments.get("content")
+                )
             elif tool_name == "bucket_download_file":
                 bucket_name = arguments.get("bucket_name") or arguments.get("bucket")
                 result = await self._bucket_download_file(bucket_name, arguments.get("file_path"))
@@ -399,65 +400,62 @@ class SimpleMCPDashboard:
                 result = await self._bucket_sync_replicas(bucket_name)
             elif tool_name == "generate_bucket_share_link":
                 bucket_name = arguments.get("bucket_name") or arguments.get("bucket")
-                result = await self._generate_bucket_share_link(bucket_name, arguments.get("access_level", "read"), arguments.get("expiration"))
+                result = await self._generate_bucket_share_link(
+                    bucket_name, arguments.get("access_level", "read"), arguments.get("expiration")
+                )
             elif tool_name == "get_metadata":
                 result = await self._get_metadata(arguments.get("key"))
             elif tool_name == "set_metadata":
                 result = await self._set_metadata(arguments.get("key"), arguments.get("value"))
             else:
-                logger.warning(f"Unknown tool requested: '{tool_name}' (available tools: health_check, get_system_status, list_pins, list_peers, etc.)")
+                logger.warning(
+                    f"Unknown tool requested: '{tool_name}' (available tools: health_check, get_system_status, list_pins, list_peers, etc.)"
+                )
                 result = {"error": f"Unknown tool: {tool_name}"}
-            
-            return {
-                "jsonrpc": "2.0",
-                "result": result,
-                "id": data.get("id")
-            }
-            
+
+            return {"jsonrpc": "2.0", "result": result, "id": data.get("id")}
+
         except Exception as e:
             logger.error(f"MCP call error: {e}")
             return {
                 "jsonrpc": "2.0",
-                "error": {
-                    "code": -32603,
-                    "message": str(e)
-                },
-                "id": data.get("id")
+                "error": {"code": -32603, "message": str(e)},
+                "id": data.get("id"),
             }
-    
+
     async def _get_system_status(self):
         """Get system status with real metrics."""
         try:
             # Get real system metrics
             cpu_percent = psutil.cpu_percent(interval=1)
             memory = psutil.virtual_memory()
-            
+
             # Try to get disk usage for current directory
             try:
-                disk = psutil.disk_usage('/')
+                disk = psutil.disk_usage("/")
                 disk_percent = (disk.used / disk.total) * 100
             except Exception:
                 disk_percent = 0.0
-            
+
             return {
                 "time": datetime.now().isoformat(),
                 "data_dir": str(Path.home() / ".ipfs_kit"),
                 "cpu_percent": round(cpu_percent, 1),
-                "memory_percent": round(memory.percent, 1), 
+                "memory_percent": round(memory.percent, 1),
                 "disk_percent": round(disk_percent, 1),
                 "uptime": str(datetime.now() - self.start_time),
-                "status": "running"
+                "status": "running",
             }
         except Exception as e:
             logger.error(f"Error getting system status: {e}")
             return {
                 "cpu_percent": "N/A",
-                "memory_percent": "N/A", 
+                "memory_percent": "N/A",
                 "disk_percent": "N/A",
                 "uptime": "N/A",
-                "status": "error"
+                "status": "error",
             }
-    
+
     async def _get_pins(self):
         """Get pins data."""
         return {
@@ -465,18 +463,18 @@ class SimpleMCPDashboard:
             "total_count": 0,
             "last_updated": datetime.now().isoformat(),
             "replication_factor": 1,
-            "cache_policy": "memory"
+            "cache_policy": "memory",
         }
-    
+
     async def _read_config_file(self, filename):
         """Read configuration file using metadata-first approach."""
         if not filename:
             raise ValueError("Filename is required")
-        
+
         # Metadata-first approach: check ~/.ipfs_kit/ first
         metadata_path = Path.home() / ".ipfs_kit" / filename
         fallback_path = Path("ipfs_kit_py") / filename
-        
+
         try:
             if metadata_path.exists():
                 content = metadata_path.read_text()
@@ -485,7 +483,7 @@ class SimpleMCPDashboard:
                 modified = datetime.fromtimestamp(metadata_path.stat().st_mtime).isoformat()
             elif fallback_path.exists():
                 content = fallback_path.read_text()
-                source = "default"  
+                source = "default"
                 size = fallback_path.stat().st_size
                 modified = datetime.fromtimestamp(fallback_path.stat().st_mtime).isoformat()
             else:
@@ -496,117 +494,121 @@ class SimpleMCPDashboard:
                         "total_count": 0,
                         "last_updated": datetime.now().isoformat(),
                         "replication_factor": 1,
-                        "cache_policy": "memory"
+                        "cache_policy": "memory",
                     },
                     "buckets.json": {
                         "buckets": [],
                         "total_count": 0,
                         "last_updated": datetime.now().isoformat(),
                         "default_replication_factor": 1,
-                        "default_cache_policy": "disk"
+                        "default_cache_policy": "disk",
                     },
                     "backends.json": {
                         "backends": [],
                         "total_count": 0,
                         "last_updated": datetime.now().isoformat(),
                         "default_backend": "ipfs",
-                        "health_check_interval": 30
-                    }
+                        "health_check_interval": 30,
+                    },
                 }
-                
+
                 if filename in default_configs:
                     # Ensure metadata directory exists
                     metadata_path.parent.mkdir(parents=True, exist_ok=True)
-                    
+
                     # Write default config
                     content = json.dumps(default_configs[filename], indent=2)
                     metadata_path.write_text(content)
-                    
+
                     source = "metadata"
                     size = len(content)
                     modified = datetime.now().isoformat()
                 else:
                     raise FileNotFoundError(f"Configuration file {filename} not found")
-            
+
             return {
                 "filename": filename,
                 "content": content,
                 "source": source,
                 "size": size,
                 "modified": modified,
-                "path": str(metadata_path if source == "metadata" else fallback_path)
+                "path": str(metadata_path if source == "metadata" else fallback_path),
             }
-            
+
         except Exception as e:
             logger.error(f"Error reading config file {filename}: {e}")
             raise e
-    
+
     async def _write_config_file(self, filename, content):
         """Write configuration file to metadata location."""
         if not filename or content is None:
             raise ValueError("Filename and content are required")
-        
+
         # Always write to metadata location for consistency
         metadata_path = Path.home() / ".ipfs_kit" / filename
-        
+
         try:
             # Ensure metadata directory exists
             metadata_path.parent.mkdir(parents=True, exist_ok=True)
-            
+
             # Convert content to string if it's a dict/object
             if isinstance(content, (dict, list)):
                 content = json.dumps(content, indent=2)
-            
+
             # Validate JSON content
-            if filename.endswith('.json'):
+            if filename.endswith(".json"):
                 json.loads(content)  # Validate JSON
-            
+
             # Write file
             metadata_path.write_text(content)
-            
+
             return {
                 "filename": filename,
                 "success": True,
                 "size": len(content),
                 "modified": datetime.now().isoformat(),
-                "path": str(metadata_path)
+                "path": str(metadata_path),
             }
-            
+
         except Exception as e:
             logger.error(f"Error writing config file {filename}: {e}")
             raise e
-    
+
     async def _list_config_files(self):
         """List all configuration files."""
         config_files = ["pins.json", "buckets.json", "backends.json"]
         files_info = []
-        
+
         for filename in config_files:
             try:
                 file_info = await self._read_config_file(filename)
-                files_info.append({
-                    "filename": filename,
-                    "source": file_info["source"],
-                    "size": file_info["size"],
-                    "modified": file_info["modified"],
-                    "exists": True
-                })
+                files_info.append(
+                    {
+                        "filename": filename,
+                        "source": file_info["source"],
+                        "size": file_info["size"],
+                        "modified": file_info["modified"],
+                        "exists": True,
+                    }
+                )
             except Exception as e:
-                files_info.append({
-                    "filename": filename,
-                    "source": "none",
-                    "size": 0,
-                    "modified": None,
-                    "exists": False,
-                    "error": str(e)
-                })
-        
+                files_info.append(
+                    {
+                        "filename": filename,
+                        "source": "none",
+                        "size": 0,
+                        "modified": None,
+                        "exists": False,
+                        "error": str(e),
+                    }
+                )
+
         return {
             "files": files_info,
             "metadata_dir": str(Path.home() / ".ipfs_kit"),
-            "total_files": len([f for f in files_info if f["exists"]])
+            "total_files": len([f for f in files_info if f["exists"]]),
         }
-    
+
     async def _get_config_metadata(self, filename):
         """Get configuration file metadata."""
         try:
@@ -617,15 +619,11 @@ class SimpleMCPDashboard:
                 "size": file_info["size"],
                 "modified": file_info["modified"],
                 "path": file_info["path"],
-                "metadata_first": True
+                "metadata_first": True,
             }
         except Exception as e:
-            return {
-                "filename": filename,
-                "error": str(e),
-                "exists": False
-            }
-    
+            return {"filename": filename, "error": str(e), "exists": False}
+
     async def _list_buckets(self):
         """List buckets using metadata-first approach with default bucket creation."""
         try:
@@ -636,35 +634,30 @@ class SimpleMCPDashboard:
             except:
                 # Create default buckets if file doesn't exist
                 buckets_data = await self._create_default_buckets()
-            
+
             # If no buckets exist, create defaults
             if not buckets_data.get("buckets"):
                 buckets_data = await self._create_default_buckets()
-            
+
             return {
                 "items": buckets_data.get("buckets", []),
                 "total_count": len(buckets_data.get("buckets", [])),
                 "source": "metadata",
-                "last_updated": buckets_data.get("last_updated", datetime.now().isoformat())
+                "last_updated": buckets_data.get("last_updated", datetime.now().isoformat()),
             }
         except Exception as e:
             logger.error(f"Error listing buckets: {e}")
-            return {
-                "items": [],
-                "total_count": 0,
-                "source": "error",
-                "error": str(e)
-            }
-    
+            return {"items": [], "total_count": 0, "source": "error", "error": str(e)}
+
     async def _list_bucket_files(self, bucket: str, path: str = "", metadata_first: bool = True):
         """List files in a specific bucket."""
         try:
             if not bucket:
                 return {"error": "Bucket name is required", "items": []}
-            
+
             # Return demo files based on bucket name
             demo_files = []
-            
+
             if bucket == "media":
                 demo_files = [
                     {
@@ -675,51 +668,51 @@ class SimpleMCPDashboard:
                         "created_at": "2024-01-15T10:30:00Z",
                         "updated_at": "2024-01-15T10:30:00Z",
                         "hash": "QmX1eZQe9k8mF2nD3pQ4rT5yU7iO6pL9sA2bC4dE5fG6hI",
-                        "is_directory": False
+                        "is_directory": False,
                     },
                     {
-                        "name": "video1.mp4", 
+                        "name": "video1.mp4",
                         "path": f"{path}video1.mp4" if path else "video1.mp4",
                         "size": 52428800,  # 50MB
                         "type": "video/mp4",
                         "created_at": "2024-01-16T14:20:00Z",
                         "updated_at": "2024-01-16T14:20:00Z",
                         "hash": "QmY2fZR0l9nH3oE4qS6uI8jP7kM8tN9aB1cD2eF3gH4iJ",
-                        "is_directory": False
+                        "is_directory": False,
                     },
                     {
                         "name": "thumbnails",
                         "path": f"{path}thumbnails/" if path else "thumbnails/",
                         "size": 0,
-                        "type": "directory", 
+                        "type": "directory",
                         "created_at": "2024-01-15T10:30:00Z",
                         "updated_at": "2024-01-18T16:45:00Z",
                         "hash": "QmZ3gAB1m0oI4pF5qR7sT8uV9wX0yL1kN2bC3dE4fG5hI",
-                        "is_directory": True
-                    }
+                        "is_directory": True,
+                    },
                 ]
             elif bucket == "documents":
                 demo_files = [
                     {
                         "name": "report.pdf",
-                        "path": f"{path}report.pdf" if path else "report.pdf", 
+                        "path": f"{path}report.pdf" if path else "report.pdf",
                         "size": 2097152,  # 2MB
                         "type": "application/pdf",
                         "created_at": "2024-01-10T08:15:00Z",
                         "updated_at": "2024-01-12T10:30:00Z",
                         "hash": "QmA4bC5dE6fG7hI8jK9lM0nO1pQ2rS3tU4vW5xY6zA7bB",
-                        "is_directory": False
+                        "is_directory": False,
                     },
                     {
                         "name": "presentations",
                         "path": f"{path}presentations/" if path else "presentations/",
                         "size": 0,
                         "type": "directory",
-                        "created_at": "2024-01-10T08:15:00Z", 
+                        "created_at": "2024-01-10T08:15:00Z",
                         "updated_at": "2024-01-18T12:30:00Z",
                         "hash": "QmB5cD6eF7gH8iJ9kL0mN1oP2qR3sT4uV5wX6yZ7aB8cC",
-                        "is_directory": True
-                    }
+                        "is_directory": True,
+                    },
                 ]
             elif bucket == "archive":
                 demo_files = [
@@ -731,18 +724,18 @@ class SimpleMCPDashboard:
                         "created_at": "2024-01-05T14:20:00Z",
                         "updated_at": "2024-01-05T14:20:00Z",
                         "hash": "QmC6dD7eF8gH9iJ0kL1mN2oP3qR4sT5uV6wX7yZ8aB9cD",
-                        "is_directory": False
+                        "is_directory": False,
                     }
                 ]
-            
+
             logger.info(f"Listed {len(demo_files)} files in bucket '{bucket}' at path '{path}'")
-            
+
             return {
                 "items": demo_files,
                 "bucket": bucket,
                 "path": path,
                 "total": len(demo_files),
-                "has_more": False
+                "has_more": False,
             }
         except Exception as e:
             logger.error(f"Error listing files in bucket {bucket}: {e}")
@@ -752,37 +745,39 @@ class SimpleMCPDashboard:
         """Get MIME type based on file extension."""
         ext = Path(filename).suffix.lower()
         mime_types = {
-            '.txt': 'text/plain',
-            '.pdf': 'application/pdf',
-            '.jpg': 'image/jpeg',
-            '.jpeg': 'image/jpeg',
-            '.png': 'image/png',
-            '.gif': 'image/gif',
-            '.mp4': 'video/mp4',
-            '.mp3': 'audio/mpeg',
-            '.json': 'application/json',
-            '.csv': 'text/csv',
-            '.zip': 'application/zip',
-            '.doc': 'application/msword',
-            '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+            ".txt": "text/plain",
+            ".pdf": "application/pdf",
+            ".jpg": "image/jpeg",
+            ".jpeg": "image/jpeg",
+            ".png": "image/png",
+            ".gif": "image/gif",
+            ".mp4": "video/mp4",
+            ".mp3": "audio/mpeg",
+            ".json": "application/json",
+            ".csv": "text/csv",
+            ".zip": "application/zip",
+            ".doc": "application/msword",
+            ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         }
-        return mime_types.get(ext, 'application/octet-stream')
+        return mime_types.get(ext, "application/octet-stream")
 
-    async def _list_bucket_files_real(self, bucket: str, path: str = "", metadata_first: bool = True):
+    async def _list_bucket_files_real(
+        self, bucket: str, path: str = "", metadata_first: bool = True
+    ):
         """List files in a specific bucket from the actual filesystem."""
         try:
             if not bucket:
                 return {"error": "Bucket name is required", "items": []}
-            
+
             # Check the actual bucket directory in ~/.ipfs_kit/
             data_dir = Path.home() / ".ipfs_kit"
             bucket_dir = data_dir / "buckets" / bucket
-            
+
             files = []
-            
+
             if bucket_dir.exists():
                 logger.info(f"📂 Listing files in bucket '{bucket}' from {bucket_dir}")
-                
+
                 # List files in the bucket directory
                 for item in bucket_dir.iterdir():
                     try:
@@ -791,33 +786,37 @@ class SimpleMCPDashboard:
                             "name": item.name,
                             "path": str(item.relative_to(bucket_dir)),
                             "size": stat.st_size,
-                            "type": "directory" if item.is_dir() else self._get_mime_type(item.name),
+                            "type": "directory"
+                            if item.is_dir()
+                            else self._get_mime_type(item.name),
                             "created_at": datetime.fromtimestamp(stat.st_ctime).isoformat(),
                             "updated_at": datetime.fromtimestamp(stat.st_mtime).isoformat(),
                             "hash": None,  # Will be computed by daemon
                             "is_directory": item.is_dir(),
-                            "storage_path": str(item.relative_to(data_dir))
+                            "storage_path": str(item.relative_to(data_dir)),
                         }
                         files.append(file_info)
                     except Exception as e:
                         logger.warning(f"Error reading file {item}: {e}")
-                        
+
                 logger.info(f"📋 Found {len(files)} items in bucket '{bucket}'")
             else:
-                logger.info(f"📁 Bucket directory '{bucket}' does not exist yet, returning empty list")
-                
+                logger.info(
+                    f"📁 Bucket directory '{bucket}' does not exist yet, returning empty list"
+                )
+
             return {
                 "items": files,
                 "total_count": len(files),
                 "bucket": bucket,
                 "path": path,
                 "source": "filesystem",
-                "bucket_path": str(bucket_dir) if bucket_dir.exists() else None
+                "bucket_path": str(bucket_dir) if bucket_dir.exists() else None,
             }
         except Exception as e:
             logger.error(f"❌ Error listing files in bucket {bucket}: {e}")
             return {"error": str(e), "items": []}
-    
+
     async def _create_default_buckets(self):
         """Create default test buckets for immediate functionality."""
         try:
@@ -827,14 +826,14 @@ class SimpleMCPDashboard:
                     "description": "Document storage bucket",
                     "created": datetime.now().isoformat(),
                     "replication_factor": 3,
-                    "cache_policy": "memory", 
+                    "cache_policy": "memory",
                     "retention_policy": "permanent",
                     "storage_quota": "100GB",
                     "max_files": 10000,
                     "versioning": True,
                     "files_count": 5,
                     "total_size": "15.2 MB",
-                    "tier": "hot"
+                    "tier": "hot",
                 },
                 {
                     "name": "media",
@@ -842,13 +841,13 @@ class SimpleMCPDashboard:
                     "created": datetime.now().isoformat(),
                     "replication_factor": 2,
                     "cache_policy": "disk",
-                    "retention_policy": "permanent", 
+                    "retention_policy": "permanent",
                     "storage_quota": "500GB",
                     "max_files": 5000,
                     "versioning": False,
                     "files_count": 12,
                     "total_size": "2.3 GB",
-                    "tier": "warm"
+                    "tier": "warm",
                 },
                 {
                     "name": "archive",
@@ -857,73 +856,64 @@ class SimpleMCPDashboard:
                     "replication_factor": 1,
                     "cache_policy": "none",
                     "retention_policy": "7_years",
-                    "storage_quota": "1TB", 
+                    "storage_quota": "1TB",
                     "max_files": 50000,
                     "versioning": True,
                     "files_count": 47,
                     "total_size": "124.7 GB",
-                    "tier": "cold"
-                }
+                    "tier": "cold",
+                },
             ]
-            
+
             buckets_data = {
                 "buckets": default_buckets,
                 "total_count": len(default_buckets),
                 "created": datetime.now().isoformat(),
                 "last_updated": datetime.now().isoformat(),
-                "version": "1.0"
+                "version": "1.0",
             }
-            
+
             # Save default buckets to metadata
             await self._write_config_file("buckets.json", buckets_data)
-            
+
             return buckets_data
-            
+
         except Exception as e:
             logger.error(f"Error creating default buckets: {e}")
             return {"buckets": [], "total_count": 0, "error": str(e)}
-    
+
     async def _list_services(self):
-        """List services using metadata-first approach.""" 
+        """List services using metadata-first approach."""
         try:
             return {
                 "services": [
                     {"name": "IPFS Daemon", "status": "running", "port": 5001},
-                    {"name": "MCP Server", "status": "running", "port": 8004}
+                    {"name": "MCP Server", "status": "running", "port": 8004},
                 ],
                 "total_count": 2,
-                "source": "metadata"
+                "source": "metadata",
             }
         except Exception as e:
             logger.error(f"Error listing services: {e}")
-            return {
-                "services": [],
-                "total_count": 0,
-                "error": str(e)
-            }
-    
+            return {"services": [], "total_count": 0, "error": str(e)}
+
     async def _list_backends(self):
         """List backends using metadata-first approach."""
         try:
             # Read backends.json from metadata
             backends_config = await self._read_config_file("backends.json")
             backends_data = json.loads(backends_config["content"])
-            
+
             return {
                 "backends": backends_data.get("backends", []),
                 "total_count": len(backends_data.get("backends", [])),
                 "source": "metadata",
-                "last_updated": backends_data.get("last_updated", datetime.now().isoformat())
+                "last_updated": backends_data.get("last_updated", datetime.now().isoformat()),
             }
         except Exception as e:
             logger.error(f"Error listing backends: {e}")
-            return {
-                "backends": [],
-                "total_count": 0,
-                "source": "error",
-                "error": str(e)
-            }
-    
+            return {"backends": [], "total_count": 0, "source": "error", "error": str(e)}
+
     async def _list_peers(self):
         """List IPFS peers using libp2p_py integration."""
         try:
@@ -931,27 +921,31 @@ class SimpleMCPDashboard:
             total_count = 0
             source = "mock"
             status = "No peers connected"
-            
+
             # Try to use libp2p peer manager first
             if self.libp2p_peer_manager:
                 try:
                     # Start libp2p peer manager if not already started
-                    if not hasattr(self.libp2p_peer_manager, '_started'):
+                    if not hasattr(self.libp2p_peer_manager, "_started"):
                         await self.libp2p_peer_manager.start()
                         self.libp2p_peer_manager._started = True
-                    
+
                     # Get peers from libp2p
                     libp2p_stats = await self.libp2p_peer_manager.get_stats()
                     peers_data = list(self.libp2p_peer_manager.peers.values())
                     total_count = libp2p_stats.get("connected_peers", 0)
                     source = "libp2p"
-                    status = f"{total_count} libp2p peers connected" if total_count > 0 else "No libp2p peers connected"
-                    
+                    status = (
+                        f"{total_count} libp2p peers connected"
+                        if total_count > 0
+                        else "No libp2p peers connected"
+                    )
+
                     logger.info(f"Retrieved {total_count} peers from libp2p peer manager")
-                    
+
                 except Exception as e:
                     logger.warning(f"LibP2P peer manager failed: {e}")
-                    
+
             # Fallback to basic peer manager
             if not peers_data and self.peer_manager:
                 try:
@@ -959,28 +953,36 @@ class SimpleMCPDashboard:
                     peers_data = peer_result.get("peers", [])
                     total_count = peer_result.get("total", 0)
                     source = "basic"
-                    status = f"{total_count} basic peers connected" if total_count > 0 else "No basic peers connected"
-                    
+                    status = (
+                        f"{total_count} basic peers connected"
+                        if total_count > 0
+                        else "No basic peers connected"
+                    )
+
                     logger.info(f"Retrieved {total_count} peers from basic peer manager")
-                    
+
                 except Exception as e:
                     logger.warning(f"Basic peer manager failed: {e}")
-            
+
             # Return comprehensive peer information
             return {
                 "peers": peers_data,
                 "total_count": total_count,
                 "source": source,
                 "status": status,
-                "message": "IPFS network peers will appear here when connected" if total_count == 0 else f"Connected to {total_count} peers",
+                "message": "IPFS network peers will appear here when connected"
+                if total_count == 0
+                else f"Connected to {total_count} peers",
                 "last_updated": datetime.now().isoformat(),
                 "capabilities": {
                     "libp2p_available": self.libp2p_peer_manager is not None,
                     "basic_available": self.peer_manager is not None,
-                    "discovery_active": getattr(self.libp2p_peer_manager, 'discovery_active', False) if self.libp2p_peer_manager else False
-                }
+                    "discovery_active": getattr(self.libp2p_peer_manager, "discovery_active", False)
+                    if self.libp2p_peer_manager
+                    else False,
+                },
             }
-            
+
         except Exception as e:
             logger.error(f"Error listing peers: {e}")
             return {
@@ -989,146 +991,152 @@ class SimpleMCPDashboard:
                 "source": "error",
                 "status": "Error retrieving peers",
                 "error": str(e),
-                "last_updated": datetime.now().isoformat()
+                "last_updated": datetime.now().isoformat(),
             }
-    
+
     async def _connect_peer(self, peer_address: str, peer_id: str = None):
         """Connect to a peer using libp2p_py integration."""
         try:
             if not peer_address:
                 return {"success": False, "error": "Peer address is required"}
-            
+
             # Try libp2p peer manager first
             if self.libp2p_peer_manager:
                 try:
-                    if not hasattr(self.libp2p_peer_manager, '_started'):
+                    if not hasattr(self.libp2p_peer_manager, "_started"):
                         await self.libp2p_peer_manager.start()
                         self.libp2p_peer_manager._started = True
-                    
+
                     # Connect using libp2p
-                    connection_result = await self.libp2p_peer_manager.connect_peer(peer_address, peer_id)
-                    
+                    connection_result = await self.libp2p_peer_manager.connect_peer(
+                        peer_address, peer_id
+                    )
+
                     return {
                         "success": True,
                         "peer_address": peer_address,
                         "peer_id": peer_id,
                         "source": "libp2p",
                         "connection_result": connection_result,
-                        "timestamp": datetime.now().isoformat()
+                        "timestamp": datetime.now().isoformat(),
                     }
-                    
+
                 except Exception as e:
                     logger.warning(f"LibP2P connection failed: {e}")
-            
+
             # Fallback to basic peer manager
             if self.peer_manager:
                 try:
                     peer_info = {
                         "peer_address": peer_address,
                         "peer_id": peer_id or f"peer_{int(time.time())}",
-                        "connected_at": datetime.now().isoformat()
+                        "connected_at": datetime.now().isoformat(),
                     }
-                    
+
                     result = self.peer_manager.connect_peer(peer_info)
-                    
+
                     return {
                         "success": True,
                         "peer_address": peer_address,
                         "peer_id": peer_info["peer_id"],
                         "source": "basic",
                         "connection_result": result,
-                        "timestamp": datetime.now().isoformat()
+                        "timestamp": datetime.now().isoformat(),
                     }
-                    
+
                 except Exception as e:
                     logger.warning(f"Basic peer connection failed: {e}")
-            
+
             return {"success": False, "error": "No peer manager available"}
-            
+
         except Exception as e:
             logger.error(f"Error connecting to peer: {e}")
             return {"success": False, "error": str(e)}
-    
+
     async def _disconnect_peer(self, peer_id: str):
         """Disconnect from a peer using libp2p_py integration."""
         try:
             if not peer_id:
                 return {"success": False, "error": "Peer ID is required"}
-            
+
             # Try libp2p peer manager first
             if self.libp2p_peer_manager:
                 try:
                     disconnection_result = await self.libp2p_peer_manager.disconnect_peer(peer_id)
-                    
+
                     return {
                         "success": True,
                         "peer_id": peer_id,
                         "source": "libp2p",
                         "disconnection_result": disconnection_result,
-                        "timestamp": datetime.now().isoformat()
+                        "timestamp": datetime.now().isoformat(),
                     }
-                    
+
                 except Exception as e:
                     logger.warning(f"LibP2P disconnection failed: {e}")
-            
+
             # Fallback to basic peer manager
             if self.peer_manager:
                 try:
                     result = self.peer_manager.disconnect_peer(peer_id)
-                    
+
                     return {
                         "success": True,
                         "peer_id": peer_id,
                         "source": "basic",
                         "disconnection_result": result,
-                        "timestamp": datetime.now().isoformat()
+                        "timestamp": datetime.now().isoformat(),
                     }
-                    
+
                 except Exception as e:
                     logger.warning(f"Basic peer disconnection failed: {e}")
-            
+
             return {"success": False, "error": "No peer manager available"}
-            
+
         except Exception as e:
             logger.error(f"Error disconnecting peer: {e}")
             return {"success": False, "error": str(e)}
-    
+
     async def _discover_peers(self):
         """Discover new peers using libp2p_py integration."""
         try:
             discovered_peers = []
             total_discovered = 0
             source = "mock"
-            
+
             # Try libp2p peer manager first
             if self.libp2p_peer_manager:
                 try:
-                    if not hasattr(self.libp2p_peer_manager, '_started'):
+                    if not hasattr(self.libp2p_peer_manager, "_started"):
                         await self.libp2p_peer_manager.start()
                         self.libp2p_peer_manager._started = True
-                    
+
                     # Start peer discovery
                     self.libp2p_peer_manager.discovery_active = True
                     discovery_result = await self.libp2p_peer_manager.discover_peers()
-                    
+
                     discovered_peers = discovery_result.get("discovered_peers", [])
                     total_discovered = len(discovered_peers)
                     source = "libp2p"
-                    
+
                     logger.info(f"Discovered {total_discovered} peers via libp2p")
-                    
+
                 except Exception as e:
                     logger.warning(f"LibP2P discovery failed: {e}")
-            
+
             return {
                 "discovered_peers": discovered_peers,
                 "total_discovered": total_discovered,
                 "source": source,
-                "discovery_active": getattr(self.libp2p_peer_manager, 'discovery_active', False) if self.libp2p_peer_manager else False,
+                "discovery_active": getattr(self.libp2p_peer_manager, "discovery_active", False)
+                if self.libp2p_peer_manager
+                else False,
                 "timestamp": datetime.now().isoformat(),
-                "status": f"Discovered {total_discovered} new peers" if total_discovered > 0 else "No new peers discovered"
+                "status": f"Discovered {total_discovered} new peers"
+                if total_discovered > 0
+                else "No new peers discovered",
             }
-            
+
         except Exception as e:
             logger.error(f"Error discovering peers: {e}")
             return {
@@ -1136,18 +1144,18 @@ class SimpleMCPDashboard:
                 "total_discovered": 0,
                 "source": "error",
                 "error": str(e),
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
             }
-    
+
     async def _get_peer_info(self, peer_id: str):
         """Get detailed information about a specific peer."""
         try:
             if not peer_id:
                 return {"success": False, "error": "Peer ID is required"}
-            
+
             peer_info = None
             source = "not_found"
-            
+
             # Try libp2p peer manager first
             if self.libp2p_peer_manager:
                 try:
@@ -1155,12 +1163,16 @@ class SimpleMCPDashboard:
                     if peer_info:
                         source = "libp2p"
                         # Add additional metadata
-                        peer_info["metadata"] = self.libp2p_peer_manager.peer_metadata.get(peer_id, {})
-                        peer_info["pinsets"] = self.libp2p_peer_manager.peer_pinsets.get(peer_id, [])
-                        
+                        peer_info["metadata"] = self.libp2p_peer_manager.peer_metadata.get(
+                            peer_id, {}
+                        )
+                        peer_info["pinsets"] = self.libp2p_peer_manager.peer_pinsets.get(
+                            peer_id, []
+                        )
+
                 except Exception as e:
                     logger.warning(f"LibP2P peer info retrieval failed: {e}")
-            
+
             # Fallback to basic peer manager
             if not peer_info and self.peer_manager:
                 try:
@@ -1169,28 +1181,28 @@ class SimpleMCPDashboard:
                             peer_info = peer
                             source = "basic"
                             break
-                            
+
                 except Exception as e:
                     logger.warning(f"Basic peer info retrieval failed: {e}")
-            
+
             if peer_info:
                 return {
                     "success": True,
                     "peer_info": peer_info,
                     "source": source,
-                    "timestamp": datetime.now().isoformat()
+                    "timestamp": datetime.now().isoformat(),
                 }
             else:
                 return {
                     "success": False,
                     "error": f"Peer {peer_id} not found",
-                    "timestamp": datetime.now().isoformat()
+                    "timestamp": datetime.now().isoformat(),
                 }
-                
+
         except Exception as e:
             logger.error(f"Error getting peer info: {e}")
             return {"success": False, "error": str(e)}
-    
+
     async def _get_peer_stats(self):
         """Get comprehensive peer statistics."""
         try:
@@ -1201,19 +1213,23 @@ class SimpleMCPDashboard:
                 "discovery_active": False,
                 "protocols_supported": [],
                 "libp2p_available": False,
-                "basic_available": False
+                "basic_available": False,
             }
-            
+
             # Get stats from libp2p peer manager
             if self.libp2p_peer_manager:
                 try:
-                    libp2p_stats = await self.libp2p_peer_manager.get_stats() if hasattr(self.libp2p_peer_manager, 'get_stats') else self.libp2p_peer_manager.stats
+                    libp2p_stats = (
+                        await self.libp2p_peer_manager.get_stats()
+                        if hasattr(self.libp2p_peer_manager, "get_stats")
+                        else self.libp2p_peer_manager.stats
+                    )
                     stats.update(libp2p_stats)
                     stats["libp2p_available"] = True
-                    
+
                 except Exception as e:
                     logger.warning(f"LibP2P stats retrieval failed: {e}")
-            
+
             # Get stats from basic peer manager
             if self.peer_manager:
                 try:
@@ -1221,166 +1237,168 @@ class SimpleMCPDashboard:
                     if not stats["total_peers"]:
                         stats["total_peers"] = basic_stats.get("total", 0)
                         stats["connected_peers"] = basic_stats.get("total", 0)
-                    
+
                     stats["basic_available"] = True
-                    
+
                 except Exception as e:
                     logger.warning(f"Basic peer stats retrieval failed: {e}")
-            
+
             stats["timestamp"] = datetime.now().isoformat()
             return stats
-            
+
         except Exception as e:
             logger.error(f"Error getting peer stats: {e}")
             return {"error": str(e), "timestamp": datetime.now().isoformat()}
-    
+
     async def _bootstrap_peers(self):
         """Bootstrap peer connections using known peers."""
         try:
             bootstrap_results = []
             total_bootstrapped = 0
-            
+
             # Try libp2p peer manager first
             if self.libp2p_peer_manager:
                 try:
-                    if not hasattr(self.libp2p_peer_manager, '_started'):
+                    if not hasattr(self.libp2p_peer_manager, "_started"):
                         await self.libp2p_peer_manager.start()
                         self.libp2p_peer_manager._started = True
-                    
+
                     # Bootstrap from configured sources
-                    bootstrap_result = await self.libp2p_peer_manager._bootstrap_from_sources() if hasattr(self.libp2p_peer_manager, '_bootstrap_from_sources') else {}
-                    bootstrap_results.append({
-                        "source": "libp2p",
-                        "result": bootstrap_result,
-                        "success": True
-                    })
-                    
+                    bootstrap_result = (
+                        await self.libp2p_peer_manager._bootstrap_from_sources()
+                        if hasattr(self.libp2p_peer_manager, "_bootstrap_from_sources")
+                        else {}
+                    )
+                    bootstrap_results.append(
+                        {"source": "libp2p", "result": bootstrap_result, "success": True}
+                    )
+
                     total_bootstrapped += len(self.libp2p_peer_manager.bootstrap_peers)
-                    
+
                 except Exception as e:
                     logger.warning(f"LibP2P bootstrap failed: {e}")
-                    bootstrap_results.append({
-                        "source": "libp2p",
-                        "error": str(e),
-                        "success": False
-                    })
-            
+                    bootstrap_results.append(
+                        {"source": "libp2p", "error": str(e), "success": False}
+                    )
+
             return {
                 "bootstrap_results": bootstrap_results,
                 "total_bootstrapped": total_bootstrapped,
                 "timestamp": datetime.now().isoformat(),
-                "status": f"Bootstrapped {total_bootstrapped} peers" if total_bootstrapped > 0 else "No peers bootstrapped"
+                "status": f"Bootstrapped {total_bootstrapped} peers"
+                if total_bootstrapped > 0
+                else "No peers bootstrapped",
             }
-            
+
         except Exception as e:
             logger.error(f"Error bootstrapping peers: {e}")
             return {
                 "bootstrap_results": [],
                 "total_bootstrapped": 0,
                 "error": str(e),
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
             }
-    
+
     async def _create_bucket(self, name, config=None):
         """Create a bucket using metadata-first approach."""
         try:
             if not name:
                 raise ValueError("Bucket name is required")
-            
+
             # Load current buckets
             buckets_config = await self._read_config_file("buckets.json")
             buckets_data = json.loads(buckets_config["content"])
-            
+
             # Check if bucket already exists
             if any(b.get("name") == name for b in buckets_data.get("buckets", [])):
                 return {"success": False, "error": f"Bucket '{name}' already exists"}
-            
+
             # Add new bucket
             new_bucket = {
                 "name": name,
                 "created": datetime.now().isoformat(),
                 "replication_factor": config.get("replication_factor", 1) if config else 1,
-                "cache_policy": config.get("cache_policy", "disk") if config else "disk"
+                "cache_policy": config.get("cache_policy", "disk") if config else "disk",
             }
-            
+
             buckets_data.setdefault("buckets", []).append(new_bucket)
             buckets_data["total_count"] = len(buckets_data["buckets"])
             buckets_data["last_updated"] = datetime.now().isoformat()
-            
+
             # Save updated buckets
             await self._write_config_file("buckets.json", buckets_data)
-            
+
             return {"success": True, "bucket": new_bucket}
-            
+
         except Exception as e:
             logger.error(f"Error creating bucket {name}: {e}")
             return {"success": False, "error": str(e)}
-    
+
     async def _delete_bucket(self, name):
         """Delete a bucket using metadata-first approach."""
         try:
             if not name:
                 raise ValueError("Bucket name is required")
-            
+
             # Load current buckets
             buckets_config = await self._read_config_file("buckets.json")
             buckets_data = json.loads(buckets_config["content"])
-            
+
             # Find and remove bucket
             buckets = buckets_data.get("buckets", [])
             original_count = len(buckets)
             buckets_data["buckets"] = [b for b in buckets if b.get("name") != name]
-            
+
             if len(buckets_data["buckets"]) == original_count:
                 return {"success": False, "error": f"Bucket '{name}' not found"}
-            
+
             buckets_data["total_count"] = len(buckets_data["buckets"])
             buckets_data["last_updated"] = datetime.now().isoformat()
-            
+
             # Save updated buckets
             await self._write_config_file("buckets.json", buckets_data)
-            
+
             return {"success": True, "message": f"Bucket '{name}' deleted"}
-            
+
         except Exception as e:
             logger.error(f"Error deleting bucket {name}: {e}")
             return {"success": False, "error": str(e)}
-    
+
     async def _update_bucket(self, name, config):
         """Update a bucket using metadata-first approach."""
         try:
             if not name:
                 raise ValueError("Bucket name is required")
-            
+
             # Load current buckets
             buckets_config = await self._read_config_file("buckets.json")
             buckets_data = json.loads(buckets_config["content"])
-            
+
             # Find and update bucket
             buckets = buckets_data.get("buckets", [])
             bucket_found = False
-            
+
             for bucket in buckets:
                 if bucket.get("name") == name:
                     bucket.update(config)
                     bucket["modified"] = datetime.now().isoformat()
                     bucket_found = True
                     break
-            
+
             if not bucket_found:
                 return {"success": False, "error": f"Bucket '{name}' not found"}
-            
+
             buckets_data["last_updated"] = datetime.now().isoformat()
-            
+
             # Save updated buckets
             await self._write_config_file("buckets.json", buckets_data)
-            
+
             return {"success": True, "bucket": bucket}
-            
+
         except Exception as e:
             logger.error(f"Error updating bucket {name}: {e}")
             return {"success": False, "error": str(e)}
-    
+
     async def _get_bucket_stats(self, name):
         """Get bucket statistics using metadata-first approach."""
         try:
@@ -1388,47 +1406,46 @@ class SimpleMCPDashboard:
                 # Return overall bucket stats
                 buckets_config = await self._read_config_file("buckets.json")
                 buckets_data = json.loads(buckets_config["content"])
-                
+
                 return {
                     "total_buckets": len(buckets_data.get("buckets", [])),
                     "total_size": "N/A",
                     "last_updated": buckets_data.get("last_updated"),
-                    "source": "metadata"
+                    "source": "metadata",
                 }
             else:
                 # Return specific bucket stats
                 buckets_config = await self._read_config_file("buckets.json")
                 buckets_data = json.loads(buckets_config["content"])
-                
-                bucket = next((b for b in buckets_data.get("buckets", []) if b.get("name") == name), None)
+
+                bucket = next(
+                    (b for b in buckets_data.get("buckets", []) if b.get("name") == name), None
+                )
                 if not bucket:
                     return {"error": f"Bucket '{name}' not found"}
-                
-                return {
-                    "bucket": bucket,
-                    "size": "N/A",
-                    "files": 0,
-                    "source": "metadata"
-                }
-                
+
+                return {"bucket": bucket, "size": "N/A", "files": 0, "source": "metadata"}
+
         except Exception as e:
             logger.error(f"Error getting bucket stats for {name}: {e}")
             return {"error": str(e)}
-    
+
     async def _get_bucket(self, bucket_name):
         """Get detailed bucket information using metadata-first approach."""
         try:
             if not bucket_name:
                 return {"error": "Bucket name is required"}
-            
+
             # Read bucket information from metadata
             buckets_config = await self._read_config_file("buckets.json")
             buckets_data = json.loads(buckets_config["content"])
-            
-            bucket = next((b for b in buckets_data.get("buckets", []) if b.get("name") == bucket_name), None)
+
+            bucket = next(
+                (b for b in buckets_data.get("buckets", []) if b.get("name") == bucket_name), None
+            )
             if not bucket:
                 return {"error": f"Bucket '{bucket_name}' not found"}
-            
+
             # Return detailed bucket information
             return {
                 "name": bucket.get("name"),
@@ -1444,12 +1461,12 @@ class SimpleMCPDashboard:
                 "retention_policy": bucket.get("retention_policy", "permanent"),
                 "storage_quota": bucket.get("storage_quota", "100GB"),
                 "max_files": bucket.get("max_files", 10000),
-                "versioning": bucket.get("versioning", False)
+                "versioning": bucket.get("versioning", False),
             }
         except Exception as e:
             logger.error(f"Error getting bucket {bucket_name}: {e}")
             return {"error": str(e)}
-    
+
     async def _get_metadata(self, key):
         """Get metadata using metadata-first approach."""
         try:
@@ -1458,12 +1475,12 @@ class SimpleMCPDashboard:
                 "key": key,
                 "value": None,
                 "source": "metadata",
-                "last_updated": datetime.now().isoformat()
+                "last_updated": datetime.now().isoformat(),
             }
         except Exception as e:
             logger.error(f"Error getting metadata for {key}: {e}")
             return {"error": str(e)}
-    
+
     async def _set_metadata(self, key, value):
         """Set metadata using metadata-first approach."""
         try:
@@ -1473,7 +1490,7 @@ class SimpleMCPDashboard:
                 "value": value,
                 "success": True,
                 "source": "metadata",
-                "last_updated": datetime.now().isoformat()
+                "last_updated": datetime.now().isoformat(),
             }
         except Exception as e:
             logger.error(f"Error setting metadata for {key}: {e}")
@@ -1484,15 +1501,17 @@ class SimpleMCPDashboard:
         try:
             if not bucket_name:
                 return {"error": "Bucket name is required"}
-            
+
             # Read bucket configuration from metadata
             buckets_config = await self._read_config_file("buckets.json")
             buckets_data = json.loads(buckets_config["content"])
-            
-            bucket = next((b for b in buckets_data.get("buckets", []) if b.get("name") == bucket_name), None)
+
+            bucket = next(
+                (b for b in buckets_data.get("buckets", []) if b.get("name") == bucket_name), None
+            )
             if not bucket:
                 return {"error": f"Bucket '{bucket_name}' not found"}
-            
+
             # Return bucket policy with defaults
             policy = {
                 "replication_factor": bucket.get("replication_factor", 3),
@@ -1502,13 +1521,15 @@ class SimpleMCPDashboard:
                 "max_files": bucket.get("max_files", 10000),
                 "versioning": bucket.get("versioning", True),
                 "compression": bucket.get("compression", "auto"),
-                "encryption": bucket.get("encryption", False)
+                "encryption": bucket.get("encryption", False),
             }
-            
+
             return {
                 "bucket": bucket_name,
                 "policy": policy,
-                "last_updated": bucket.get("modified", bucket.get("created", datetime.now().isoformat()))
+                "last_updated": bucket.get(
+                    "modified", bucket.get("created", datetime.now().isoformat())
+                ),
             }
         except Exception as e:
             logger.error(f"Error getting bucket policy for {bucket_name}: {e}")
@@ -1519,11 +1540,11 @@ class SimpleMCPDashboard:
         try:
             if not bucket_name:
                 return {"error": "Bucket name is required"}
-            
+
             # Read current buckets
             buckets_config = await self._read_config_file("buckets.json")
             buckets_data = json.loads(buckets_config["content"])
-            
+
             # Find and update bucket
             bucket_found = False
             for bucket in buckets_data.get("buckets", []):
@@ -1532,20 +1553,20 @@ class SimpleMCPDashboard:
                     bucket["modified"] = datetime.now().isoformat()
                     bucket_found = True
                     break
-            
+
             if not bucket_found:
                 return {"error": f"Bucket '{bucket_name}' not found"}
-            
+
             buckets_data["last_updated"] = datetime.now().isoformat()
-            
+
             # Save updated configuration
             await self._write_config_file("buckets.json", buckets_data)
-            
+
             return {
                 "success": True,
                 "bucket": bucket_name,
                 "policy": policy,
-                "message": "Policy updated successfully"
+                "message": "Policy updated successfully",
             }
         except Exception as e:
             logger.error(f"Error updating bucket policy for {bucket_name}: {e}")
@@ -1556,29 +1577,32 @@ class SimpleMCPDashboard:
         try:
             if not bucket_name:
                 return {"error": "Bucket name is required"}
-            
+
             # Read bucket information from metadata
             buckets_config = await self._read_config_file("buckets.json")
             buckets_data = json.loads(buckets_config["content"])
-            
-            bucket = next((b for b in buckets_data.get("buckets", []) if b.get("name") == bucket_name), None)
+
+            bucket = next(
+                (b for b in buckets_data.get("buckets", []) if b.get("name") == bucket_name), None
+            )
             if not bucket:
                 return {"error": f"Bucket '{bucket_name}' not found"}
-            
+
             # Return usage statistics with realistic sample data
             return {
                 "bucket": bucket_name,
-                "total_size_gb": float(bucket.get("total_size", "0").replace("GB", "").replace("MB", "").split()[0]) if bucket.get("total_size") else 0,
+                "total_size_gb": float(
+                    bucket.get("total_size", "0").replace("GB", "").replace("MB", "").split()[0]
+                )
+                if bucket.get("total_size")
+                else 0,
                 "file_count": bucket.get("files_count", 0),
                 "storage_quota": bucket.get("storage_quota", "100GB"),
                 "quota_used_percent": 25.3,
                 "replication_count": bucket.get("replication_factor", 3),
                 "cache_hit_ratio": 0.85,
                 "last_access": datetime.now().isoformat(),
-                "bandwidth_usage": {
-                    "upload": "5.2 MB/day",
-                    "download": "12.8 MB/day"
-                }
+                "bandwidth_usage": {"upload": "5.2 MB/day", "download": "12.8 MB/day"},
             }
         except Exception as e:
             logger.error(f"Error getting bucket usage for {bucket_name}: {e}")
@@ -1589,7 +1613,7 @@ class SimpleMCPDashboard:
         try:
             if not bucket_name:
                 return {"error": "Bucket name is required"}
-            
+
             # For now, return sample file structure
             # In real implementation, this would read from bucket storage
             sample_files = [
@@ -1599,7 +1623,7 @@ class SimpleMCPDashboard:
                     "type": "file",
                     "modified": "2025-01-01T10:00:00Z",
                     "path": f"{path}/document1.pdf",
-                    "hash": "QmXpVnJYkzxQ7hMm9YzCzJyKjMpBz2vwZnNjQ3cGqE7LmR"
+                    "hash": "QmXpVnJYkzxQ7hMm9YzCzJyKjMpBz2vwZnNjQ3cGqE7LmR",
                 },
                 {
                     "name": "images",
@@ -1607,7 +1631,7 @@ class SimpleMCPDashboard:
                     "type": "directory",
                     "modified": "2025-01-01T09:00:00Z",
                     "path": f"{path}/images",
-                    "children": 5
+                    "children": 5,
                 },
                 {
                     "name": "data.json",
@@ -1615,16 +1639,16 @@ class SimpleMCPDashboard:
                     "type": "file",
                     "modified": "2025-01-01T08:00:00Z",
                     "path": f"{path}/data.json",
-                    "hash": "QmYpVnJYkzxQ7hMm9YzCzJyKjMpBz2vwZnNjQ3cGqE7LmS"
-                }
+                    "hash": "QmYpVnJYkzxQ7hMm9YzCzJyKjMpBz2vwZnNjQ3cGqE7LmS",
+                },
             ]
-            
+
             return {
                 "bucket": bucket_name,
                 "path": path,
                 "files": sample_files,
                 "total_files": len(sample_files),
-                "total_size": "3.7 MB"
+                "total_size": "3.7 MB",
             }
         except Exception as e:
             logger.error(f"Error listing files in bucket {bucket_name}: {e}")
@@ -1636,24 +1660,24 @@ class SimpleMCPDashboard:
             data_dir = Path.home() / ".ipfs_kit"
             metadata_file = data_dir / "metadata" / "buckets.json"
             metadata_file.parent.mkdir(parents=True, exist_ok=True)
-            
+
             # Load existing metadata
             metadata = {}
             if metadata_file.exists():
-                with open(metadata_file, 'r') as f:
+                with open(metadata_file, "r") as f:
                     metadata = json.load(f)
-            
+
             if bucket_name not in metadata:
                 metadata[bucket_name] = {
                     "name": bucket_name,
                     "created": datetime.now().isoformat(),
                     "files": [],
                     "total_size": 0,
-                    "file_count": 0
+                    "file_count": 0,
                 }
-            
+
             bucket_meta = metadata[bucket_name]
-            
+
             if operation == "add":
                 bucket_meta["files"].append(file_info)
                 bucket_meta["total_size"] += file_info["size"]
@@ -1662,16 +1686,20 @@ class SimpleMCPDashboard:
                 logger.info(f"📝 Added file {file_info['name']} to bucket metadata")
             elif operation == "remove":
                 # Remove file from metadata
-                bucket_meta["files"] = [f for f in bucket_meta["files"] if f.get("name") != file_info["name"]]
-                bucket_meta["total_size"] = max(0, bucket_meta["total_size"] - file_info.get("size", 0))
+                bucket_meta["files"] = [
+                    f for f in bucket_meta["files"] if f.get("name") != file_info["name"]
+                ]
+                bucket_meta["total_size"] = max(
+                    0, bucket_meta["total_size"] - file_info.get("size", 0)
+                )
                 bucket_meta["file_count"] = len(bucket_meta["files"])
                 bucket_meta["last_updated"] = datetime.now().isoformat()
                 logger.info(f"🗑️  Removed file {file_info['name']} from bucket metadata")
-            
+
             # Save updated metadata
-            with open(metadata_file, 'w') as f:
+            with open(metadata_file, "w") as f:
                 json.dump(metadata, f, indent=2)
-                
+
         except Exception as e:
             logger.error(f"Failed to update bucket metadata: {e}")
 
@@ -1680,22 +1708,22 @@ class SimpleMCPDashboard:
         try:
             if not bucket_name or not file_path:
                 return {"error": "Bucket name and file path are required"}
-            
+
             # Create bucket directory structure in ~/.ipfs_kit/
             data_dir = Path.home() / ".ipfs_kit"
             buckets_dir = data_dir / "buckets" / bucket_name
             buckets_dir.mkdir(parents=True, exist_ok=True)
-            
+
             # Save file to disk
             full_file_path = buckets_dir / file_path
             full_file_path.parent.mkdir(parents=True, exist_ok=True)
-            
+
             if isinstance(content, str):
-                content = content.encode('utf-8')
-            
-            with open(full_file_path, 'wb') as f:
+                content = content.encode("utf-8")
+
+            with open(full_file_path, "wb") as f:
                 f.write(content)
-            
+
             # Create file info
             file_info = {
                 "bucket": bucket_name,
@@ -1704,26 +1732,30 @@ class SimpleMCPDashboard:
                 "size": len(content),
                 "uploaded": datetime.now().isoformat(),
                 "hash": None,  # Will be computed by daemon
-                "status": "uploaded"
+                "status": "uploaded",
             }
-            
+
             # Update bucket metadata
-            await self._update_bucket_metadata(bucket_name, {
-                "name": file_path,
-                "size": len(content),
-                "path": f"buckets/{bucket_name}/{file_path}",
-                "bucket": bucket_name,
-                "uploaded": datetime.now().isoformat(),
-                "hash": None
-            }, "add")
-            
+            await self._update_bucket_metadata(
+                bucket_name,
+                {
+                    "name": file_path,
+                    "size": len(content),
+                    "path": f"buckets/{bucket_name}/{file_path}",
+                    "bucket": bucket_name,
+                    "uploaded": datetime.now().isoformat(),
+                    "hash": None,
+                },
+                "add",
+            )
+
             logger.info(f"✅ File uploaded: {full_file_path}")
-            
+
             return {
                 "success": True,
                 "file": file_info,
                 "message": f"File uploaded to {bucket_name}:{file_path}",
-                "storage_path": str(full_file_path.relative_to(data_dir))
+                "storage_path": str(full_file_path.relative_to(data_dir)),
             }
         except Exception as e:
             logger.error(f"❌ Error uploading file to bucket {bucket_name}: {e}")
@@ -1734,27 +1766,27 @@ class SimpleMCPDashboard:
         try:
             if not bucket_name or not file_path:
                 return {"error": "Bucket name and file path are required"}
-            
+
             # Get the actual file from ~/.ipfs_kit/
             data_dir = Path.home() / ".ipfs_kit"
             full_file_path = data_dir / "buckets" / bucket_name / file_path
-            
+
             if not full_file_path.exists():
                 logger.error(f"❌ File not found: {full_file_path}")
                 return {"error": f"File not found: {file_path}"}
-            
+
             # Read file content
             content = full_file_path.read_bytes()
-            
+
             logger.info(f"📥 Downloaded file: {full_file_path}")
-            
+
             return {
                 "success": True,
                 "bucket": bucket_name,
                 "file_path": file_path,
-                "content": content.decode('utf-8', errors='ignore'),  # Try to decode as text
+                "content": content.decode("utf-8", errors="ignore"),  # Try to decode as text
                 "size": len(content),
-                "storage_path": str(full_file_path.relative_to(data_dir))
+                "storage_path": str(full_file_path.relative_to(data_dir)),
             }
         except Exception as e:
             logger.error(f"❌ Error downloading file from bucket {bucket_name}: {e}")
@@ -1765,35 +1797,39 @@ class SimpleMCPDashboard:
         try:
             if not bucket_name or not file_path:
                 return {"error": "Bucket name and file path are required"}
-            
+
             # Get the actual file from ~/.ipfs_kit/
             data_dir = Path.home() / ".ipfs_kit"
             full_file_path = data_dir / "buckets" / bucket_name / file_path
-            
+
             if not full_file_path.exists():
                 logger.error(f"❌ File not found for deletion: {full_file_path}")
                 return {"error": f"File not found: {file_path}"}
-            
+
             # Delete the file
             full_file_path.unlink()
-            
+
             # Update bucket metadata
-            await self._update_bucket_metadata(bucket_name, {
-                "name": file_path,
-                "size": 0,
-                "path": f"buckets/{bucket_name}/{file_path}",
-                "bucket": bucket_name,
-                "deleted": datetime.now().isoformat()
-            }, "remove")
-            
+            await self._update_bucket_metadata(
+                bucket_name,
+                {
+                    "name": file_path,
+                    "size": 0,
+                    "path": f"buckets/{bucket_name}/{file_path}",
+                    "bucket": bucket_name,
+                    "deleted": datetime.now().isoformat(),
+                },
+                "remove",
+            )
+
             logger.info(f"🗑️  Deleted file: {full_file_path}")
-            
+
             return {
                 "success": True,
                 "bucket": bucket_name,
                 "file_path": file_path,
                 "message": f"File deleted from {bucket_name}:{file_path}",
-                "storage_path": str(full_file_path.relative_to(data_dir))
+                "storage_path": str(full_file_path.relative_to(data_dir)),
             }
         except Exception as e:
             logger.error(f"❌ Error deleting file from bucket {bucket_name}: {e}")
@@ -1804,7 +1840,7 @@ class SimpleMCPDashboard:
         try:
             if not bucket_name:
                 return {"error": "Bucket name is required"}
-            
+
             # Simulate sync operation
             sync_result = {
                 "bucket": bucket_name,
@@ -1812,27 +1848,29 @@ class SimpleMCPDashboard:
                 "status": "in_progress",
                 "replicas_synced": 0,
                 "total_replicas": 3,
-                "estimated_completion": "2-3 minutes"
+                "estimated_completion": "2-3 minutes",
             }
-            
+
             # Simulate some progress
             await anyio.sleep(0.1)  # Brief delay to simulate work
-            
-            sync_result.update({
-                "status": "completed",
-                "replicas_synced": 3,
-                "sync_completed": datetime.now().isoformat(),
-                "files_synced": 15,
-                "data_transferred": "25.6 MB"
-            })
-            
+
+            sync_result.update(
+                {
+                    "status": "completed",
+                    "replicas_synced": 3,
+                    "sync_completed": datetime.now().isoformat(),
+                    "files_synced": 15,
+                    "data_transferred": "25.6 MB",
+                }
+            )
+
             return {
                 "ok": True,
                 "success": True,
                 "sync_result": sync_result,
                 "replicas_synced": 3,
                 "sync_time": "1.2s",
-                "message": f"Bucket '{bucket_name}' sync completed successfully"
+                "message": f"Bucket '{bucket_name}' sync completed successfully",
             }
         except Exception as e:
             logger.error(f"Error syncing bucket {bucket_name}: {e}")
@@ -1843,14 +1881,15 @@ class SimpleMCPDashboard:
         try:
             if not bucket_name:
                 return {"error": "Bucket name is required"}
-            
+
             # Generate share token with timestamp for uniqueness
             import time
+
             share_token = int(time.time() * 1000)  # Use timestamp for realistic token
-            
+
             # Create share link
             share_link = f"http://127.0.0.1:8004/shared/{bucket_name}?token={share_token}"
-            
+
             share_config = {
                 "bucket": bucket_name,
                 "share_token": share_token,
@@ -1858,9 +1897,9 @@ class SimpleMCPDashboard:
                 "access_level": access_level,
                 "created": datetime.now().isoformat(),
                 "expiration": expiration,
-                "active": True
+                "active": True,
             }
-            
+
             return {
                 "success": True,
                 "ok": True,
@@ -1871,15 +1910,15 @@ class SimpleMCPDashboard:
                 "created": datetime.now().isoformat(),
                 "expiration": expiration,
                 "active": True,
-                "message": f"Share link generated for bucket '{bucket_name}'"
+                "message": f"Share link generated for bucket '{bucket_name}'",
             }
         except Exception as e:
             logger.error(f"Error generating share link for bucket {bucket_name}: {e}")
             return {"error": str(e)}
-    
+
     def get_simple_dashboard_html(self):
         """Get the simple 3-tab dashboard HTML with working MCP configuration management."""
-        return '''<!DOCTYPE html>
+        return """<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -2443,33 +2482,35 @@ class SimpleMCPDashboard:
         });
     </script>
 </body>
-</html>'''
-    
+</html>"""
+
     def run(self):
         """Run the dashboard server."""
         logger.info(f"Starting Simple MCP Dashboard on {self.host}:{self.port}")
         uvicorn.run(self.app, host=self.host, port=self.port, log_level="info")
 
+
 def main():
     """Main entry point."""
     import argparse
-    
+
     parser = argparse.ArgumentParser(description="IPFS Kit Simple Dashboard")
     parser.add_argument("--host", default="127.0.0.1", help="Host to bind to")
     parser.add_argument("--port", type=int, default=8004, help="Port to bind to")
     parser.add_argument("--debug", action="store_true", help="Enable debug mode")
-    
+
     args = parser.parse_args()
-    
+
     # Setup logging
     logging.basicConfig(
         level=logging.DEBUG if args.debug else logging.INFO,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     )
-    
+
     # Create and run dashboard
     dashboard = SimpleMCPDashboard(host=args.host, port=args.port)
     dashboard.run()
+
 
 if __name__ == "__main__":
     main()

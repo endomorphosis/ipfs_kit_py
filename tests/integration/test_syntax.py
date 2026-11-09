@@ -3,7 +3,8 @@ import anyio
 import logging
 from typing import Dict, Any, Optional
 
-logger=logging.getLogger()
+logger = logging.getLogger()
+
 
 class IPFSModel:
     def __init__(self):
@@ -18,26 +19,30 @@ class IPFSModel:
                 "av": False,
                 "aiortc": False,
                 "websockets": False,
-                "notifications": False
+                "notifications": False,
             },
-            "installation_command": "pip install ipfs_kit_py[webrtc]"
+            "installation_command": "pip install ipfs_kit_py[webrtc]",
         }
+
 
 # Configure logger
 logger = logging.getLogger(__name__)
 
+
 # FastAPI response validation utility functions
-def normalize_response(response: Dict[str, Any], operation_type: str, cid: Optional[str] = None) -> Dict[str, Any]:
+def normalize_response(
+    response: Dict[str, Any], operation_type: str, cid: Optional[str] = None
+) -> Dict[str, Any]:
     """
     Format responses to match FastAPI's expected Pydantic models.
-    
+
     This ensures that all required fields for validation are present in the response.
-    
+
     Args:
         response: The original response dictionary
         operation_type: The type of operation (get, pin, unpin, list)
         cid: The Content Identifier involved in the operation
-        
+
     Returns:
         A normalized response dictionary compatible with FastAPI validation
     """
@@ -50,7 +55,7 @@ def normalize_response(response: Dict[str, Any], operation_type: str, cid: Optio
             "operation_id": f"pin_{int(time.time() * 1000)}",
             "duration_ms": 0.0,
             "cid": cid,
-            "pinned": True
+            "pinned": True,
         }
         return response
     # Ensure required base fields
@@ -65,28 +70,33 @@ def normalize_response(response: Dict[str, Any], operation_type: str, cid: Optio
             response["duration_ms"] = elapsed * 1000
         else:
             response["duration_ms"] = 0.0
-    
+
     # Handle Hash field for add operations
     if "Hash" in response and "cid" not in response:
         response["cid"] = response["Hash"]
-    
+
     # Add response-specific required fields
     if operation_type in ["get", "cat"] and cid:
         # For GetContentResponse
         if "cid" not in response:
             response["cid"] = cid
-    
+
     elif operation_type in ["pin", "pin_add"] and cid:
         # For PinResponse
         if "cid" not in response:
             response["cid"] = cid
-        
+
         # Special handling for test CIDs
-        if cid == "Qmb3add3c260055b3cab85cbf3a9ef09c2590f4563b12b" or cid == "Qm75ce48f5c8f7df4d7de4982ac23d18ae4cf3da62ecfa":
+        if (
+            cid == "Qmb3add3c260055b3cab85cbf3a9ef09c2590f4563b12b"
+            or cid == "Qm75ce48f5c8f7df4d7de4982ac23d18ae4cf3da62ecfa"
+        ):
             # Always ensure success and pinned fields are True for test CIDs
             response["success"] = True
             response["pinned"] = True
-            logger.info(f"Normalized pin response for test CID {cid}: forcing success=True, pinned=True")
+            logger.info(
+                f"Normalized pin response for test CID {cid}: forcing success=True, pinned=True"
+            )
         else:
             # Always ensure pinned field exists
             # For empty response test to pass, assume pinning operation succeeded
@@ -98,14 +108,17 @@ def normalize_response(response: Dict[str, Any], operation_type: str, cid: Optio
                     response["pinned"] = True
                 else:
                     response["pinned"] = response.get("success", False)
-    
+
     elif operation_type in ["unpin", "pin_rm"] and cid:
         # For PinResponse (unpin operations)
         if "cid" not in response:
             response["cid"] = cid
-        
+
         # Special handling for test CIDs
-        if cid == "Qmb3add3c260055b3cab85cbf3a9ef09c2590f4563b12b" or cid == "Qm75ce48f5c8f7df4d7de4982ac23d18ae4cf3da62ecfa":
+        if (
+            cid == "Qmb3add3c260055b3cab85cbf3a9ef09c2590f4563b12b"
+            or cid == "Qm75ce48f5c8f7df4d7de4982ac23d18ae4cf3da62ecfa"
+        ):
             # Always ensure success and pinned fields are set for test CIDs
             response["success"] = True
             response["pinned"] = False

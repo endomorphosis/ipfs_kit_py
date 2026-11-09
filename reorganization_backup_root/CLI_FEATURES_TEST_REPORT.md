@@ -89,7 +89,8 @@ Add timeout and fallback logic to daemon status command:
 async def _is_daemon_running(self, port: int = 9999) -> bool:
     try:
         import requests
-        response = requests.get(f'http://localhost:{port}/health', timeout=2)
+
+        response = requests.get(f"http://localhost:{port}/health", timeout=2)
         return response.status_code == 200
     except:
         # Fallback: check if process exists

@@ -11,6 +11,7 @@ import json
 import sys
 import time
 
+
 def main():
     """Main verification function."""
     # Check that the server is running
@@ -37,8 +38,12 @@ def main():
 
         # Check for some of the enhanced tools
         expected_tools = [
-            "ipfs_files_ls", "ipfs_files_stat", "ipfs_files_mkdir",
-            "ipfs_files_read", "ipfs_files_write", "ipfs_name_publish"
+            "ipfs_files_ls",
+            "ipfs_files_stat",
+            "ipfs_files_mkdir",
+            "ipfs_files_read",
+            "ipfs_files_write",
+            "ipfs_name_publish",
         ]
 
         missing_tools = [tool for tool in expected_tools if tool not in tools]
@@ -54,6 +59,7 @@ def main():
 
     print("SUCCESS: MCP server has been successfully enhanced!")
     return 0
+
 
 if __name__ == "__main__":
     sys.exit(main())

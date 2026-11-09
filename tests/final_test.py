@@ -17,14 +17,15 @@ print("=== FINAL INTEGRATION TEST ===")
 print("\n1. Testing installer availability:")
 try:
     from ipfs_kit_py import install_ipfs, install_lotus, install_lassie
+
     print("✓ All installers imported successfully")
-    
+
     # Test that they can be instantiated
     ipfs_inst = install_ipfs()
     lotus_inst = install_lotus()
     lassie_inst = install_lassie()
     print("✓ All installer instances created")
-    
+
 except Exception as e:
     print(f"✗ Installer test failed: {e}")
 
@@ -44,15 +45,16 @@ for binary in required_binaries:
 print("\n3. Testing MCP server:")
 try:
     from ipfs_kit_py.mcp.servers.unified_mcp_server import create_mcp_server
+
     print("✓ MCP server imported successfully")
-    
+
     server = create_mcp_server()
     print("✓ MCP server instance created")
-    
+
     # Test tool registration
     tool_count = len(server.tools)
     print(f"✓ {tool_count} tools registered")
-    
+
 except Exception as e:
     print(f"✗ MCP server test failed: {e}")
 
@@ -60,16 +62,17 @@ except Exception as e:
 print("\n4. Testing package installation:")
 try:
     import ipfs_kit_py
+
     print(f"✓ Package imported (version {ipfs_kit_py.__version__})")
-    
+
     # Check availability flags
-    if hasattr(ipfs_kit_py, 'INSTALL_IPFS_AVAILABLE'):
+    if hasattr(ipfs_kit_py, "INSTALL_IPFS_AVAILABLE"):
         print(f"✓ IPFS installer available: {ipfs_kit_py.INSTALL_IPFS_AVAILABLE}")
-    if hasattr(ipfs_kit_py, 'INSTALL_LOTUS_AVAILABLE'):
+    if hasattr(ipfs_kit_py, "INSTALL_LOTUS_AVAILABLE"):
         print(f"✓ Lotus installer available: {ipfs_kit_py.INSTALL_LOTUS_AVAILABLE}")
-    if hasattr(ipfs_kit_py, 'INSTALL_LASSIE_AVAILABLE'):
+    if hasattr(ipfs_kit_py, "INSTALL_LASSIE_AVAILABLE"):
         print(f"✓ Lassie installer available: {ipfs_kit_py.INSTALL_LASSIE_AVAILABLE}")
-        
+
 except Exception as e:
     print(f"✗ Package test failed: {e}")
 

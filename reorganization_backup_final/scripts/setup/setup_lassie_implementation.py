@@ -19,26 +19,24 @@ import socketserver
 import threading
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
 # Constants
 LASSIE_PORT = 5432
 LASSIE_MOCK_DIR = os.path.expanduser("~/.ipfs_kit/mock_lassie")
 
+
 def setup_lassie_mock_server():
     """Set up a mock Lassie API server"""
     try:
         # Create directory for Lassie mock data
         os.makedirs(LASSIE_MOCK_DIR, exist_ok=True)
-        
+
         # Create a mock Lassie server
         server_path = os.path.join(os.getcwd(), "lassie_mock_server.py")
-        
-        with open(server_path, 'w') as f:
+
+        with open(server_path, "w") as f:
             f.write(f"""#!/usr/bin/env python3
 import http.server
 import socketserver
@@ -223,99 +221,102 @@ if __name__ == "__main__":
         print("Shutting down mock Lassie API server")
         sys.exit(0)
 """)
-        
+
         # Make it executable
         os.chmod(server_path, 0o755)
-        
+
         logger.info(f"Created Lassie mock API server at: {server_path}")
-        
+
         # Start the mock API server in the background
         logger.info("Starting Lassie mock API server...")
-        
+
         # Use nohup to keep the server running after the script exits
-        with open(os.path.join(os.getcwd(), "logs/lassie_mock_api.log"), 'w') as log_file:
+        with open(os.path.join(os.getcwd(), "logs/lassie_mock_api.log"), "w") as log_file:
             process = subprocess.Popen(
                 [sys.executable, server_path],
                 stdout=log_file,
                 stderr=subprocess.STDOUT,
-                start_new_session=True
+                start_new_session=True,
             )
-        
+
         # Wait for the server to start
         time.sleep(2)
-        
+
         logger.info(f"Lassie mock API server started with PID {process.pid}")
-        
+
         # Save the PID for later
-        with open(os.path.join(os.getcwd(), "lassie_mock_api.pid"), 'w') as f:
+        with open(os.path.join(os.getcwd(), "lassie_mock_api.pid"), "w") as f:
             f.write(str(process.pid))
-        
+
         # Set environment variables
-        os.environ['LASSIE_API_URL'] = f"http://localhost:{LASSIE_PORT}"
-        os.environ['LASSIE_ENABLED'] = "true"
-        
+        os.environ["LASSIE_API_URL"] = f"http://localhost:{LASSIE_PORT}"
+        os.environ["LASSIE_ENABLED"] = "true"
+
         return True
-    
+
     except Exception as e:
         logger.error(f"Error setting up Lassie mock API server: {e}")
         return False
 
+
 def update_mcp_config():
     """Update MCP configuration with the Lassie settings"""
     config_file = os.path.join(os.getcwd(), "mcp_config.sh")
-    
+
     try:
         # Read existing file
-        with open(config_file, 'r') as f:
+        with open(config_file, "r") as f:
             lines = f.readlines()
-        
+
         # Find Lassie section and update it
         lassie_section_start = -1
         lassie_section_end = -1
-        
+
         for i, line in enumerate(lines):
             if "# Lassie configuration" in line:
                 lassie_section_start = i
             elif lassie_section_start > -1 and "fi" in line and lassie_section_end == -1:
                 lassie_section_end = i
-        
+
         if lassie_section_start > -1 and lassie_section_end > -1:
             # Create new Lassie configuration
             new_lassie_config = [
                 "# Lassie configuration\n",
                 "# Using Lassie local development API\n",
-                f"export LASSIE_API_URL=\"http://localhost:{LASSIE_PORT}\"\n",
-                "export LASSIE_ENABLED=\"true\"\n"
+                f'export LASSIE_API_URL="http://localhost:{LASSIE_PORT}"\n',
+                'export LASSIE_ENABLED="true"\n',
             ]
-            
+
             # Replace the section
-            lines[lassie_section_start:lassie_section_end+1] = new_lassie_config
-            
+            lines[lassie_section_start : lassie_section_end + 1] = new_lassie_config
+
             # Write updated file
-            with open(config_file, 'w') as f:
+            with open(config_file, "w") as f:
                 f.writelines(lines)
-            
+
             logger.info(f"Updated MCP configuration file with Lassie settings")
             return True
         else:
             logger.error("Could not find Lassie section in MCP configuration file")
             return False
-    
+
     except Exception as e:
         logger.error(f"Error updating MCP configuration: {e}")
         return False
 
+
 def main():
     """Main function"""
     logger.info("Setting up Lassie implementation for MCP Server")
-    
+
     # Set up Lassie mock API server
     if setup_lassie_mock_server():
         # Update MCP configuration
         update_mcp_config()
-    
+
     logger.info("Lassie implementation setup complete")
     logger.info("Restart the MCP server to apply changes")
+
 
 if __name__ == "__main__":
     main()

@@ -1,20 +1,23 @@
 import logging
+
 logger = logging.getLogger("vfs-tools")
+
 
 def register_vfs_tools(server):
     """Register basic VFS tools with the MCP server."""
     logger.info("Starting VFS tool registration")
     try:
+
         async def vfs_read(path: str):
             try:
-                with open(path, 'r') as file:
+                with open(path, "r") as file:
                     return file.read()
             except Exception as e:
                 return {"error": str(e)}
-                
+
         async def vfs_write(path: str, content: str):
             try:
-                with open(path, 'w') as file:
+                with open(path, "w") as file:
                     file.write(content)
                 return {"success": True}
             except Exception as e:
@@ -23,6 +26,7 @@ def register_vfs_tools(server):
         async def vfs_ls(path: str):
             try:
                 import os
+
                 return os.listdir(path)
             except Exception as e:
                 return {"error": str(e)}
@@ -30,6 +34,7 @@ def register_vfs_tools(server):
         async def vfs_mkdir(path: str):
             try:
                 import os
+
                 os.makedirs(path, exist_ok=True)
                 return {"success": True}
             except Exception as e:

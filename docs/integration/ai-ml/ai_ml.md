@@ -33,17 +33,17 @@ from ipfs_kit_py.ipfs_kit import ipfs_kit
 kit = ipfs_kit(metadata={"enable_ai_ml": True})
 
 # Access components (if initialization was successful)
-if hasattr(kit, 'model_registry'):
+if hasattr(kit, "model_registry"):
     print("Model Registry is available.")
-if hasattr(kit, 'dataset_manager'):
+if hasattr(kit, "dataset_manager"):
     print("Dataset Manager is available.")
-if hasattr(kit, 'ipfs_dataloader'):
+if hasattr(kit, "ipfs_dataloader"):
     print("IPFS DataLoader is available.")
-if hasattr(kit, 'langchain_integration'):
+if hasattr(kit, "langchain_integration"):
     print("Langchain Integration is available.")
-if hasattr(kit, 'llama_index_integration'):
+if hasattr(kit, "llama_index_integration"):
     print("LlamaIndex Integration is available.")
-if hasattr(kit, 'distributed_training'):
+if hasattr(kit, "distributed_training"):
     print("Distributed Training is available.")
 ```
 
@@ -82,11 +82,7 @@ import torch
 import torch.nn as nn
 
 # Create a simple model
-model = nn.Sequential(
-    nn.Linear(10, 50),
-    nn.ReLU(),
-    nn.Linear(50, 1)
-)
+model = nn.Sequential(nn.Linear(10, 50), nn.ReLU(), nn.Linear(50, 1))
 
 model_metadata = {
     "name": "SimpleRegressor",
@@ -95,10 +91,7 @@ model_metadata = {
     "input_shape": [10],
     "output_shape": [1],
     "tags": ["regression", "demo"],
-    "metrics": {
-        "mse": 0.23,
-        "r2": 0.85
-    }
+    "metrics": {"mse": 0.23, "r2": 0.85},
 }
 
 store_result = kit.model_registry.add_model(
@@ -106,7 +99,7 @@ store_result = kit.model_registry.add_model(
     model_name="SimpleRegressor",
     version="1.0.0",
     # Framework auto-detected as "pytorch"
-    metadata=model_metadata
+    metadata=model_metadata,
 )
 
 if store_result.get("success"):
@@ -119,7 +112,7 @@ else:
 # Retrieve by name and version
 loaded_model, model_info = kit.model_registry.get_model(
     model_name="SimpleRegressor",
-    version="1.0.0"  # Optional - gets latest version if omitted
+    version="1.0.0",  # Optional - gets latest version if omitted
 )
 
 # Model is already loaded and ready to use
@@ -141,10 +134,10 @@ store_result = kit.model_registry.add_model(
         **model_metadata,  # Keep previous metadata
         "metrics": {  # Update metrics
             "mse": 0.18,  # Improved performance
-            "r2": 0.89
+            "r2": 0.89,
         },
-        "training_steps": 1000
-    }
+        "training_steps": 1000,
+    },
 )
 
 # --- Listing Models ---
@@ -155,8 +148,8 @@ if list_result.get("success"):
         print(f"Model: {model_name}")
         for v in versions:
             print(f"  - v{v['version']} ({v['framework']}) - CID: {v['cid']}")
-            if 'metrics' in v['metadata']:
-                metrics = v['metadata']['metrics']
+            if "metrics" in v["metadata"]:
+                metrics = v["metadata"]["metrics"]
                 print(f"    Metrics: {', '.join([f'{k}={v}' for k, v in metrics.items()])}")
 ```
 
@@ -196,10 +189,10 @@ import numpy as np
 
 # Create a simple dataset
 data = {
-    'feature1': np.random.randn(1000),
-    'feature2': np.random.randn(1000),
-    'feature3': np.random.randn(1000),
-    'target': np.random.randint(0, 2, 1000)  # Binary classification
+    "feature1": np.random.randn(1000),
+    "feature2": np.random.randn(1000),
+    "feature3": np.random.randn(1000),
+    "target": np.random.randint(0, 2, 1000),  # Binary classification
 }
 df = pd.DataFrame(data)
 
@@ -215,7 +208,7 @@ dataset_metadata = {
     "features": ["feature1", "feature2", "feature3"],
     "target": "target",
     "task_type": "classification",
-    "tags": ["synthetic", "binary", "demo"]
+    "tags": ["synthetic", "binary", "demo"],
 }
 
 add_result = kit.dataset_manager.add_dataset(
@@ -223,13 +216,13 @@ add_result = kit.dataset_manager.add_dataset(
     dataset_name="ExampleDataset",
     version="1.0.0",
     # Format auto-detected as "csv"
-    metadata=dataset_metadata
+    metadata=dataset_metadata,
 )
 
 if add_result.get("success"):
     dataset_cid = add_result.get("cid")
     print(f"Added dataset with CID: {dataset_cid}")
-    
+
     # Dataset statistics are automatically computed
     stats = add_result.get("stats")
     print(f"Dataset stats: {stats}")
@@ -240,24 +233,26 @@ else:
 get_result = kit.dataset_manager.get_dataset(
     dataset_name="ExampleDataset",
     version="1.0.0",  # Optional - gets latest version if omitted
-    output_path="/tmp/retrieved_dataset"  # Optional - uses temp dir if omitted
+    output_path="/tmp/retrieved_dataset",  # Optional - uses temp dir if omitted
 )
 
 if get_result.get("success"):
     dataset_path = get_result.get("local_path")
     dataset_metadata = get_result.get("metadata")
-    
+
     # Load the dataset using pandas
     retrieved_df = pd.read_csv(f"{dataset_path}/example_dataset.csv")
-    print(f"Retrieved dataset with {len(retrieved_df)} rows and {len(retrieved_df.columns)} columns")
+    print(
+        f"Retrieved dataset with {len(retrieved_df)} rows and {len(retrieved_df.columns)} columns"
+    )
     print(f"Dataset metadata: {dataset_metadata}")
 else:
     print(f"Failed to retrieve dataset: {get_result.get('error')}")
 
 # --- Creating a New Version ---
 # Add some derived features
-df['feature4'] = df['feature1'] * df['feature2']
-df['feature5'] = np.log(np.abs(df['feature3']) + 1)
+df["feature4"] = df["feature1"] * df["feature2"]
+df["feature5"] = np.log(np.abs(df["feature3"]) + 1)
 
 # Save updated dataset
 updated_path = "/tmp/example_dataset_v2.csv"
@@ -272,8 +267,8 @@ add_result = kit.dataset_manager.add_dataset(
         **dataset_metadata,  # Keep previous metadata
         "version": "2.0.0",
         "features": ["feature1", "feature2", "feature3", "feature4", "feature5"],
-        "changes": "Added derived features: feature4 and feature5"
-    }
+        "changes": "Added derived features: feature4 and feature5",
+    },
 )
 
 # --- Listing Datasets ---
@@ -284,8 +279,8 @@ if list_result.get("success"):
         print(f"Dataset: {dataset_name}")
         for v in versions:
             print(f"  - v{v['version']} ({v['format']}) - CID: {v['cid']}")
-            if 'size_bytes' in v['stats']:
-                size_mb = v['stats']['size_bytes'] / (1024 * 1024)
+            if "size_bytes" in v["stats"]:
+                size_mb = v["stats"]["size_bytes"] / (1024 * 1024)
                 print(f"    Size: {size_mb:.2f} MB, Rows: {v['stats'].get('num_rows')}")
 ```
 
@@ -319,22 +314,22 @@ The `IPFSDataLoader` provides an efficient way to load data from IPFS datasets f
 data_loader = kit.ipfs_dataloader(
     batch_size=32,
     shuffle=True,
-    prefetch=2  # Number of batches to prefetch in background
+    prefetch=2,  # Number of batches to prefetch in background
 )
 
 # Load a dataset by CID
 load_result = data_loader.load_dataset(dataset_cid)
 if load_result.get("success"):
     print(f"Loaded dataset with {load_result.get('total_samples')} samples")
-    
+
     # Iterate through batches
     for batch_idx, batch in enumerate(data_loader):
         # Each batch is a list of samples
         print(f"Batch {batch_idx}: {len(batch)} samples")
-        
+
         # Process batch...
         # (in a real scenario, this would feed into your model)
-        
+
         # Break after a few batches for this example
         if batch_idx >= 2:
             break
@@ -343,16 +338,18 @@ else:
 
 # --- PyTorch Integration ---
 # Convert to PyTorch DataLoader
-if hasattr(data_loader, 'to_pytorch'):
+if hasattr(data_loader, "to_pytorch"):
     try:
         pytorch_loader = data_loader.to_pytorch()
-        
+
         # Now use it like a regular PyTorch DataLoader
         for batch_idx, (features, labels) in enumerate(pytorch_loader):
-            print(f"PyTorch batch {batch_idx}: features shape {features.shape}, labels shape {labels.shape}")
-            
+            print(
+                f"PyTorch batch {batch_idx}: features shape {features.shape}, labels shape {labels.shape}"
+            )
+
             # Your training code would go here...
-            
+
             if batch_idx >= 2:
                 break
     except Exception as e:
@@ -360,14 +357,16 @@ if hasattr(data_loader, 'to_pytorch'):
 
 # --- TensorFlow Integration ---
 # Convert to TensorFlow Dataset
-if hasattr(data_loader, 'to_tensorflow'):
+if hasattr(data_loader, "to_tensorflow"):
     try:
         tf_dataset = data_loader.to_tensorflow()
-        
+
         # Now use it like a regular TensorFlow Dataset
         for batch_idx, (features, labels) in enumerate(tf_dataset.take(3)):
-            print(f"TensorFlow batch {batch_idx}: features shape {features.shape}, labels shape {labels.shape}")
-            
+            print(
+                f"TensorFlow batch {batch_idx}: features shape {features.shape}, labels shape {labels.shape}"
+            )
+
             # Your training code would go here...
     except Exception as e:
         print(f"TensorFlow integration error: {e}")
@@ -392,7 +391,7 @@ The `LangchainIntegration` component provides tools to bridge IPFS content with 
 ### Basic Usage
 
 ```python
-# Assuming 'kit' is initialized with AI/ML enabled 
+# Assuming 'kit' is initialized with AI/ML enabled
 # and Langchain is installed
 
 # --- Check Availability ---
@@ -416,6 +415,7 @@ print(f"Loaded {len(documents)} documents from IPFS")
 # --- Creating a Vector Store ---
 # You'll need an embedding function from Langchain
 from langchain.embeddings import OpenAIEmbeddings  # Example - requires API key
+
 embedding_function = OpenAIEmbeddings()
 
 # Create a vector store backed by IPFS
@@ -423,8 +423,7 @@ vector_store = kit.langchain_integration.create_ipfs_vectorstore(embedding_funct
 
 # Add documents to the vector store
 vector_store.add_texts(
-    texts=[doc.page_content for doc in documents],
-    metadatas=[doc.metadata for doc in documents]
+    texts=[doc.page_content for doc in documents], metadatas=[doc.metadata for doc in documents]
 )
 
 # The vector store is now persisted on IPFS with CID
@@ -436,7 +435,7 @@ search_results = vector_store.similarity_search(query, k=3)
 
 print("Search results:")
 for i, doc in enumerate(search_results):
-    print(f"Result {i+1}:")
+    print(f"Result {i + 1}:")
     print(f"Content: {doc.page_content[:100]}...")
     print(f"Source: {doc.metadata.get('source')}")
     print()
@@ -444,9 +443,7 @@ for i, doc in enumerate(search_results):
 # --- Loading an Existing Vector Store ---
 # If you have a CID from a previously saved vector store
 existing_store = kit.langchain_integration.IPFSVectorStore.from_ipfs(
-    kit.ipfs,
-    "QmExistingVectorStoreCID",
-    embedding_function
+    kit.ipfs, "QmExistingVectorStoreCID", embedding_function
 )
 
 # Now you can use it for searches
@@ -467,7 +464,7 @@ The `LlamaIndexIntegration` component provides tools to bridge IPFS content with
 ### Basic Usage
 
 ```python
-# Assuming 'kit' is initialized with AI/ML enabled 
+# Assuming 'kit' is initialized with AI/ML enabled
 # and LlamaIndex is installed
 
 # --- Check Availability ---
@@ -500,10 +497,7 @@ Settings.llm = OpenAI()
 storage_context = kit.llama_index_integration.create_ipfs_storage_context()
 
 # Build index
-index = VectorStoreIndex.from_documents(
-    documents,
-    storage_context=storage_context
-)
+index = VectorStoreIndex.from_documents(documents, storage_context=storage_context)
 
 # Index is now stored on IPFS
 print("Index stored on IPFS")
@@ -614,7 +608,7 @@ training_config = {
     "optimizer": "adam",
     "loss": "cross_entropy",
     "metrics": ["accuracy"],
-    "device": "cuda" # Workers with GPUs will use them
+    "device": "cuda",  # Workers with GPUs will use them
 }
 
 # Prepare the distributed task
@@ -622,22 +616,20 @@ task_result = kit_master.distributed_training.prepare_distributed_task(
     model_name=model_name,
     dataset_name=dataset_name,
     training_config=training_config,
-    num_workers=3  # Number of workers to distribute to
+    num_workers=3,  # Number of workers to distribute to
 )
 
 if task_result.get("success"):
     task_id = task_result.get("task_id")
     print(f"Distributed training task created with ID: {task_id}")
     print(f"Task distributed to {task_result.get('num_workers')} workers")
-    
+
     # Start the distributed training process
-    run_result = kit_master.distributed_training.run_distributed_training(
-        task_id=task_id
-    )
-    
+    run_result = kit_master.distributed_training.run_distributed_training(task_id=task_id)
+
     if run_result.get("success"):
         print(f"Distributed training started successfully")
-        
+
         # In a production environment, you would wait for completion
         # or monitor progress asynchronously
     else:
@@ -676,25 +668,20 @@ distributed_training = DistributedTraining(
     cluster_manager=cluster_manager,
     role="master",
     metrics=metrics_instance,
-    
     # Synchronization configuration
     sync_interval=10,  # Seconds between synchronization rounds
-    
     # Aggregation options
     aggregation_method="federated_average",  # "average", "federated_average"
-    
     # Privacy-enhancing features
     federated=True,  # Enable federated learning mode
     differential_privacy=True,  # Apply differential privacy
     dp_epsilon=1.0,  # Privacy budget for differential privacy
-    
     # Performance optimizations
     gradient_compression=True,  # Enable gradient compression
     adaptive_sync=True,  # Dynamically adjust sync frequency
-    
     # Fault tolerance and security
     fault_tolerance=True,  # Handle worker failures
-    secure_aggregation=False  # Enable secure aggregation protocol
+    secure_aggregation=False,  # Enable secure aggregation protocol
 )
 ```
 
@@ -729,30 +716,28 @@ def train_with_gradient_sync(model, optimizer, data_loader, task_id):
     for epoch in range(num_epochs):
         for batch in data_loader:
             # Forward pass
-            outputs = model(batch['inputs'])
-            loss = loss_fn(outputs, batch['targets'])
-            
+            outputs = model(batch["inputs"])
+            loss = loss_fn(outputs, batch["targets"])
+
             # Backward pass
             optimizer.zero_grad()
             loss.backward()
-            
+
             # Instead of immediate update, sync gradients first
             gradients = [p.grad for p in model.parameters()]
-            
+
             # Synchronize with other workers
-            sync_result = kit.distributed_training.synchronize_gradients(
-                model, gradients, task_id
-            )
-            
+            sync_result = kit.distributed_training.synchronize_gradients(model, gradients, task_id)
+
             if sync_result["success"]:
                 # Replace gradients with synchronized ones
                 synced_gradients = sync_result["gradients"]
-                
+
                 # Apply synchronized gradients
                 for param, grad in zip(model.parameters(), synced_gradients):
                     if param.grad is not None:
                         param.grad = grad
-                        
+
             # Update model parameters
             optimizer.step()
 ```
@@ -798,12 +783,12 @@ import matplotlib.pyplot as plt
 
 plt.figure(figsize=(10, 5))
 plt.subplot(1, 2, 1)
-plt.plot(metrics_history['loss_history'])
-plt.title('Loss History')
+plt.plot(metrics_history["loss_history"])
+plt.title("Loss History")
 
 plt.subplot(1, 2, 2)
-plt.plot(metrics_history['accuracy_history'])
-plt.title('Accuracy History')
+plt.plot(metrics_history["accuracy_history"])
+plt.title("Accuracy History")
 
 plt.tight_layout()
 plt.show()
@@ -816,32 +801,28 @@ The distributed training system supports different methods for aggregating resul
 1. **Best Model Selection**: Choose the model with the best performance metrics
    ```python
    task_result = kit.distributed_training.prepare_distributed_task(
-       model_name="BestModelSelection",
-       aggregation_method="best_model"
+       model_name="BestModelSelection", aggregation_method="best_model"
    )
    ```
 
 2. **Model Averaging**: Average model parameters across workers (for compatible models)
    ```python
    task_result = kit.distributed_training.prepare_distributed_task(
-       model_name="ParameterAveraging",
-       aggregation_method="average"
+       model_name="ParameterAveraging", aggregation_method="average"
    )
    ```
 
 3. **Federated Averaging**: Weight parameter updates by dataset size on each worker
    ```python
    task_result = kit.distributed_training.prepare_distributed_task(
-       model_name="FederatedAveraging",
-       aggregation_method="federated_average"
+       model_name="FederatedAveraging", aggregation_method="federated_average"
    )
    ```
 
 4. **Ensembling**: Create an ensemble of models from different workers
    ```python
    task_result = kit.distributed_training.prepare_distributed_task(
-       model_name="EnsembleModel",
-       aggregation_method="ensemble"
+       model_name="EnsembleModel", aggregation_method="ensemble"
    )
    ```
 
@@ -893,19 +874,13 @@ federated_task = kit_master.distributed_training.prepare_distributed_task(
             "client_epochs": 5,  # Local epochs per round
             "rounds": 20,  # Global aggregation rounds
             "min_clients": 3,  # Minimum clients required
-            "privacy": {
-                "differential_privacy": True,
-                "dp_epsilon": 3.0,
-                "dp_delta": 1e-5
-            }
-        }
-    }
+            "privacy": {"differential_privacy": True, "dp_epsilon": 3.0, "dp_delta": 1e-5},
+        },
+    },
 )
 
 # Start federated training process
-kit_master.distributed_training.run_distributed_training(
-    task_id=federated_task["task_id"]
-)
+kit_master.distributed_training.run_distributed_training(task_id=federated_task["task_id"])
 
 # On worker nodes (organization A, B, C, etc.):
 # Each worker would have its own private dataset
@@ -941,10 +916,7 @@ for entity in entities:
 for entity in entities:
     for relation in entity.get("relations", []):
         graph.add_relationship(
-            entity["id"],
-            relation["target"],
-            relation["type"],
-            relation["properties"]
+            entity["id"], relation["target"], relation["type"], relation["properties"]
         )
 
 # Generate embeddings for entities
@@ -958,9 +930,7 @@ for i, entity in enumerate(entities):
 
 # Now you can perform hybrid search using both graph traversal and vector similarity
 results = graph.graph_vector_search(
-    query_vector=kit.ai_ml_integration.generate_embeddings(["query text"])[0],
-    hop_count=2,
-    top_k=5
+    query_vector=kit.ai_ml_integration.generate_embeddings(["query text"])[0], hop_count=2, top_k=5
 )
 
 print("Search results:")
@@ -998,13 +968,15 @@ viz.plot_comprehensive_dashboard(output_file="ai_ml_dashboard.html")
 
 1. **Caching**: Use tiered caching for frequently accessed models and datasets
    ```python
-   kit = ipfs_kit(metadata={
-       "enable_ai_ml": True,
-       "cache_config": {
-           "memory_cache_size": 1024 * 1024 * 1024,  # 1GB
-           "disk_cache_path": "/path/to/cache"
+   kit = ipfs_kit(
+       metadata={
+           "enable_ai_ml": True,
+           "cache_config": {
+               "memory_cache_size": 1024 * 1024 * 1024,  # 1GB
+               "disk_cache_path": "/path/to/cache",
+           },
        }
-   })
+   )
    ```
 
 2. **Prefetching**: Increase the prefetch value for datasets to reduce waiting
@@ -1046,7 +1018,7 @@ viz.plot_comprehensive_dashboard(output_file="ai_ml_dashboard.html")
    kit.distributed_training.prepare_distributed_task(
        model_name="MyModel",
        fallback_strategy="reassign",  # Reassign tasks from failed workers
-       max_retries=3
+       max_retries=3,
    )
    ```
 
@@ -1054,9 +1026,7 @@ viz.plot_comprehensive_dashboard(output_file="ai_ml_dashboard.html")
 
 1. **Tagging System**: Use consistent tags for models and datasets
    ```python
-   kit.model_registry.add_model(model, metadata={
-       "tags": ["vision", "classification", "resnet"]
-   })
+   kit.model_registry.add_model(model, metadata={"tags": ["vision", "classification", "resnet"]})
    ```
 
 2. **Version Strategy**: Use semantic versioning for models and datasets
@@ -1074,8 +1044,13 @@ viz.plot_comprehensive_dashboard(output_file="ai_ml_dashboard.html")
 3. **Consistent Metadata**: Use standardized metadata fields across models
    ```python
    standard_fields = [
-       "description", "input_shape", "output_shape", 
-       "framework", "tags", "metrics", "training_dataset"
+       "description",
+       "input_shape",
+       "output_shape",
+       "framework",
+       "tags",
+       "metrics",
+       "training_dataset",
    ]
    ```
 

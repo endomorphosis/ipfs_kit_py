@@ -120,6 +120,7 @@ HAS_ACCELERATE = False
 
 try:
     from ipfs_kit_py.ipfs_datasets_integration import get_ipfs_datasets_manager
+
     HAS_DATASETS = True
 except ImportError:
     logger.info("ipfs_datasets_py not available - using local storage")
@@ -127,10 +128,12 @@ except ImportError:
 try:
     import sys
     from pathlib import Path
+
     accelerate_path = Path(__file__).parent / "external" / "ipfs_accelerate_py"
     if accelerate_path.exists():
         sys.path.insert(0, str(accelerate_path))
     from ipfs_accelerate_py import AccelerateCompute
+
     HAS_ACCELERATE = True
 except ImportError:
     logger.info("ipfs_accelerate_py not available - using standard compute")
@@ -139,12 +142,14 @@ except ImportError:
 ### 2. Optional Initialization Parameters
 
 ```python
-def __init__(self, 
-             enable_dataset_storage: bool = False,
-             enable_compute_layer: bool = False,
-             ipfs_client = None,
-             dataset_batch_size: int = 100):
-    
+def __init__(
+    self,
+    enable_dataset_storage: bool = False,
+    enable_compute_layer: bool = False,
+    ipfs_client=None,
+    dataset_batch_size: int = 100,
+):
+
     self.enable_dataset_storage = enable_dataset_storage and HAS_DATASETS
     self.enable_compute_layer = enable_compute_layer and HAS_ACCELERATE
     self._operation_buffer = []
@@ -159,11 +164,12 @@ def _store_operation_to_dataset(self, operation: Dict[str, Any]):
     """Buffer operation for batch storage"""
     if not self.enable_dataset_storage:
         return
-    
+
     with self._buffer_lock:
         self._operation_buffer.append(operation)
         if len(self._operation_buffer) >= self.dataset_batch_size:
             self._flush_operations_to_dataset()
+
 
 def flush_to_dataset(self):
     """Public API for manual flush"""
@@ -177,17 +183,19 @@ def flush_to_dataset(self):
 def some_operation(self, *args, **kwargs):
     """Example operation with automatic tracking"""
     result = self._perform_operation(*args, **kwargs)
-    
+
     # Automatically store to dataset if enabled
     if self.enable_dataset_storage:
-        self._store_operation_to_dataset({
-            "operation": "some_operation",
-            "args": args,
-            "kwargs": kwargs,
-            "result": result,
-            "timestamp": time.time()
-        })
-    
+        self._store_operation_to_dataset(
+            {
+                "operation": "some_operation",
+                "args": args,
+                "kwargs": kwargs,
+                "result": result,
+                "timestamp": time.time(),
+            }
+        )
+
     return result
 ```
 
@@ -206,7 +214,7 @@ server = EnhancedMCPServer(
     port=8001,
     enable_dataset_storage=True,
     ipfs_client=your_ipfs_client,
-    dataset_batch_size=100  # Flush every 100 operations
+    dataset_batch_size=100,  # Flush every 100 operations
 )
 
 # All MCP commands are now automatically tracked!
@@ -222,11 +230,7 @@ server.flush_to_dataset()
 from ipfs_kit_py.mcp.ai.framework_integration import HuggingFaceIntegration, HuggingFaceConfig
 
 # Configure HuggingFace integration
-config = HuggingFaceConfig(
-    name="accelerated-model",
-    model_id="gpt2",
-    use_local=True
-)
+config = HuggingFaceConfig(name="accelerated-model", model_id="gpt2", use_local=True)
 
 # Create integration (automatically uses ipfs_accelerate_py if available)
 integration = HuggingFaceIntegration(config)
@@ -242,10 +246,7 @@ result = integration.text_generation("Once upon a time")
 from ipfs_kit_py.bucket_vfs_manager import get_global_bucket_manager
 
 # Get bucket manager with dataset storage
-manager = get_global_bucket_manager(
-    enable_dataset_storage=True,
-    ipfs_client=your_ipfs_client
-)
+manager = get_global_bucket_manager(enable_dataset_storage=True, ipfs_client=your_ipfs_client)
 
 # All bucket operations are tracked
 manager.create_bucket("my-bucket")
@@ -269,9 +270,9 @@ print(f"torch: {deps['torch']}")  # True/False
 print(f"transformers: {deps['transformers']}")  # True/False
 
 # Use results to adapt behavior
-if deps['ipfs_datasets_py']:
+if deps["ipfs_datasets_py"]:
     print("✓ Dataset storage available")
-if deps['ipfs_accelerate_py']:
+if deps["ipfs_accelerate_py"]:
     print("✓ Compute acceleration available")
 ```
 

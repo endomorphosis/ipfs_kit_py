@@ -21,10 +21,12 @@ Made the import conditional with proper error handling:
    ```python
    try:
        from mcp.dashboard.refactored_unified_mcp_dashboard import RefactoredUnifiedMCPDashboard
+
        DASHBOARD_AVAILABLE = True
    except (ImportError, ModuleNotFoundError) as e:
        DASHBOARD_AVAILABLE = False
        DASHBOARD_IMPORT_ERROR = str(e)
+
        # Create a dummy class for when dashboard is not available
        class RefactoredUnifiedMCPDashboard:
            pass

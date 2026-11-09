@@ -58,12 +58,12 @@ metrics = PerformanceMetrics()
 
 # Advanced configuration
 metrics = PerformanceMetrics(
-    max_history=1000,              # Number of data points to retain
-    metrics_dir="~/metrics",       # Directory to store metrics logs
-    collection_interval=300,       # How often to log (seconds)
-    enable_logging=True,           # Whether to enable file logging
-    track_system_resources=True,   # Track CPU, memory, disk usage
-    retention_days=7               # How long to keep metric logs
+    max_history=1000,  # Number of data points to retain
+    metrics_dir="~/metrics",  # Directory to store metrics logs
+    collection_interval=300,  # How often to log (seconds)
+    enable_logging=True,  # Whether to enable file logging
+    track_system_resources=True,  # Track CPU, memory, disk usage
+    retention_days=7,  # How long to keep metric logs
 )
 ```
 
@@ -100,6 +100,7 @@ For profiling entire functions, use the `profile` decorator:
 ```python
 from ipfs_kit_py.performance_metrics import profile
 
+
 @profile(metrics, name="add_large_file")
 def process_large_file(path):
     # Function implementation
@@ -128,7 +129,7 @@ metrics.record_bandwidth_usage("outbound", file_size, source="add_file")
 
 # Track cache accesses
 metrics.record_cache_access("hit", tier="memory")  # For cache hits
-metrics.record_cache_access("miss")                # For cache misses
+metrics.record_cache_access("miss")  # For cache misses
 ```
 
 ### Correlation Tracking
@@ -166,7 +167,7 @@ print(f"95th percentile: {stats['p95']:.3f}s")
 # Get current throughput
 throughput = metrics.get_current_throughput()
 print(f"Operations/second: {throughput['operations_per_second']:.2f}")
-print(f"Bandwidth: {throughput['bytes_per_second']/1024:.2f} KB/s")
+print(f"Bandwidth: {throughput['bytes_per_second'] / 1024:.2f} KB/s")
 
 # Get system resource utilization
 system = metrics.get_system_utilization()
@@ -226,10 +227,10 @@ from ipfs_kit_py.benchmark import IPFSKitBenchmark
 # Create a benchmark instance
 benchmark = IPFSKitBenchmark(
     metrics_dir="~/benchmark_results",  # Where to store results
-    role="leecher",                     # IPFS node role
-    parallelism=2,                      # Number of parallel operations
-    iterations=5,                       # Number of iterations per test
-    warmup=1                            # Warmup iterations
+    role="leecher",  # IPFS node role
+    parallelism=2,  # Number of parallel operations
+    iterations=5,  # Number of iterations per test
+    warmup=1,  # Warmup iterations
 )
 
 # Run specific benchmarks
@@ -277,39 +278,37 @@ You can create custom benchmarks by extending the IPFSKitBenchmark class:
 ```python
 from ipfs_kit_py.benchmark import IPFSKitBenchmark
 
+
 class CustomBenchmark(IPFSKitBenchmark):
     def benchmark_custom_operation(self):
         """Run a custom benchmark."""
         logger.info("Starting custom benchmark...")
-        
+
         # Create test files
         files = self._create_test_files()
         results = {}
-        
+
         try:
             # Your benchmark code here
             for name, (path, content) in files.items():
                 with ProfilingContext(self.metrics, f"custom_op_{name}", self.correlation_id):
                     # Operation to benchmark
                     result = self.kit.some_operation(path)
-                    
+
                     # Record results
-                    results[name] = {
-                        "result": result,
-                        "size": len(content)
-                    }
-                    
+                    results[name] = {"result": result, "size": len(content)}
+
                     # Get statistics
                     stats = self.metrics.get_operation_stats(f"custom_op_{name}")
                     results[name].update(stats)
-        
+
         finally:
             # Clean up
             self._cleanup_test_files(files)
-        
+
         # Add to overall results
         self.results["benchmarks"]["custom_operation"] = results
-        
+
         return results
 ```
 
@@ -464,8 +463,7 @@ viz.generate_html_report(report_path)
 
 # Export all visualizations to various formats
 exported_files = viz.export_visualizations(
-    export_dir="./visualization_exports",
-    formats=["png", "svg", "html", "json"]
+    export_dir="./visualization_exports", formats=["png", "svg", "html", "json"]
 )
 ```
 
@@ -521,13 +519,13 @@ Adjust cache parameters based on your access patterns:
 # Get filesystem with optimized cache settings
 fs = kit.get_filesystem(
     cache_config={
-        'memory_cache_size': 500 * 1024 * 1024,  # 500MB memory cache
-        'local_cache_size': 5 * 1024 * 1024 * 1024,  # 5GB disk cache
-        'local_cache_path': '/tmp/ipfs_cache',
-        'max_item_size': 100 * 1024 * 1024,  # Cache files up to 100MB in memory
-        'min_access_count': 2  # Only cache items accessed at least twice
+        "memory_cache_size": 500 * 1024 * 1024,  # 500MB memory cache
+        "local_cache_size": 5 * 1024 * 1024 * 1024,  # 5GB disk cache
+        "local_cache_path": "/tmp/ipfs_cache",
+        "max_item_size": 100 * 1024 * 1024,  # Cache files up to 100MB in memory
+        "min_access_count": 2,  # Only cache items accessed at least twice
     },
-    use_mmap=True  # Use memory mapping for large files
+    use_mmap=True,  # Use memory mapping for large files
 )
 ```
 
@@ -549,11 +547,8 @@ import concurrent.futures
 # Use ThreadPoolExecutor for I/O-bound operations
 with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
     # Submit multiple retrieval operations
-    futures = {
-        executor.submit(kit.ipfs_cat, cid): cid
-        for cid in cids_to_retrieve
-    }
-    
+    futures = {executor.submit(kit.ipfs_cat, cid): cid for cid in cids_to_retrieve}
+
     # Process results as they complete
     for future in concurrent.futures.as_completed(futures):
         cid = futures[future]

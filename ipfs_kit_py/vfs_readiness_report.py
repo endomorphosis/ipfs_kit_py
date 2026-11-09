@@ -28,11 +28,10 @@ def build_vfs_readiness_report(
     benchmark = json.loads(benchmark_file.read_text(encoding="utf-8"))
 
     suites = contract_suites or {}
-    normalized_suites = {
-        str(name): _as_bool(result)
-        for name, result in suites.items()
-    }
-    contracts_passed = all(normalized_suites.values()) if normalized_suites else _as_bool(contract_gate_passed)
+    normalized_suites = {str(name): _as_bool(result) for name, result in suites.items()}
+    contracts_passed = (
+        all(normalized_suites.values()) if normalized_suites else _as_bool(contract_gate_passed)
+    )
     benchmark_passed = _as_bool(benchmark.get("success"))
     go_no_go = bool(contracts_passed and benchmark_passed)
 

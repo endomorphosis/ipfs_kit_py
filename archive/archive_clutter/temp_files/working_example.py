@@ -13,6 +13,7 @@ import time
 
 MCP_SERVER = "http://localhost:9994"
 
+
 def mcp_request(endpoint, method="GET", data=None):
     """Make a request to the MCP server."""
     url = f"{MCP_SERVER}/{endpoint}"
@@ -20,12 +21,13 @@ def mcp_request(endpoint, method="GET", data=None):
         response = requests.get(url)
     else:
         response = requests.post(url, json=data)
-    
+
     if response.status_code != 200:
         print(f"Error: {response.status_code}")
         return None
-    
+
     return response.json()
+
 
 # Check server health
 health = mcp_request("health")
@@ -36,8 +38,8 @@ init = mcp_request("initialize")
 capabilities = {}
 tools = []
 if init:
-    capabilities = init.get('capabilities', {})
-    tools = capabilities.get('tools', [])
+    capabilities = init.get("capabilities", {})
+    tools = capabilities.get("tools", [])
 print(f"Available tools: {json.dumps(tools, indent=2)}")
 
 # Example 1: Add content to IPFS
@@ -46,11 +48,7 @@ content = "Hello, IPFS from Python!"
 add_data = {
     "name": "ipfs_add",
     "server": "ipfs-kit-mcp",
-    "args": {
-        "content": content,
-        "filename": "hello.txt",
-        "pin": True
-    }
+    "args": {"content": content, "filename": "hello.txt", "pin": True},
 }
 add_result = mcp_request("mcp/tools", method="POST", data=add_data)
 print(f"Add result: {json.dumps(add_result, indent=2)}")
@@ -66,13 +64,7 @@ else:
 
 # Example 2: Retrieve content from IPFS
 print("\nExample 2: Retrieving content from IPFS")
-cat_data = {
-    "name": "ipfs_cat",
-    "server": "ipfs-kit-mcp",
-    "args": {
-        "cid": content_cid
-    }
-}
+cat_data = {"name": "ipfs_cat", "server": "ipfs-kit-mcp", "args": {"cid": content_cid}}
 cat_result = mcp_request("mcp/tools", method="POST", data=cat_data)
 
 if cat_result and cat_result.get("success"):
@@ -88,13 +80,7 @@ else:
 
 # Example 3: Pin content to local node
 print("\nExample 3: Pinning content to local node")
-pin_data = {
-    "name": "ipfs_pin",
-    "server": "ipfs-kit-mcp",
-    "args": {
-        "cid": content_cid
-    }
-}
+pin_data = {"name": "ipfs_pin", "server": "ipfs-kit-mcp", "args": {"cid": content_cid}}
 pin_result = mcp_request("mcp/tools", method="POST", data=pin_data)
 print(f"Pin result: {json.dumps(pin_result, indent=2)}")
 
@@ -103,11 +89,7 @@ print("\nExample 4: Listing files in current directory")
 list_data = {
     "name": "list_files",
     "server": "ipfs-kit-mcp",
-    "args": {
-        "directory": ".",
-        "recursive": False,
-        "include_hidden": False
-    }
+    "args": {"directory": ".", "recursive": False, "include_hidden": False},
 }
 list_result = mcp_request("mcp/tools", method="POST", data=list_data)
 print(f"Directory listing result: {json.dumps(list_result, indent=2)}")
@@ -119,8 +101,8 @@ write_data = {
     "server": "ipfs-kit-mcp",
     "args": {
         "path": "ipfs_example_file.txt",
-        "content": f"This file contains IPFS content with CID: {content_cid}\nTimestamp: {time.time()}"
-    }
+        "content": f"This file contains IPFS content with CID: {content_cid}\nTimestamp: {time.time()}",
+    },
 }
 write_result = mcp_request("mcp/tools", method="POST", data=write_data)
 print(f"Write file result: {json.dumps(write_result, indent=2)}")
@@ -130,9 +112,7 @@ print("\nExample 6: Reading the file we just created")
 read_data = {
     "name": "read_file",
     "server": "ipfs-kit-mcp",
-    "args": {
-        "path": "ipfs_example_file.txt"
-    }
+    "args": {"path": "ipfs_example_file.txt"},
 }
 read_result = mcp_request("mcp/tools", method="POST", data=read_data)
 if read_result and read_result.get("success"):

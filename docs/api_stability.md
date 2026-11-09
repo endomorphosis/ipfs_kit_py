@@ -124,7 +124,7 @@ def old_method():
     warnings.warn(
         "old_method is deprecated since 0.2.0 and will be removed in 1.0.0. Use new_method instead.",
         DeprecationWarning,
-        stacklevel=2
+        stacklevel=2,
     )
     return new_method()
 ```
@@ -215,18 +215,19 @@ Example from our implementation:
 ```python
 from ipfs_kit_py.api_stability import stable_api, beta_api, experimental_api
 
+
 class IPFSSimpleAPI:
     @stable_api(since="0.1.0")
     def add(self, content, **kwargs):
         """Add content to IPFS."""
         # Implementation...
-    
+
     @beta_api(since="0.1.0")
     def get_filesystem(self, **kwargs):
         """Get FSSpec interface for IPFS."""
         # Implementation...
-    
-    @experimental_api(since="0.1.0") 
+
+    @experimental_api(since="0.1.0")
     def ai_model_add(self, model, **kwargs):
         """Add ML model to registry."""
         # Implementation...

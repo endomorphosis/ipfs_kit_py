@@ -15,10 +15,10 @@ from pathlib import Path
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger("ipfs_kit_fixes")
+
 
 def fix_ipfs_daemon_startup():
     """
@@ -29,10 +29,7 @@ def fix_ipfs_daemon_startup():
         def check_ipfs_binary():
             try:
                 result = subprocess.run(
-                    ["ipfs", "--version"],
-                    capture_output=True,
-                    text=True,
-                    check=False
+                    ["ipfs", "--version"], capture_output=True, text=True, check=False
                 )
                 if result.returncode == 0:
                     logger.info(f"IPFS binary available: {result.stdout.strip()}")
@@ -98,7 +95,9 @@ def fix_ipfs_daemon_startup():
         # Fix lock files if found
         if not locks_ok:
             try:
-                ipfs_path = os.environ.get("IPFS_PATH", os.path.join(os.path.expanduser("~"), ".ipfs"))
+                ipfs_path = os.environ.get(
+                    "IPFS_PATH", os.path.join(os.path.expanduser("~"), ".ipfs")
+                )
                 lock_files = [
                     os.path.join(ipfs_path, "repo.lock"),
                     os.path.join(ipfs_path, "api"),
@@ -115,7 +114,9 @@ def fix_ipfs_daemon_startup():
 
                 # Re-check lock files
                 locks_ok, locks_msg = check_lock_files()
-                print(f"✓ Lock Files (after cleanup): {'OK' if locks_ok else 'NOT OK'} - {locks_msg}")
+                print(
+                    f"✓ Lock Files (after cleanup): {'OK' if locks_ok else 'NOT OK'} - {locks_msg}"
+                )
             except Exception as e:
                 logger.error(f"Error cleaning up lock files: {e}")
 
@@ -124,10 +125,7 @@ def fix_ipfs_daemon_startup():
             try:
                 logger.info("Attempting to initialize IPFS repository...")
                 result = subprocess.run(
-                    ["ipfs", "init"],
-                    capture_output=True,
-                    text=True,
-                    check=False
+                    ["ipfs", "init"], capture_output=True, text=True, check=False
                 )
 
                 if result.returncode == 0:
@@ -150,6 +148,7 @@ def fix_ipfs_daemon_startup():
         logger.error(f"Error fixing IPFS daemon startup: {e}")
         return False
 
+
 def fix_base_storage_model():
     """
     Fix BaseStorage test_operation issues by adding proper exception handling
@@ -161,6 +160,7 @@ def fix_base_storage_model():
     except Exception as e:
         logger.error(f"Error fixing BaseStorage test_operation: {e}")
         return False
+
 
 if __name__ == "__main__":
     print("Running IPFS Kit Python fixes...")

@@ -217,11 +217,11 @@ Independent service client libraries without a common base class:
 # ipfs_kit_py/s3_kit.py
 class S3Kit:
     def __init__(self, access_key, secret_key, endpoint_url=None):
-        self.s3_client = boto3.client('s3', ...)
-    
+        self.s3_client = boto3.client("s3", ...)
+
     def upload_file(self, file_path, bucket, key):
         """Direct upload without abstraction"""
-    
+
     def download_file(self, bucket, key, dest_path):
         """Direct download without abstraction"""
 ```
@@ -629,55 +629,56 @@ Metadata
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional
 
+
 class UnifiedBackend(ABC):
     """
     Unified backend interface combining best of both systems.
     """
-    
+
     # Core content operations (from BackendStorage)
     @abstractmethod
     async def add_content(self, content: Any, metadata: Optional[Dict] = None) -> Dict[str, Any]:
         """Add content to backend."""
         pass
-    
+
     @abstractmethod
     async def get_content(self, identifier: str) -> bytes:
         """Retrieve content by identifier."""
         pass
-    
+
     @abstractmethod
     async def remove_content(self, identifier: str) -> bool:
         """Remove content from backend."""
         pass
-    
+
     # Metadata operations (from BackendStorage)
     @abstractmethod
     async def get_metadata(self, identifier: str) -> Dict[str, Any]:
         """Get metadata for content."""
         pass
-    
+
     @abstractmethod
     async def list_content(self, prefix: Optional[str] = None) -> List[Dict[str, Any]]:
         """List all content (optionally filtered by prefix)."""
         pass
-    
+
     # Health and sync operations (from BackendAdapter)
     @abstractmethod
     async def health_check(self) -> Dict[str, Any]:
         """Check backend health status."""
         pass
-    
+
     @abstractmethod
     async def get_storage_usage(self) -> Dict[str, int]:
         """Get storage usage statistics."""
         pass
-    
+
     # Optional advanced features
-    async def sync(self, source: 'UnifiedBackend') -> bool:
+    async def sync(self, source: "UnifiedBackend") -> bool:
         """Sync content from another backend."""
         return False  # Default: not implemented
-    
-    async def backup(self, dest: 'UnifiedBackend') -> bool:
+
+    async def backup(self, dest: "UnifiedBackend") -> bool:
         """Backup all content to another backend."""
         return False  # Default: not implemented
 ```
@@ -760,31 +761,32 @@ class UnifiedBackendManager:
 from ipfs_kit_py.s3_kit import S3Kit
 from ipfs_kit_py.backends.unified_backend import UnifiedBackend
 
+
 class S3KitAdapter(UnifiedBackend):
     """Adapter wrapping S3Kit to provide UnifiedBackend interface."""
-    
+
     def __init__(self, config: Dict):
         self.kit = S3Kit(
-            access_key=config['access_key_id'],
-            secret_key=config['secret_access_key'],
-            endpoint_url=config.get('endpoint_url')
+            access_key=config["access_key_id"],
+            secret_key=config["secret_access_key"],
+            endpoint_url=config.get("endpoint_url"),
         )
-        self.bucket = config['bucket_name']
-    
+        self.bucket = config["bucket_name"]
+
     async def add_content(self, content: Any, metadata: Optional[Dict] = None) -> Dict[str, Any]:
         """Add content using S3Kit."""
         key = self._generate_key(content, metadata)
         self.kit.upload_file(content, self.bucket, key)
         return {
-            'identifier': key,
-            'backend': 's3',
-            'size': len(content) if isinstance(content, bytes) else 0
+            "identifier": key,
+            "backend": "s3",
+            "size": len(content) if isinstance(content, bytes) else 0,
         }
-    
+
     async def get_content(self, identifier: str) -> bytes:
         """Retrieve content using S3Kit."""
         return self.kit.download_file(self.bucket, identifier)
-    
+
     # ... implement other UnifiedBackend methods ...
 ```
 
@@ -862,16 +864,16 @@ policies:
 **Standard Error Response**:
 ```python
 {
-    'success': False,
-    'error': {
-        'type': 'ConnectionError',
-        'message': 'Failed to connect to S3 endpoint',
-        'details': 'Connection timeout after 30s',
-        'timestamp': '2026-02-02T00:37:43.022Z',
-        'backend': 'my_s3_backend'
+    "success": False,
+    "error": {
+        "type": "ConnectionError",
+        "message": "Failed to connect to S3 endpoint",
+        "details": "Connection timeout after 30s",
+        "timestamp": "2026-02-02T00:37:43.022Z",
+        "backend": "my_s3_backend",
     },
-    'retry_suggested': True,
-    'retry_after_seconds': 60
+    "retry_suggested": True,
+    "retry_after_seconds": 60,
 }
 ```
 
@@ -879,22 +881,31 @@ policies:
 ```python
 class BackendError(Exception):
     """Base exception for all backend errors"""
+
     pass
+
 
 class BackendConnectionError(BackendError):
     """Connection-related errors"""
+
     pass
+
 
 class BackendAuthError(BackendError):
     """Authentication/authorization errors"""
+
     pass
+
 
 class BackendStorageError(BackendError):
     """Storage operation errors"""
+
     pass
+
 
 class BackendNotFoundError(BackendError):
     """Resource not found errors"""
+
     pass
 ```
 

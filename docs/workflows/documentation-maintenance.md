@@ -75,9 +75,10 @@ To improve the automated documentation:
    class MyClass:
        """
        Brief description of the class.
-       
+
        This class provides functionality for...
        """
+
        pass
    ```
 

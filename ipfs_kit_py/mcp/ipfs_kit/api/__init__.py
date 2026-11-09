@@ -11,10 +11,4 @@ from .config_endpoints import ConfigEndpoints
 from .vfs_endpoints import VFSEndpoints
 from .websocket_handler import WebSocketHandler
 
-__all__ = [
-    'APIRoutes',
-    'HealthEndpoints',
-    'ConfigEndpoints', 
-    'VFSEndpoints',
-    'WebSocketHandler'
-]
+__all__ = ["APIRoutes", "HealthEndpoints", "ConfigEndpoints", "VFSEndpoints", "WebSocketHandler"]

@@ -192,9 +192,7 @@ async def test_sidecar_release_requires_a_structured_confirmation() -> None:
         async def request(self, method: str, params: dict[str, Any]) -> None:
             assert method == "blobs.release"
 
-    receipt = await IrohGarbageCollector(index, Client()).collect(
-        dry_run=False, policy=GCPolicy(0)
-    )
+    receipt = await IrohGarbageCollector(index, Client()).collect(dry_run=False, policy=GCPolicy(0))
 
     assert receipt.deleted == ()
     assert receipt.failures[0].code == "protocol_error"

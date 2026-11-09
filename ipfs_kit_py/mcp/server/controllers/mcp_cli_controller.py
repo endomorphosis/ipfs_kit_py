@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 class MCPCLIController:
     """
     MCP CLI Controller that mirrors CLI pin and bucket commands
-    
+
     Provides MCP tools for:
     - pin list (mirrors 'ipfs-kit pin list')
     - pin add (mirrors 'ipfs-kit pin add')
@@ -31,14 +31,16 @@ class MCPCLIController:
     - bucket create (mirrors 'ipfs-kit bucket create')
     - bucket sync (mirrors 'ipfs-kit bucket sync')
     """
-    
+
     def __init__(self, metadata_manager: MCPMetadataManager, daemon_service: MCPDaemonService):
         """Initialize the CLI controller."""
         self.metadata_manager = metadata_manager
         self.daemon_service = daemon_service
         logger.info("MCP CLI Controller initialized")
-    
-    async def handle_pin_tool_call(self, tool_name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
+
+    async def handle_pin_tool_call(
+        self, tool_name: str, arguments: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """Handle pin tool calls by routing to appropriate methods."""
         try:
             if tool_name == "pin_list":
@@ -64,8 +66,10 @@ class MCPCLIController:
         except Exception as e:
             logger.error(f"Error handling pin tool {tool_name}: {e}")
             return {"error": str(e)}
-    
-    async def handle_bucket_tool_call(self, tool_name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
+
+    async def handle_bucket_tool_call(
+        self, tool_name: str, arguments: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """Handle bucket tool calls by routing to appropriate methods."""
         try:
             if tool_name == "bucket_list":
@@ -93,26 +97,26 @@ class MCPCLIController:
         except Exception as e:
             logger.error(f"Error handling bucket tool {tool_name}: {e}")
             return {"error": str(e)}
-    
+
     async def list_pins(self, arguments: Dict[str, Any]) -> Dict[str, Any]:
         """
         List pinned content (mirrors 'ipfs-kit pin list')
-        
+
         Arguments:
         - backend: Filter by backend
         - status: Filter by pin status
         """
         backend = arguments.get("backend")
         status = arguments.get("status")
-        
+
         try:
             # Get pin metadata
             pins = await self.metadata_manager.get_pin_metadata(backend_name=backend)
-            
+
             # Apply status filter
             if status:
                 pins = [pin for pin in pins if pin.status == status]
-            
+
             # Format pin list
             pin_list = []
             for pin in pins:
@@ -122,44 +126,43 @@ class MCPCLIController:
                     "status": pin.status,
                     "created_at": pin.created_at.isoformat(),
                     "car_file_path": pin.car_file_path,
-                    "size_bytes": pin.size_bytes
+                    "size_bytes": pin.size_bytes,
                 }
-                
+
                 if pin.metadata:
                     pin_data["metadata"] = pin.metadata
-                
+
                 pin_list.append(pin_data)
-            
+
             # Generate summary
             summary = {
                 "total_pins": len(pin_list),
                 "unique_cids": len(set(pin["cid"] for pin in pin_list)),
                 "backends": list(set(pin["backend"] for pin in pin_list)),
-                "status_distribution": {}
+                "status_distribution": {},
             }
-            
+
             # Count pins by status
             for pin in pin_list:
                 status_key = pin["status"]
-                summary["status_distribution"][status_key] = summary["status_distribution"].get(status_key, 0) + 1
-            
+                summary["status_distribution"][status_key] = (
+                    summary["status_distribution"].get(status_key, 0) + 1
+                )
+
             return {
                 "pins": pin_list,
                 "summary": summary,
-                "filters": {
-                    "backend": backend,
-                    "status": status
-                }
+                "filters": {"backend": backend, "status": status},
             }
-            
+
         except Exception as e:
             logger.error(f"Error listing pins: {e}")
             return {"error": str(e)}
-    
+
     async def add_pin(self, arguments: Dict[str, Any]) -> Dict[str, Any]:
         """
         Pin content (mirrors 'ipfs-kit pin add')
-        
+
         Arguments:
         - cid: Content ID to pin
         - backend: Backend to pin to
@@ -168,21 +171,23 @@ class MCPCLIController:
         cid = arguments.get("cid")
         backend = arguments.get("backend")
         name = arguments.get("name")
-        
+
         try:
             if not cid:
                 return {"error": "cid is required"}
-            
+
             if not backend:
                 return {"error": "backend is required"}
-            
+
             # Validate backend exists
             backend_metadata = await self.metadata_manager.get_backend_metadata(backend)
             if not backend_metadata:
                 return {"error": f"Backend '{backend}' not found"}
-            
+
             # Check if CID is already pinned to this backend
-            existing_pins = await self.metadata_manager.get_pin_metadata(backend_name=backend, cid=cid)
+            existing_pins = await self.metadata_manager.get_pin_metadata(
+                backend_name=backend, cid=cid
+            )
             if existing_pins:
                 return {
                     "action": "add_pin",
@@ -192,10 +197,10 @@ class MCPCLIController:
                     "message": f"CID '{cid}' is already pinned to backend '{backend}'",
                     "existing_pin": {
                         "status": existing_pins[0].status,
-                        "created_at": existing_pins[0].created_at.isoformat()
-                    }
+                        "created_at": existing_pins[0].created_at.isoformat(),
+                    },
                 }
-            
+
             # Note: Actual pinning implementation would require backend-specific logic
             # For now, return a placeholder response indicating the operation would be performed
             return {
@@ -206,44 +211,46 @@ class MCPCLIController:
                 "status": "simulated",
                 "message": "Pin operation would be performed (implementation pending)",
                 "backend_type": backend_metadata.type,
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
             }
-            
+
         except Exception as e:
             logger.error(f"Error adding pin: {e}")
             return {"error": str(e)}
-    
+
     async def remove_pin(self, arguments: Dict[str, Any]) -> Dict[str, Any]:
         """
         Unpin content (mirrors 'ipfs-kit pin remove')
-        
+
         Arguments:
         - cid: Content ID to unpin
         - backend: Backend to unpin from
         """
         cid = arguments.get("cid")
         backend = arguments.get("backend")
-        
+
         try:
             if not cid:
                 return {"error": "cid is required"}
-            
+
             if not backend:
                 return {"error": "backend is required"}
-            
+
             # Check if CID is pinned to this backend
-            existing_pins = await self.metadata_manager.get_pin_metadata(backend_name=backend, cid=cid)
+            existing_pins = await self.metadata_manager.get_pin_metadata(
+                backend_name=backend, cid=cid
+            )
             if not existing_pins:
                 return {
                     "action": "remove_pin",
                     "cid": cid,
                     "backend": backend,
                     "status": "not_pinned",
-                    "message": f"CID '{cid}' is not pinned to backend '{backend}'"
+                    "message": f"CID '{cid}' is not pinned to backend '{backend}'",
                 }
-            
+
             pin = existing_pins[0]
-            
+
             # Note: Actual unpinning implementation would require backend-specific logic
             # For now, return a placeholder response indicating the operation would be performed
             return {
@@ -255,18 +262,18 @@ class MCPCLIController:
                 "existing_pin": {
                     "status": pin.status,
                     "created_at": pin.created_at.isoformat(),
-                    "car_file_path": pin.car_file_path
+                    "car_file_path": pin.car_file_path,
                 },
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
             }
-            
+
         except Exception as e:
             logger.error(f"Error removing pin: {e}")
             return {"error": str(e)}
 
     async def list_peers(self, arguments: Dict[str, Any]) -> Dict[str, Any]:
-        """        List connected peers (mirrors 'ipfs-kit peer list')
-        
+        """List connected peers (mirrors 'ipfs-kit peer list')
+
         Arguments:
         - verbose: Show detailed peer information
         """
@@ -279,13 +286,13 @@ class MCPCLIController:
                 {
                     "id": "QmSoLnSGccFuZQJzRadHn95W2CrSFmMCQFPYikT9iN1sAN",
                     "addr": "/ip4/104.131.131.82/tcp/4001/p2p/QmSoLnSGccFuZQJzRadHn95W2CrSFmMCQFPYikT9iN1sAN",
-                    "latency": "10ms"
+                    "latency": "10ms",
                 },
                 {
                     "id": "QmSoLSafM1QTv52T62s2a2Hm42w2nd21pC1oD4B4Yd2a2",
                     "addr": "/ip4/178.62.158.247/tcp/4001/p2p/QmSoLSafM1QTv52T62s2a2Hm42w2nd21pC1oD4B4Yd2a2",
-                    "latency": "20ms"
-                }
+                    "latency": "20ms",
+                },
             ]
 
             if verbose:
@@ -298,8 +305,8 @@ class MCPCLIController:
             return {"error": str(e)}
 
     async def connect_peer(self, arguments: Dict[str, Any]) -> Dict[str, Any]:
-        """        Connect to a peer (mirrors 'ipfs-kit peer connect')
-        
+        """Connect to a peer (mirrors 'ipfs-kit peer connect')
+
         Arguments:
         - address: Peer multiaddr to connect to
         """
@@ -318,8 +325,8 @@ class MCPCLIController:
             return {"error": str(e)}
 
     async def disconnect_peer(self, arguments: Dict[str, Any]) -> Dict[str, Any]:
-        """        Disconnect from a peer (mirrors 'ipfs-kit peer disconnect')
-        
+        """Disconnect from a peer (mirrors 'ipfs-kit peer disconnect')
+
         Arguments:
         - peer_id: Peer ID to disconnect from
         """
@@ -346,20 +353,20 @@ class MCPCLIController:
         except Exception as e:
             logger.error(f"Error getting peer stats: {e}")
             return {"success": False, "error": str(e)}
-    
+
     async def list_buckets(self, arguments: Dict[str, Any]) -> Dict[str, Any]:
         """
         List buckets (mirrors 'ipfs-kit bucket list')
-        
+
         Arguments:
         - backend: Filter by backend
         """
         backend = arguments.get("backend")
-        
+
         try:
             # Get bucket metadata
             buckets = await self.metadata_manager.get_bucket_metadata(backend_name=backend)
-            
+
             # Format bucket list
             bucket_list = []
             for bucket in buckets:
@@ -370,47 +377,41 @@ class MCPCLIController:
                     "created_at": bucket.created_at.isoformat(),
                     "last_synced": bucket.last_synced.isoformat() if bucket.last_synced else None,
                     "file_count": bucket.file_count,
-                    "total_size_bytes": bucket.total_size_bytes
+                    "total_size_bytes": bucket.total_size_bytes,
                 }
-                
+
                 bucket_list.append(bucket_data)
-            
+
             # Generate summary
             summary = {
                 "total_buckets": len(bucket_list),
                 "backends": list(set(bucket["backend"] for bucket in bucket_list)),
                 "total_files": sum(bucket["file_count"] for bucket in bucket_list),
                 "total_size_bytes": sum(bucket["total_size_bytes"] for bucket in bucket_list),
-                "buckets_synced": len([b for b in bucket_list if b["last_synced"] is not None])
+                "buckets_synced": len([b for b in bucket_list if b["last_synced"] is not None]),
             }
-            
-            return {
-                "buckets": bucket_list,
-                "summary": summary,
-                "filters": {
-                    "backend": backend
-                }
-            }
-            
+
+            return {"buckets": bucket_list, "summary": summary, "filters": {"backend": backend}}
+
         except Exception as e:
             logger.error(f"Error listing buckets: {e}")
             return {"error": str(e)}
-    
+
     async def create_bucket(self, arguments: Dict[str, Any]) -> Dict[str, Any]:
         """
         Create bucket (mirrors 'ipfs-kit bucket create')
-        
+
         Arguments:
         - name: Bucket name
         - backend: Target backend
         """
         name = arguments.get("name")
         backend = arguments.get("backend", "default")
-        
+
         try:
             if not name:
                 return {"error": "name is required"}
-            
+
             # Check if bucket already exists
             existing_buckets = await self.metadata_manager.get_bucket_metadata(bucket_name=name)
             if existing_buckets:
@@ -422,29 +423,29 @@ class MCPCLIController:
                     "message": f"Bucket '{name}' already exists",
                     "existing_bucket": {
                         "backend": existing_buckets[0].backend,
-                        "created_at": existing_buckets[0].created_at.isoformat()
-                    }
+                        "created_at": existing_buckets[0].created_at.isoformat(),
+                    },
                 }
-            
+
             # Create bucket directory
             buckets_dir = self.metadata_manager.data_dir / "buckets"
             bucket_path = buckets_dir / name
-            
+
             try:
                 bucket_path.mkdir(parents=True, exist_ok=False)
-                
+
                 # Create bucket metadata file
                 metadata = {
                     "name": name,
                     "backend": backend,
                     "created_at": datetime.now().isoformat(),
-                    "created_by": "mcp_server"
+                    "created_by": "mcp_server",
                 }
-                
+
                 metadata_file = bucket_path / "bucket_metadata.json"
-                with open(metadata_file, 'w') as f:
+                with open(metadata_file, "w") as f:
                     json.dump(metadata, f, indent=2)
-                
+
                 return {
                     "action": "create_bucket",
                     "name": name,
@@ -452,26 +453,26 @@ class MCPCLIController:
                     "status": "created",
                     "message": f"Bucket '{name}' created successfully",
                     "path": str(bucket_path),
-                    "metadata_file": str(metadata_file)
+                    "metadata_file": str(metadata_file),
                 }
-                
+
             except FileExistsError:
                 return {
                     "action": "create_bucket",
                     "name": name,
                     "backend": backend,
                     "status": "already_exists",
-                    "message": f"Bucket directory '{name}' already exists"
+                    "message": f"Bucket directory '{name}' already exists",
                 }
-            
+
         except Exception as e:
             logger.error(f"Error creating bucket: {e}")
             return {"error": str(e)}
-    
+
     async def sync_bucket(self, arguments: Dict[str, Any]) -> Dict[str, Any]:
         """
         Sync bucket (mirrors 'ipfs-kit bucket sync')
-        
+
         Arguments:
         - bucket_name: Bucket to sync
         - backend: Target backend
@@ -480,11 +481,11 @@ class MCPCLIController:
         bucket_name = arguments.get("bucket_name")
         backend = arguments.get("backend")
         dry_run = arguments.get("dry_run", False)
-        
+
         try:
             if not bucket_name:
                 return {"error": "bucket_name is required"}
-            
+
             # Find the bucket
             buckets = await self.metadata_manager.get_bucket_metadata(bucket_name=bucket_name)
             if not buckets:
@@ -492,20 +493,20 @@ class MCPCLIController:
                     "action": "sync_bucket",
                     "bucket_name": bucket_name,
                     "error": "bucket_not_found",
-                    "message": f"Bucket '{bucket_name}' not found"
+                    "message": f"Bucket '{bucket_name}' not found",
                 }
-            
+
             bucket = buckets[0]
-            
+
             # If backend specified, validate it matches
             if backend and bucket.backend != backend:
                 return {
                     "action": "sync_bucket",
                     "bucket_name": bucket_name,
                     "error": "backend_mismatch",
-                    "message": f"Bucket '{bucket_name}' is associated with backend '{bucket.backend}', not '{backend}'"
+                    "message": f"Bucket '{bucket_name}' is associated with backend '{bucket.backend}', not '{backend}'",
                 }
-            
+
             if dry_run:
                 return {
                     "action": "sync_bucket",
@@ -515,7 +516,7 @@ class MCPCLIController:
                     "would_sync": True,
                     "file_count": bucket.file_count,
                     "total_size_bytes": bucket.total_size_bytes,
-                    "message": f"Would sync bucket '{bucket_name}' with {bucket.file_count} files"
+                    "message": f"Would sync bucket '{bucket_name}' with {bucket.file_count} files",
                 }
             else:
                 # Note: Actual sync implementation would require backend-specific logic
@@ -523,16 +524,16 @@ class MCPCLIController:
                 metadata_file = Path(bucket.path) / "bucket_metadata.json"
                 if metadata_file.exists():
                     try:
-                        with open(metadata_file, 'r') as f:
+                        with open(metadata_file, "r") as f:
                             metadata = json.load(f)
-                        
-                        metadata['last_synced'] = datetime.now().isoformat()
-                        
-                        with open(metadata_file, 'w') as f:
+
+                        metadata["last_synced"] = datetime.now().isoformat()
+
+                        with open(metadata_file, "w") as f:
                             json.dump(metadata, f, indent=2)
                     except Exception as e:
                         logger.warning(f"Could not update bucket metadata: {e}")
-                
+
                 return {
                     "action": "sync_bucket",
                     "bucket_name": bucket_name,
@@ -542,16 +543,16 @@ class MCPCLIController:
                     "file_count": bucket.file_count,
                     "total_size_bytes": bucket.total_size_bytes,
                     "message": "Bucket sync operation would be performed (implementation pending)",
-                    "timestamp": datetime.now().isoformat()
+                    "timestamp": datetime.now().isoformat(),
                 }
-            
+
         except Exception as e:
             logger.error(f"Error syncing bucket: {e}")
             return {"error": str(e)}
 
     async def show_config(self, arguments: Dict[str, Any]) -> Dict[str, Any]:
-        """        Show configuration (mirrors 'ipfs-kit config show')
-        
+        """Show configuration (mirrors 'ipfs-kit config show')
+
         Arguments:
         - component: Specific component to show config for
         """

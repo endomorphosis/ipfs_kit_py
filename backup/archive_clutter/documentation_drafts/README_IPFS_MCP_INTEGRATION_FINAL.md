@@ -72,8 +72,8 @@ response = requests.post(
     json={
         "server_name": "direct-ipfs-kit-mcp",
         "tool_name": "fs_journal_get_history",
-        "arguments": {"path": "/some/path", "limit": 10}
-    }
+        "arguments": {"path": "/some/path", "limit": 10},
+    },
 )
 print(response.json())
 
@@ -83,8 +83,8 @@ response = requests.post(
     json={
         "server_name": "direct-ipfs-kit-mcp",
         "tool_name": "ipfs_fs_bridge_sync",
-        "arguments": {"path": "/some/path", "direction": "both"}
-    }
+        "arguments": {"path": "/some/path", "direction": "both"},
+    },
 )
 print(response.json())
 ```

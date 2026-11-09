@@ -22,11 +22,13 @@ logger = logging.getLogger(__name__)
 try:
     import boto3
     from botocore.exceptions import ClientError
+
     S3_AVAILABLE = True
     logger.info("AWS S3 SDK (boto3) is available")
 except ImportError:
     S3_AVAILABLE = False
     logger.warning("AWS S3 SDK (boto3) is not available. Install with: pip install boto3")
+
 
 class EnhancedS3Storage:
     """
@@ -42,7 +44,7 @@ class EnhancedS3Storage:
         aws_access_key_id=None,
         aws_secret_access_key=None,
         region_name=None,
-        local_storage_path=None
+        local_storage_path=None,
     ):
         """
         Initialize the S3 storage backend.
@@ -56,7 +58,9 @@ class EnhancedS3Storage:
         """
         self.bucket_name = bucket_name or os.environ.get("AWS_S3_BUCKET_NAME", "ipfs-storage-demo")
         self.aws_access_key_id = aws_access_key_id or os.environ.get("AWS_ACCESS_KEY_ID")
-        self.aws_secret_access_key = aws_secret_access_key or os.environ.get("AWS_SECRET_ACCESS_KEY")
+        self.aws_secret_access_key = aws_secret_access_key or os.environ.get(
+            "AWS_SECRET_ACCESS_KEY"
+        )
         self.region_name = region_name or os.environ.get("AWS_REGION", "us-east-1")
         self.local_storage_path = local_storage_path or os.path.join(
             os.path.expanduser("~"), ".ipfs_kit", "enhanced_s3", self.bucket_name
@@ -69,10 +73,10 @@ class EnhancedS3Storage:
         if S3_AVAILABLE and self.aws_access_key_id and self.aws_secret_access_key:
             try:
                 self.s3_client = boto3.client(
-                    's3',
+                    "s3",
                     aws_access_key_id=self.aws_access_key_id,
                     aws_secret_access_key=self.aws_secret_access_key,
-                    region_name=self.region_name
+                    region_name=self.region_name,
                 )
                 # Test the connection
                 self.s3_client.list_buckets()
@@ -101,7 +105,7 @@ class EnhancedS3Storage:
             "simulation": False,
             "timestamp": time.time(),
             "region": self.region_name,
-            "bucket": self.bucket_name
+            "bucket": self.bucket_name,
         }
 
         if self.local_mode:
@@ -117,26 +121,23 @@ class EnhancedS3Storage:
         else:
             # Test S3 bucket access
             try:
-                response = self.s3_client.list_objects_v2(
-                    Bucket=self.bucket_name,
-                    MaxKeys=1
-                )
+                response = self.s3_client.list_objects_v2(Bucket=self.bucket_name, MaxKeys=1)
                 status_info["message"] = "Connected to AWS S3"
                 status_info["bucket_exists"] = True
             except ClientError as e:
-                error_code = e.response.get('Error', {}).get('Code', '')
+                error_code = e.response.get("Error", {}).get("Code", "")
                 status_info["error"] = str(e)
 
-                if error_code == 'NoSuchBucket':
+                if error_code == "NoSuchBucket":
                     status_info["bucket_exists"] = False
                     # Try to create the bucket
                     try:
-                        if self.region_name == 'us-east-1':
+                        if self.region_name == "us-east-1":
                             self.s3_client.create_bucket(Bucket=self.bucket_name)
                         else:
                             self.s3_client.create_bucket(
                                 Bucket=self.bucket_name,
-                                CreateBucketConfiguration={'LocationConstraint': self.region_name}
+                                CreateBucketConfiguration={"LocationConstraint": self.region_name},
                             )
                         status_info["message"] = f"Created bucket {self.bucket_name}"
                         status_info["bucket_exists"] = True
@@ -168,21 +169,19 @@ class EnhancedS3Storage:
                     return {
                         "success": False,
                         "local_mode": True,
-                        "error": f"File not found in local S3 storage: {s3_key}"
+                        "error": f"File not found in local S3 storage: {s3_key}",
                     }
 
                 # Add the file to IPFS
                 result = subprocess.run(
-                    ["ipfs", "add", "-q", local_file_path],
-                    capture_output=True,
-                    text=True
+                    ["ipfs", "add", "-q", local_file_path], capture_output=True, text=True
                 )
 
                 if result.returncode != 0:
                     return {
                         "success": False,
                         "local_mode": True,
-                        "error": f"Failed to add to IPFS: {result.stderr}"
+                        "error": f"Failed to add to IPFS: {result.stderr}",
                     }
 
                 new_cid = result.stdout.strip()
@@ -192,7 +191,7 @@ class EnhancedS3Storage:
                     return {
                         "success": False,
                         "local_mode": True,
-                        "error": f"CID mismatch: expected {cid}, got {new_cid}"
+                        "error": f"CID mismatch: expected {cid}, got {new_cid}",
                     }
 
                 # Get file stats
@@ -205,16 +204,12 @@ class EnhancedS3Storage:
                     "cid": new_cid,
                     "source": f"local_s3:{self.bucket_name}/{s3_key}",
                     "size": file_stats.st_size,
-                    "last_modified": time.ctime(file_stats.st_mtime)
+                    "last_modified": time.ctime(file_stats.st_mtime),
                 }
 
             except Exception as e:
                 logger.error(f"Error in local to_ipfs: {e}")
-                return {
-                    "success": False,
-                    "local_mode": True,
-                    "error": str(e)
-                }
+                return {"success": False, "local_mode": True, "error": str(e)}
         else:
             # Real AWS S3 implementation
             try:
@@ -225,21 +220,14 @@ class EnhancedS3Storage:
                 # Download from S3
                 try:
                     self.s3_client.download_file(
-                        Bucket=self.bucket_name,
-                        Key=s3_key,
-                        Filename=temp_path
+                        Bucket=self.bucket_name, Key=s3_key, Filename=temp_path
                     )
                 except ClientError as e:
-                    return {
-                        "success": False,
-                        "error": f"Failed to download from S3: {str(e)}"
-                    }
+                    return {"success": False, "error": f"Failed to download from S3: {str(e)}"}
 
                 # Upload to IPFS
                 result = subprocess.run(
-                    ["ipfs", "add", "-q", temp_path],
-                    capture_output=True,
-                    text=True
+                    ["ipfs", "add", "-q", temp_path], capture_output=True, text=True
                 )
 
                 # Clean up temporary file
@@ -252,26 +240,20 @@ class EnhancedS3Storage:
                     if cid and cid != new_cid:
                         return {
                             "success": False,
-                            "error": f"CID mismatch: expected {cid}, got {new_cid}"
+                            "error": f"CID mismatch: expected {cid}, got {new_cid}",
                         }
 
                     return {
                         "success": True,
                         "cid": new_cid,
-                        "source": f"s3://{self.bucket_name}/{s3_key}"
+                        "source": f"s3://{self.bucket_name}/{s3_key}",
                     }
                 else:
-                    return {
-                        "success": False,
-                        "error": f"Failed to add to IPFS: {result.stderr}"
-                    }
+                    return {"success": False, "error": f"Failed to add to IPFS: {result.stderr}"}
 
             except Exception as e:
                 logger.error(f"Error transferring from S3 to IPFS: {e}")
-                return {
-                    "success": False,
-                    "error": str(e)
-                }
+                return {"success": False, "error": str(e)}
 
     def from_ipfs(self, cid: str, s3_key: Optional[str] = None) -> Dict[str, Any]:
         """
@@ -291,16 +273,13 @@ class EnhancedS3Storage:
             # Enhanced local implementation
             try:
                 # Get content from IPFS
-                result = subprocess.run(
-                    ["ipfs", "cat", cid],
-                    capture_output=True
-                )
+                result = subprocess.run(["ipfs", "cat", cid], capture_output=True)
 
                 if result.returncode != 0:
                     return {
                         "success": False,
                         "local_mode": True,
-                        "error": f"Failed to get content from IPFS: {result.stderr.decode('utf-8')}"
+                        "error": f"Failed to get content from IPFS: {result.stderr.decode('utf-8')}",
                     }
 
                 # Ensure directory exists for the key
@@ -329,16 +308,12 @@ class EnhancedS3Storage:
                     "bucket": self.bucket_name,
                     "etag": etag,
                     "size": file_stats.st_size,
-                    "last_modified": time.ctime(file_stats.st_mtime)
+                    "last_modified": time.ctime(file_stats.st_mtime),
                 }
 
             except Exception as e:
                 logger.error(f"Error in local from_ipfs: {e}")
-                return {
-                    "success": False,
-                    "local_mode": True,
-                    "error": str(e)
-                }
+                return {"success": False, "local_mode": True, "error": str(e)}
         else:
             # Real AWS S3 implementation
             try:
@@ -347,15 +322,12 @@ class EnhancedS3Storage:
                     temp_path = temp_file.name
 
                 # Get content from IPFS
-                result = subprocess.run(
-                    ["ipfs", "cat", cid],
-                    capture_output=True
-                )
+                result = subprocess.run(["ipfs", "cat", cid], capture_output=True)
 
                 if result.returncode != 0:
                     return {
                         "success": False,
-                        "error": f"Failed to get content from IPFS: {result.stderr.decode('utf-8')}"
+                        "error": f"Failed to get content from IPFS: {result.stderr.decode('utf-8')}",
                     }
 
                 # Write content to temporary file
@@ -368,13 +340,10 @@ class EnhancedS3Storage:
                         Filename=temp_path,
                         Bucket=self.bucket_name,
                         Key=s3_key,
-                        ExtraArgs={'Metadata': {'source': 'ipfs', 'cid': cid}}
+                        ExtraArgs={"Metadata": {"source": "ipfs", "cid": cid}},
                     )
                 except ClientError as e:
-                    return {
-                        "success": False,
-                        "error": f"Failed to upload to S3: {str(e)}"
-                    }
+                    return {"success": False, "error": f"Failed to upload to S3: {str(e)}"}
 
                 # Clean up temporary file
                 os.unlink(temp_path)
@@ -384,10 +353,7 @@ class EnhancedS3Storage:
 
                 # Get object info
                 try:
-                    obj_info = self.s3_client.get_object(
-                        Bucket=self.bucket_name,
-                        Key=s3_key
-                    )
+                    obj_info = self.s3_client.get_object(Bucket=self.bucket_name, Key=s3_key)
 
                     return {
                         "success": True,
@@ -395,9 +361,11 @@ class EnhancedS3Storage:
                         "cid": cid,
                         "key": s3_key,
                         "bucket": self.bucket_name,
-                        "etag": obj_info.get('ETag', '').strip('"'),
-                        "last_modified": obj_info.get('LastModified', '').isoformat() if obj_info.get('LastModified') else None,
-                        "size": obj_info.get('ContentLength', 0)
+                        "etag": obj_info.get("ETag", "").strip('"'),
+                        "last_modified": obj_info.get("LastModified", "").isoformat()
+                        if obj_info.get("LastModified")
+                        else None,
+                        "size": obj_info.get("ContentLength", 0),
                     }
                 except Exception as info_err:
                     # Return basic info if we can't get detailed object info
@@ -407,15 +375,12 @@ class EnhancedS3Storage:
                         "cid": cid,
                         "key": s3_key,
                         "bucket": self.bucket_name,
-                        "info_error": str(info_err)
+                        "info_error": str(info_err),
                     }
 
             except Exception as e:
                 logger.error(f"Error transferring from IPFS to S3: {e}")
-                return {
-                    "success": False,
-                    "error": str(e)
-                }
+                return {"success": False, "error": str(e)}
 
     def list_objects(self, prefix: Optional[str] = None, max_keys: int = 1000) -> Dict[str, Any]:
         """
@@ -445,7 +410,7 @@ class EnhancedS3Storage:
                             "objects": [],
                             "count": 0,
                             "bucket": self.bucket_name,
-                            "prefix": prefix
+                            "prefix": prefix,
                         }
 
                 # Walk the directory structure
@@ -466,19 +431,21 @@ class EnhancedS3Storage:
                         file_stats = os.stat(full_path)
 
                         # Calculate ETag-like hash
-                        with open(full_path, 'rb') as f:
+                        with open(full_path, "rb") as f:
                             sha1 = hashlib.sha1()
                             # Read in chunks to handle large files
-                            for chunk in iter(lambda: f.read(4096), b''):
+                            for chunk in iter(lambda: f.read(4096), b""):
                                 sha1.update(chunk)
                             etag = sha1.hexdigest()
 
-                        objects.append({
-                            "key": rel_path,
-                            "size": file_stats.st_size,
-                            "last_modified": time.ctime(file_stats.st_mtime),
-                            "etag": etag
-                        })
+                        objects.append(
+                            {
+                                "key": rel_path,
+                                "size": file_stats.st_size,
+                                "last_modified": time.ctime(file_stats.st_mtime),
+                                "etag": etag,
+                            }
+                        )
 
                         # Limit to max_keys
                         if len(objects) >= max_keys:
@@ -496,24 +463,17 @@ class EnhancedS3Storage:
                     "count": len(objects),
                     "is_truncated": False,  # Local implementation doesn't truncate
                     "bucket": self.bucket_name,
-                    "prefix": prefix
+                    "prefix": prefix,
                 }
 
             except Exception as e:
                 logger.error(f"Error in local list_objects: {e}")
-                return {
-                    "success": False,
-                    "local_mode": True,
-                    "error": str(e)
-                }
+                return {"success": False, "local_mode": True, "error": str(e)}
         else:
             # Real AWS S3 implementation
             try:
                 # List objects in the bucket
-                params = {
-                    "Bucket": self.bucket_name,
-                    "MaxKeys": max_keys
-                }
+                params = {"Bucket": self.bucket_name, "MaxKeys": max_keys}
 
                 if prefix:
                     params["Prefix"] = prefix
@@ -522,29 +482,30 @@ class EnhancedS3Storage:
 
                 # Extract object information
                 objects = []
-                for obj in response.get('Contents', []):
-                    objects.append({
-                        "key": obj.get('Key'),
-                        "size": obj.get('Size'),
-                        "last_modified": obj.get('LastModified').isoformat() if obj.get('LastModified') else None,
-                        "etag": obj.get('ETag', '').strip('"')
-                    })
+                for obj in response.get("Contents", []):
+                    objects.append(
+                        {
+                            "key": obj.get("Key"),
+                            "size": obj.get("Size"),
+                            "last_modified": obj.get("LastModified").isoformat()
+                            if obj.get("LastModified")
+                            else None,
+                            "etag": obj.get("ETag", "").strip('"'),
+                        }
+                    )
 
                 return {
                     "success": True,
                     "objects": objects,
                     "count": len(objects),
-                    "is_truncated": response.get('IsTruncated', False),
+                    "is_truncated": response.get("IsTruncated", False),
                     "bucket": self.bucket_name,
-                    "prefix": prefix
+                    "prefix": prefix,
                 }
 
             except Exception as e:
                 logger.error(f"Error listing objects from S3: {e}")
-                return {
-                    "success": False,
-                    "error": str(e)
-                }
+                return {"success": False, "error": str(e)}
 
     def delete_object(self, s3_key: str) -> Dict[str, Any]:
         """
@@ -564,7 +525,7 @@ class EnhancedS3Storage:
                     return {
                         "success": False,
                         "local_mode": True,
-                        "error": f"File not found in local S3 storage: {s3_key}"
+                        "error": f"File not found in local S3 storage: {s3_key}",
                     }
 
                 # Delete the file
@@ -584,35 +545,25 @@ class EnhancedS3Storage:
                     "local_mode": True,
                     "message": f"Deleted object from local S3 storage: {s3_key}",
                     "key": s3_key,
-                    "bucket": self.bucket_name
+                    "bucket": self.bucket_name,
                 }
 
             except Exception as e:
                 logger.error(f"Error in local delete_object: {e}")
-                return {
-                    "success": False,
-                    "local_mode": True,
-                    "error": str(e)
-                }
+                return {"success": False, "local_mode": True, "error": str(e)}
         else:
             # Real AWS S3 implementation
             try:
                 # Delete the object from S3
-                self.s3_client.delete_object(
-                    Bucket=self.bucket_name,
-                    Key=s3_key
-                )
+                self.s3_client.delete_object(Bucket=self.bucket_name, Key=s3_key)
 
                 return {
                     "success": True,
                     "message": f"Deleted object from S3: {s3_key}",
                     "key": s3_key,
-                    "bucket": self.bucket_name
+                    "bucket": self.bucket_name,
                 }
 
             except Exception as e:
                 logger.error(f"Error deleting object from S3: {e}")
-                return {
-                    "success": False,
-                    "error": str(e)
-                }
+                return {"success": False, "error": str(e)}

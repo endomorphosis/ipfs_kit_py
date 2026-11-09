@@ -4,7 +4,7 @@ import pytest
 from ipld_dag_pb.decode import decode_node
 
 
-class TestPBNode():
+class TestPBNode:
     def test_bad_wire_type(self):
         block = bytearray.fromhex("0a050001020304")  # hex string in python should be of even length
         for i in range(8):
@@ -28,11 +28,11 @@ class TestPBNode():
             decode_node(bytes.fromhex("0a0500010203040a050001020304"))
 
 
-class TestPBLink():
+class TestPBLink:
     def test_bad_wire_type_for_hash(self):
         block = bytearray.fromhex("120b0a09015500050001020304")
         for i in range(8):
-            if i == 2: # the valid case, length-delimited bytes
+            if i == 2:  # the valid case, length-delimited bytes
                 continue
             block[2] = (1 << 3) | i  # field 1, wireType i
             with pytest.raises(ValueError, match=".*PBLink.*wire type.*Hash"):
@@ -83,7 +83,11 @@ class TestPBLink():
 
     def test_duplicate_name(self):
         with pytest.raises(Exception, match=".*PBLink.*duplicate Name"):
-            decode_node(bytearray.fromhex("12210a090155000500010203041209736f6d65206e616d651209736f6d65206e616d65"))
+            decode_node(
+                bytearray.fromhex(
+                    "12210a090155000500010203041209736f6d65206e616d651209736f6d65206e616d65"
+                )
+            )
 
     def test_duplicate_t_size(self):
         with pytest.raises(Exception, match=".*PBLink.*duplicate Tsize"):

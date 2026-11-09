@@ -15,8 +15,11 @@ import time
 from unittest.mock import MagicMock
 
 # Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(name)s: %(message)s')
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(name)s: %(message)s"
+)
 logger = logging.getLogger("fix_storage_backends")
+
 
 def create_simulation_response(backend_name):
     """Create a simulation response for the given backend."""
@@ -28,8 +31,9 @@ def create_simulation_response(backend_name):
         "connected": True,
         "simulation_mode": True,
         "operation_id": f"status-{int(time.time())}",
-        "duration_ms": 0.1
+        "duration_ms": 0.1,
     }
+
 
 def check_backend_endpoint(url, backend_name):
     """Check if a backend endpoint is working."""
@@ -39,15 +43,18 @@ def check_backend_endpoint(url, backend_name):
             logger.info(f"✅ {backend_name} backend is working: {response.json()}")
             return True
         else:
-            logger.error(f"❌ {backend_name} backend returned status code {response.status_code}: {response.text}")
+            logger.error(
+                f"❌ {backend_name} backend returned status code {response.status_code}: {response.text}"
+            )
             return False
     except Exception as e:
         logger.error(f"❌ {backend_name} backend error: {str(e)}")
         return False
 
+
 def create_simulation_server_script():
     """Create a script to start a simulation-only MCP server."""
-    script_content = '''#!/usr/bin/env python
+    script_content = """#!/usr/bin/env python
 import argparse
 import json
 import logging
@@ -232,42 +239,43 @@ def main():
 
 if __name__ == "__main__":
     main()
-'''
-    
+"""
+
     with open("run_mcp_simulation_server.py", "w") as f:
         f.write(script_content)
-    
+
     os.chmod("run_mcp_simulation_server.py", 0o755)
     logger.info("Created simulation server script: run_mcp_simulation_server.py")
+
 
 def main():
     """Main function to check and fix storage backends."""
     logger.info("Checking storage backends in MCP server...")
-    
+
     # Define base URL and backend endpoints to check
     base_url = "http://localhost:9990"
     backends = {
         "filecoin": f"{base_url}/api/v0/mcp/filecoin/status",
         "huggingface": f"{base_url}/api/v0/mcp/storage/huggingface/status",
         "storacha": f"{base_url}/api/v0/mcp/storage/storacha/status",
-        "lassie": f"{base_url}/api/v0/mcp/storage/lassie/status"
+        "lassie": f"{base_url}/api/v0/mcp/storage/lassie/status",
     }
-    
+
     # Check each backend
     results = {}
     for name, url in backends.items():
         results[name] = check_backend_endpoint(url, name)
-    
+
     # Create a simulation server script that will work with all backends
     create_simulation_server_script()
-    
+
     # Provide instructions based on results
     print("\n" + "=" * 80)
     print("STORAGE BACKENDS STATUS AND NEXT STEPS")
     print("=" * 80)
-    
+
     all_working = all(results.values())
-    
+
     if all_working:
         print("✅ All storage backends are already working! No fixes needed.")
     else:
@@ -276,26 +284,31 @@ def main():
         for name, working in results.items():
             if not working:
                 print(f"  - {name}: Not working")
-        
+
         print("\nSolution:")
-        print("1. I've created a new simulation server script that will handle all storage backends.")
+        print(
+            "1. I've created a new simulation server script that will handle all storage backends."
+        )
         print("2. Start the simulation server with this command:")
         print("   python run_mcp_simulation_server.py")
-        print("3. The simulation server will run on localhost:8765 and will simulate all storage backends.")
+        print(
+            "3. The simulation server will run on localhost:8765 and will simulate all storage backends."
+        )
         print("4. Update your application configuration to use the simulation server instead.")
         print("\nAlternatively, you can try fixing the existing server with these steps:")
         print("1. Review the code for each failing backend controller")
         print("2. Add simulation mode support to each controller")
         print("3. Restart the MCP server to apply the changes")
-    
+
     print("\nDetailed backend status:")
     for name, working in results.items():
         status = "Working" if working else "Not working"
         print(f"  - {name}: {status}")
-    
+
     print("=" * 80)
-    
+
     return all_working
+
 
 if __name__ == "__main__":
     main()

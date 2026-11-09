@@ -17,11 +17,13 @@ if project_root not in sys.path:
 
 pytestmark = pytest.mark.anyio
 
+
 def run_server_import() -> bool:
     """Run MCP server import checks and return success."""
     try:
         print("Testing server import...")
         from ipfs_kit_py.mcp.servers.unified_mcp_server import create_mcp_server
+
         print("✓ Server module imported successfully")
         return True
     except Exception as e:
@@ -29,11 +31,13 @@ def run_server_import() -> bool:
         traceback.print_exc()
         pytest.skip(f"MCP server module unavailable: {e}")
 
+
 def run_server_instantiation():
     """Run server instantiation and return the instance (or None on failure)."""
     try:
         print("\nTesting server instantiation...")
         from ipfs_kit_py.mcp.servers.unified_mcp_server import create_mcp_server
+
         server = create_mcp_server()
         print("✓ Server instantiated successfully")
         return server
@@ -42,69 +46,81 @@ def run_server_instantiation():
         traceback.print_exc()
         pytest.skip(f"MCP server instantiation unavailable: {e}")
 
+
 def run_tool_registration(server):
     """Run tool registration checks and return tool list."""
     try:
         print("\nTesting tool registration...")
         tools = list(server.tools.keys())
         print(f"✓ {len(tools)} tools registered")
-        
+
         # Categorize tools
         categories = {
-            'core': [t for t in tools if t.startswith('ipfs_') and not any(k in t for k in ['dht', 'name', 'pubsub', 'files'])],
-            'advanced': [t for t in tools if any(k in t for k in ['dht', 'name', 'pubsub', 'swarm'])],
-            'mfs': [t for t in tools if 'files_' in t],
-            'vfs': [t for t in tools if 'vfs_' in t],
-            'system': [t for t in tools if t in ['system_health']]
+            "core": [
+                t
+                for t in tools
+                if t.startswith("ipfs_")
+                and not any(k in t for k in ["dht", "name", "pubsub", "files"])
+            ],
+            "advanced": [
+                t for t in tools if any(k in t for k in ["dht", "name", "pubsub", "swarm"])
+            ],
+            "mfs": [t for t in tools if "files_" in t],
+            "vfs": [t for t in tools if "vfs_" in t],
+            "system": [t for t in tools if t in ["system_health"]],
         }
-        
+
         for category, tool_list in categories.items():
             print(f"  {category.upper()}: {len(tool_list)} tools")
             if tool_list:
                 print(f"    Examples: {', '.join(tool_list[:3])}")
-        
+
         return tools
     except Exception as e:
         print(f"✗ Tool registration test failed: {e}")
         traceback.print_exc()
         pytest.skip(f"MCP tool registration unavailable: {e}")
 
+
 async def run_sample_tool_execution(server, tools) -> bool:
     """Run sample tool execution checks and return success."""
     try:
         print("\nTesting sample tool execution...")
-        
+
         # Test a few representative tools
         test_tools = []
-        if 'ipfs_version' in tools:
-            test_tools.append('ipfs_version')
-        if 'ipfs_id' in tools:
-            test_tools.append('ipfs_id')
-        if 'ipfs_files_ls' in tools:
-            test_tools.append('ipfs_files_ls')
-        if 'vfs_list_mounts' in tools:
-            test_tools.append('vfs_list_mounts')
-        if 'system_health' in tools:
-            test_tools.append('system_health')
-        
+        if "ipfs_version" in tools:
+            test_tools.append("ipfs_version")
+        if "ipfs_id" in tools:
+            test_tools.append("ipfs_id")
+        if "ipfs_files_ls" in tools:
+            test_tools.append("ipfs_files_ls")
+        if "vfs_list_mounts" in tools:
+            test_tools.append("vfs_list_mounts")
+        if "system_health" in tools:
+            test_tools.append("system_health")
+
         for tool_name in test_tools[:3]:  # Test first 3 available tools
             try:
                 print(f"  Testing {tool_name}...")
                 result = await server.execute_tool(tool_name, {})
-                if result and result.get('success') is not False:
+                if result and result.get("success") is not False:
                     print(f"    ✓ {tool_name} executed successfully")
-                    if 'error' not in result:
+                    if "error" not in result:
                         print(f"      Result: {str(result)[:100]}...")
                 else:
-                    print(f"    ⚠ {tool_name} returned error: {result.get('error', 'Unknown error')}")
+                    print(
+                        f"    ⚠ {tool_name} returned error: {result.get('error', 'Unknown error')}"
+                    )
             except Exception as e:
                 print(f"    ✗ {tool_name} failed: {e}")
-        
+
         return True
     except Exception as e:
         print(f"✗ Tool execution test failed: {e}")
         traceback.print_exc()
         pytest.skip(f"MCP tool execution unavailable: {e}")
+
 
 def test_server_import():
     """Test importing the MCP server module."""
@@ -138,32 +154,33 @@ async def test_sample_tool_execution():
 async def main():
     """Main validation function."""
     print("=== MCP Server Validation ===")
-    
+
     # Test 1: Import
     if not run_server_import():
         print("\n❌ Validation failed at import stage")
         return False
-    
+
     # Test 2: Instantiation
     server = run_server_instantiation()
     if not server:
         print("\n❌ Validation failed at instantiation stage")
         return False
-    
+
     # Test 3: Tool registration
     tools = run_tool_registration(server)
     if not tools:
         print("\n❌ Validation failed at tool registration stage")
         return False
-    
+
     # Test 4: Tool execution
     if not await run_sample_tool_execution(server, tools):
         print("\n❌ Validation failed at tool execution stage")
         return False
-    
+
     print("\n✅ All validation tests passed!")
     print(f"Server is ready with {len(tools)} tools registered")
     return True
+
 
 if __name__ == "__main__":
     success = anyio.run(main)

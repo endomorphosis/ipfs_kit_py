@@ -25,31 +25,28 @@ import os
 import subprocess
 import warnings
 
+
 def main():
     """Run storage backend tests using the new test_runner."""
     # Show deprecation warning
     warnings.warn(
         "run_storage_backend_tests.py is deprecated and will be removed in a future version. "
         "Please use test_runner.py instead.",
-        DeprecationWarning, stacklevel=2
+        DeprecationWarning,
+        stacklevel=2,
     )
-    
+
     print("Running storage backend tests using the new test_runner module...")
-    
+
     # Check if test_runner.py exists
     test_runner_path = os.path.join(os.path.dirname(__file__), "test_runner.py")
     if not os.path.exists(test_runner_path):
         print("ERROR: test_runner.py not found. Please make sure it's in the same directory.")
         return 1
-    
+
     # Build command for the test runner
-    cmd = [
-        sys.executable,
-        test_runner_path,
-        "--categories", "storage",
-        "--verbose"
-    ]
-    
+    cmd = [sys.executable, test_runner_path, "--categories", "storage", "--verbose"]
+
     # Run test_runner
     try:
         print(f"Running: {' '.join(cmd)}")
@@ -61,6 +58,7 @@ def main():
     except Exception as e:
         print(f"Error running tests: {e}")
         return 1
+
 
 if __name__ == "__main__":
     sys.exit(main())

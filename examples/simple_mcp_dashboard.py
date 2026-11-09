@@ -27,17 +27,18 @@ import uvicorn
 
 logger = logging.getLogger(__name__)
 
+
 class MCPDashboard:
     """Simple MCP Dashboard with proper JSON-RPC integration."""
-    
+
     def __init__(self, host="127.0.0.1", port=8004):
         self.host = host
         self.port = port
         self.start_time = datetime.now()
-        
+
         # Initialize FastAPI
         self.app = FastAPI(title="IPFS Kit MCP Dashboard")
-        
+
         # Add CORS middleware
         self.app.add_middleware(
             CORSMiddleware,
@@ -46,11 +47,11 @@ class MCPDashboard:
             allow_methods=["*"],
             allow_headers=["*"],
         )
-        
+
         # Setup static files and templates
         self.setup_static_files()
         self.setup_routes()
-        
+
     def setup_static_files(self):
         """Setup static files and templates."""
         # Prefer packaged assets for stability across reorganizations
@@ -64,31 +65,33 @@ class MCPDashboard:
             Path.cwd() / "templates",
         ]
         static_dir = next((p for p in static_candidates if p.exists()), static_candidates[0])
-        templates_dir = next((p for p in templates_candidates if p.exists()), templates_candidates[0])
+        templates_dir = next(
+            (p for p in templates_candidates if p.exists()), templates_candidates[0]
+        )
 
         # Mount static files
         try:
             self.app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
         except Exception as e:
             logger.warning(f"Failed to mount static files: {e}")
-        
+
         # Setup templates
         try:
             self.templates = Jinja2Templates(directory=str(templates_dir))
         except Exception as e:
             logger.warning(f"Failed to setup templates: {e}")
             self.templates = None
-            
+
         # Create MCP SDK file if it doesn't exist
         self.create_mcp_sdk()
-        
+
     def create_mcp_sdk(self):
         """Create a simple MCP SDK for JavaScript."""
         static_dir = Path("static")
         sdk_file = static_dir / "mcp-sdk.js"
-        
+
         if not sdk_file.exists():
-            sdk_content = '''
+            sdk_content = """
 // Simple MCP SDK for JSON-RPC calls
 class MCPClient {
     constructor(baseUrl = '') {
@@ -132,116 +135,116 @@ class MCPClient {
 
 // Global MCP client instance
 window.mcpClient = new MCPClient();
-'''
+"""
             sdk_file.write_text(sdk_content)
             logger.info("Created MCP SDK file")
-    
+
     def setup_routes(self):
         """Setup all API routes."""
-        
+
         # Main dashboard route
         @self.app.get("/", response_class=HTMLResponse)
         async def dashboard():
             return self.get_dashboard_html()
-        
+
         # API Routes - System Status
         @self.app.get("/api/status")
         async def get_status():
             return await self._get_system_status()
-        
+
         # API Routes - Backends
         @self.app.get("/api/backends")
         async def get_backends():
             return await self._get_backends()
-        
-        # API Routes - Buckets  
+
+        # API Routes - Buckets
         @self.app.get("/api/buckets")
         async def get_buckets():
             return await self._get_buckets()
-        
+
         # API Routes - Peers
-        @self.app.get("/api/peers") 
+        @self.app.get("/api/peers")
         async def get_peers():
             return await self._get_peers()
-        
+
         # API Routes - Logs
         @self.app.get("/api/logs")
         async def get_logs(component: str = "all", level: str = "all", limit: int = 100):
             return await self._get_logs(component, level, limit)
-        
+
         # API Routes - Analytics
         @self.app.get("/api/analytics/summary")
         async def get_analytics_summary():
             return await self._get_analytics_summary()
-        
+
         # API Routes - Config Files
         @self.app.get("/api/config/files")
         async def get_config_files():
             return await self._get_config_files()
-        
+
         # MCP Routes - JSON-RPC endpoint
         @self.app.post("/mcp/tools/call")
         async def mcp_tools_call(request: Request):
             data = await request.json()
             return await self._handle_mcp_call(data)
-    
+
     async def _get_system_status(self):
         """Get system status with real metrics."""
         try:
             # Get real system metrics
             cpu_percent = psutil.cpu_percent(interval=1)
             memory = psutil.virtual_memory()
-            
+
             # Try to get disk usage for current directory
             try:
-                disk = psutil.disk_usage('/')
+                disk = psutil.disk_usage("/")
                 disk_percent = (disk.used / disk.total) * 100
             except Exception:
                 disk_percent = 0.0
-            
+
             return {
                 "cpu_percent": round(cpu_percent, 1),
-                "memory_percent": round(memory.percent, 1), 
+                "memory_percent": round(memory.percent, 1),
                 "disk_percent": round(disk_percent, 1),
                 "uptime": str(datetime.now() - self.start_time),
-                "status": "running"
+                "status": "running",
             }
         except Exception as e:
             logger.error(f"Error getting system status: {e}")
             return {
                 "cpu_percent": "N/A",
-                "memory_percent": "N/A", 
+                "memory_percent": "N/A",
                 "disk_percent": "N/A",
                 "uptime": "N/A",
-                "status": "error"
+                "status": "error",
             }
-    
+
     async def _get_backends(self):
         """Get backends data."""
         return [
             {
                 "name": "IPFS Storage",
-                "type": "filesystem", 
+                "type": "filesystem",
                 "status": "active",
                 "description": "Distributed IPFS file system backend",
-                "health": "healthy"
+                "health": "healthy",
             },
             {
-                "name": "Local Storage", 
+                "name": "Local Storage",
                 "type": "filesystem",
                 "status": "active",
                 "description": "Local filesystem backend",
-                "health": "healthy"
+                "health": "healthy",
             },
             {
                 "name": "S3 Storage",
                 "type": "cloud_storage",
-                "status": "inactive", 
+                "status": "inactive",
                 "description": "Amazon S3 cloud storage backend",
-                "health": "unknown"
-            }
+                "health": "unknown",
+            },
         ]
-    
+
     async def _get_buckets(self):
         """Get buckets data."""
         return [
@@ -250,24 +253,24 @@ window.mcpClient = new MCPClient();
                 "backend": "ipfs",
                 "size": "2.1 GB",
                 "files": 156,
-                "created": "2024-01-15T10:30:00Z"
+                "created": "2024-01-15T10:30:00Z",
             },
             {
                 "name": "media",
-                "backend": "local", 
+                "backend": "local",
                 "size": "5.7 GB",
                 "files": 342,
-                "created": "2024-01-10T14:20:00Z"
+                "created": "2024-01-10T14:20:00Z",
             },
             {
                 "name": "archive",
                 "backend": "ipfs",
-                "size": "1.2 GB", 
+                "size": "1.2 GB",
                 "files": 89,
-                "created": "2024-01-05T09:15:00Z"
-            }
+                "created": "2024-01-05T09:15:00Z",
+            },
         ]
-    
+
     async def _get_peers(self):
         """Get peers data."""
         return {
@@ -277,9 +280,9 @@ window.mcpClient = new MCPClient();
                 {"id": "12D3Koo...", "addr": "/ip4/192.168.1.1/tcp/4001", "latency": "25ms"},
                 {"id": "12D3Koo...", "addr": "/ip4/192.168.1.2/tcp/4001", "latency": "18ms"},
                 {"id": "12D3Koo...", "addr": "/ip4/10.0.0.5/tcp/4001", "latency": "42ms"},
-            ]
+            ],
         }
-    
+
     async def _get_logs(self, component: str, level: str, limit: int):
         """Get logs data."""
         return [
@@ -287,22 +290,22 @@ window.mcpClient = new MCPClient();
                 "timestamp": "2024-01-20T10:30:15Z",
                 "level": "INFO",
                 "component": "dashboard",
-                "message": "Dashboard initialized successfully"
+                "message": "Dashboard initialized successfully",
             },
             {
-                "timestamp": "2024-01-20T10:30:10Z", 
+                "timestamp": "2024-01-20T10:30:10Z",
                 "level": "INFO",
                 "component": "mcp",
-                "message": "MCP server started on port 8004"
+                "message": "MCP server started on port 8004",
             },
             {
                 "timestamp": "2024-01-20T10:29:55Z",
                 "level": "WARNING",
                 "component": "backend",
-                "message": "S3 backend connection timeout, retrying..."
-            }
+                "message": "S3 backend connection timeout, retrying...",
+            },
         ]
-    
+
     async def _get_analytics_summary(self):
         """Get analytics summary."""
         return {
@@ -310,9 +313,9 @@ window.mcpClient = new MCPClient();
             "success_rate": 98.5,
             "avg_response_time": "120ms",
             "active_connections": 23,
-            "data_transferred": "15.7 GB"
+            "data_transferred": "15.7 GB",
         }
-    
+
     async def _get_config_files(self):
         """Get config files."""
         return [
@@ -320,16 +323,16 @@ window.mcpClient = new MCPClient();
                 "name": "ipfs_kit.yaml",
                 "path": "~/.ipfs_kit/config/ipfs_kit.yaml",
                 "size": "2.1 KB",
-                "modified": "2024-01-20T10:00:00Z"
+                "modified": "2024-01-20T10:00:00Z",
             },
             {
                 "name": "backends.yaml",
-                "path": "~/.ipfs_kit/config/backends.yaml", 
+                "path": "~/.ipfs_kit/config/backends.yaml",
                 "size": "1.8 KB",
-                "modified": "2024-01-19T15:30:00Z"
-            }
+                "modified": "2024-01-19T15:30:00Z",
+            },
         ]
-    
+
     async def _handle_mcp_call(self, data: Dict[str, Any]):
         """Handle MCP JSON-RPC calls."""
         try:
@@ -337,9 +340,9 @@ window.mcpClient = new MCPClient();
             params = data.get("params", {})
             tool_name = params.get("name")
             arguments = params.get("arguments", {})
-            
+
             logger.info(f"MCP call: {tool_name} with params: {arguments}")
-            
+
             # Handle different MCP tools
             if tool_name == "get_system_status":
                 result = await self._get_system_status()
@@ -352,43 +355,31 @@ window.mcpClient = new MCPClient();
             elif tool_name == "get_logs":
                 result = await self._get_logs(
                     arguments.get("component", "all"),
-                    arguments.get("level", "all"), 
-                    arguments.get("limit", 100)
+                    arguments.get("level", "all"),
+                    arguments.get("limit", 100),
                 )
             elif tool_name == "get_analytics":
                 result = await self._get_analytics_summary()
             elif tool_name == "list_services":
                 result = {"services": 30}  # Mock services count
             elif tool_name == "get_system_overview":
-                result = {
-                    "services": 30,
-                    "backends": 3,
-                    "pins": 3,
-                    "buckets": 3
-                }
+                result = {"services": 30, "backends": 3, "pins": 3, "buckets": 3}
             else:
                 result = {"error": f"Unknown tool: {tool_name}"}
-            
-            return {
-                "jsonrpc": "2.0",
-                "result": result,
-                "id": data.get("id")
-            }
-            
+
+            return {"jsonrpc": "2.0", "result": result, "id": data.get("id")}
+
         except Exception as e:
             logger.error(f"MCP call error: {e}")
             return {
                 "jsonrpc": "2.0",
-                "error": {
-                    "code": -32603,
-                    "message": str(e)
-                },
-                "id": data.get("id")
+                "error": {"code": -32603, "message": str(e)},
+                "id": data.get("id"),
             }
-    
+
     def get_dashboard_html(self):
         """Get the dashboard HTML."""
-        return '''<!DOCTYPE html>
+        return """<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -989,33 +980,35 @@ window.mcpClient = new MCPClient();
         document.addEventListener('DOMContentLoaded', initializeDashboard);
     </script>
 </body>
-</html>'''
-    
+</html>"""
+
     def run(self):
         """Run the dashboard server."""
         logger.info(f"Starting MCP Dashboard on {self.host}:{self.port}")
         uvicorn.run(self.app, host=self.host, port=self.port, log_level="info")
 
+
 def main():
     """Main entry point."""
     import argparse
-    
+
     parser = argparse.ArgumentParser(description="IPFS Kit MCP Dashboard")
     parser.add_argument("--host", default="127.0.0.1", help="Host to bind to")
     parser.add_argument("--port", type=int, default=8004, help="Port to bind to")
     parser.add_argument("--debug", action="store_true", help="Enable debug mode")
-    
+
     args = parser.parse_args()
-    
+
     # Setup logging
     logging.basicConfig(
         level=logging.DEBUG if args.debug else logging.INFO,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     )
-    
+
     # Create and run dashboard
     dashboard = MCPDashboard(host=args.host, port=args.port)
     dashboard.run()
+
 
 if __name__ == "__main__":
     main()
