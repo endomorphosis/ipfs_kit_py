@@ -18,7 +18,7 @@ Key features:
 import base64
 import io
 import base64
-import io  # Added io import
+import io # Added io import
 import json
 import logging
 import tempfile
@@ -27,20 +27,17 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple, Union, BinaryIO
 
-from ipfs_connection_pool import get_connection_pool  # type: ignore
+from ipfs_connection_pool import get_connection_pool # type: ignore
 
 # Set up logging
 logger = logging.getLogger("ipfs_dag_operations")
 
-
 class IPLDFormat(Enum):
     """Supported formats for IPLD data."""
-
-    DAG_PB = "dag-pb"  # Protocol Buffers (default in IPFS)
+    DAG_PB = "dag-pb"      # Protocol Buffers (default in IPFS)
     DAG_CBOR = "dag-cbor"  # CBOR-based format
     DAG_JSON = "dag-json"  # JSON-based format
-    RAW = "raw"  # Raw bytes
-
+    RAW = "raw"            # Raw bytes
 
 class DAGOperations:
     """
@@ -108,8 +105,9 @@ class DAGOperations:
 
             # Update success rate using exponential moving average
             alpha = 0.1  # Weight for new observations
-            metrics["success_rate"] = (1 - alpha) * metrics["success_rate"] + alpha * (
-                1.0 if success else 0.0
+            metrics["success_rate"] = (
+                (1 - alpha) * metrics["success_rate"] +
+                alpha * (1.0 if success else 0.0)
             )
 
     def put(
@@ -724,9 +722,9 @@ class DAGOperations:
         else:
             # For other data types, use dag/put with the resolved format type
             logger.debug(f"Importing data using dag/put with format: {resolved_format_type}")
-            return self.put(  # type: ignore
+            return self.put( # type: ignore
                 data=data,
-                format_type=resolved_format_type,  # Use resolved format
+                format_type=resolved_format_type, # Use resolved format
                 input_encoding=input_encoding,
                 pin=pin,
                 hash_alg=hash_alg,
@@ -831,7 +829,7 @@ class DAGOperations:
                         "output_file": output_file,
                         "duration": duration,
                     }
-                elif hasattr(output_file, "write") and callable(output_file.write):
+                elif hasattr(output_file, 'write') and callable(output_file.write):
                     # It's a file-like object
                     response = self.connection_pool.post(
                         "dag/export",
@@ -1099,9 +1097,9 @@ class DAGOperations:
         resolved_format_type = format_type if format_type is not None else self.default_format
 
         # Put the updated node
-        put_result = self.put(  # type: ignore
+        put_result = self.put( # type: ignore
             data=new_data,
-            format_type=resolved_format_type,  # Use resolved format
+            format_type=resolved_format_type, # Use resolved format
             pin=pin,
             options=options,
         )
@@ -1174,7 +1172,8 @@ class DAGOperations:
             }
 
         # Create CID link format
-        child_link = {"/": child_cid}
+        child_link = {"/"
+        : child_cid}
 
         # Create a new parent with the additional link
         new_parent = {**parent_data, name: child_link}
@@ -1182,9 +1181,9 @@ class DAGOperations:
         resolved_format_type = format_type if format_type is not None else self.default_format
 
         # Put the updated parent
-        put_result = self.put(  # type: ignore
+        put_result = self.put( # type: ignore
             data=new_parent,
-            format_type=resolved_format_type,  # Use resolved format
+            format_type=resolved_format_type, # Use resolved format
             pin=pin,
             options=options,
         )
@@ -1270,9 +1269,9 @@ class DAGOperations:
         resolved_format_type = format_type if format_type is not None else self.default_format
 
         # Put the updated parent
-        put_result = self.put(  # type: ignore
+        put_result = self.put( # type: ignore
             data=new_parent,
-            format_type=resolved_format_type,  # Use resolved format
+            format_type=resolved_format_type, # Use resolved format
             pin=pin,
             options=options,
         )
@@ -1307,10 +1306,8 @@ class DAGOperations:
             "metrics": self.performance_metrics,
         }
 
-
 # Global instance
 _instance = None
-
 
 def get_instance(connection_pool=None, config=None) -> DAGOperations:
     """Get or create a singleton instance of the DAG operations."""

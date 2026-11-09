@@ -9,14 +9,13 @@ pin replication across storage backends with data loss protection features.
 import json
 from typing import Dict, List, Any
 
-
 class ReplicationDashboardPanel:
     """Configuration for the replication management dashboard panel."""
-
+    
     def __init__(self):
         """Initialize the dashboard panel configuration."""
         self.panel_config = self._create_panel_config()
-
+    
     def _create_panel_config(self) -> Dict[str, Any]:
         """Create the complete dashboard panel configuration."""
         return {
@@ -31,14 +30,14 @@ class ReplicationDashboardPanel:
                     self._create_status_section(),
                     self._create_settings_section(),
                     self._create_replication_section(),
-                    self._create_backup_section(),
-                ],
+                    self._create_backup_section()
+                ]
             },
             "api_endpoints": self._get_api_endpoints(),
             "real_time_updates": True,
-            "refresh_interval": 30,
+            "refresh_interval": 30
         }
-
+    
     def _create_status_section(self) -> Dict[str, Any]:
         """Create the replication status overview section."""
         return {
@@ -54,17 +53,17 @@ class ReplicationDashboardPanel:
                     "api_endpoint": "/api/dashboard/replication/status",
                     "data_path": "data.data.total_pins",
                     "format": "number",
-                    "color": "blue",
+                    "color": "blue"
                 },
                 {
-                    "type": "metric_card",
+                    "type": "metric_card", 
                     "id": "replication_efficiency",
                     "title": "Replication Efficiency",
                     "api_endpoint": "/api/dashboard/replication/status",
                     "data_path": "data.data.replication_efficiency",
                     "format": "percentage",
                     "color": "green",
-                    "thresholds": {"warning": 80, "critical": 60},
+                    "thresholds": {"warning": 80, "critical": 60}
                 },
                 {
                     "type": "metric_card",
@@ -74,7 +73,7 @@ class ReplicationDashboardPanel:
                     "data_path": "data.data.under_replicated",
                     "format": "number",
                     "color": "orange",
-                    "alert_on_value": "> 0",
+                    "alert_on_value": "> 0"
                 },
                 {
                     "type": "metric_card",
@@ -83,11 +82,11 @@ class ReplicationDashboardPanel:
                     "api_endpoint": "/api/dashboard/replication/status",
                     "data_path": "data.data.over_replicated",
                     "format": "number",
-                    "color": "yellow",
-                },
-            ],
+                    "color": "yellow"
+                }
+            ]
         }
-
+    
     def _create_settings_section(self) -> Dict[str, Any]:
         """Create the replication settings configuration section."""
         return {
@@ -105,7 +104,7 @@ class ReplicationDashboardPanel:
                     "min": 1,
                     "max": 10,
                     "default": 2,
-                    "description": "Minimum number of replicas to maintain",
+                    "description": "Minimum number of replicas to maintain"
                 },
                 {
                     "type": "number_input",
@@ -116,7 +115,7 @@ class ReplicationDashboardPanel:
                     "min": 1,
                     "max": 10,
                     "default": 3,
-                    "description": "Ideal number of replicas",
+                    "description": "Ideal number of replicas"
                 },
                 {
                     "type": "number_input",
@@ -127,7 +126,7 @@ class ReplicationDashboardPanel:
                     "min": 1,
                     "max": 15,
                     "default": 5,
-                    "description": "Maximum allowed replicas",
+                    "description": "Maximum allowed replicas"
                 },
                 {
                     "type": "number_input",
@@ -139,7 +138,7 @@ class ReplicationDashboardPanel:
                     "max": 10000,
                     "default": 100,
                     "step": 10,
-                    "description": "Maximum storage size per backend",
+                    "description": "Maximum storage size per backend"
                 },
                 {
                     "type": "select",
@@ -150,9 +149,9 @@ class ReplicationDashboardPanel:
                     "options": [
                         {"value": "balanced", "label": "Balanced Distribution"},
                         {"value": "priority", "label": "Priority-Based"},
-                        {"value": "size_based", "label": "Size-Based Selection"},
+                        {"value": "size_based", "label": "Size-Based Selection"}
                     ],
-                    "default": "balanced",
+                    "default": "balanced"
                 },
                 {
                     "type": "toggle",
@@ -161,7 +160,7 @@ class ReplicationDashboardPanel:
                     "api_endpoint": "/api/dashboard/replication/settings",
                     "data_path": "data.auto_replication",
                     "default": True,
-                    "description": "Automatically maintain target replica count",
+                    "description": "Automatically maintain target replica count"
                 },
                 {
                     "type": "button",
@@ -169,11 +168,11 @@ class ReplicationDashboardPanel:
                     "label": "Save Settings",
                     "action": "POST",
                     "api_endpoint": "/api/dashboard/replication/settings",
-                    "color": "primary",
-                },
-            ],
+                    "color": "primary"
+                }
+            ]
         }
-
+    
     def _create_replication_section(self) -> Dict[str, Any]:
         """Create the pin replication management section."""
         return {
@@ -186,7 +185,7 @@ class ReplicationDashboardPanel:
                     "type": "search_input",
                     "id": "pin_search",
                     "placeholder": "Search by CID...",
-                    "api_endpoint": "/api/dashboard/replication/status",
+                    "api_endpoint": "/api/dashboard/replication/status"
                 },
                 {
                     "type": "data_table",
@@ -198,31 +197,31 @@ class ReplicationDashboardPanel:
                             "label": "CID",
                             "type": "text",
                             "truncate": 16,
-                            "copyable": True,
+                            "copyable": True
                         },
                         {
                             "key": "replica_count",
                             "label": "Replicas",
                             "type": "badge",
-                            "color_based_on": "replication_health",
+                            "color_based_on": "replication_health"
                         },
                         {
                             "key": "backends",
-                            "label": "Storage Backends",
+                            "label": "Storage Backends", 
                             "type": "tag_list",
-                            "max_visible": 3,
+                            "max_visible": 3
                         },
                         {
                             "key": "size_mb",
                             "label": "Size (MB)",
                             "type": "number",
-                            "format": "decimal",
+                            "format": "decimal"
                         },
                         {
                             "key": "last_check",
                             "label": "Last Check",
                             "type": "datetime",
-                            "format": "relative",
+                            "format": "relative"
                         },
                         {
                             "key": "actions",
@@ -233,31 +232,31 @@ class ReplicationDashboardPanel:
                                     "label": "Replicate",
                                     "action": "replicate_pin",
                                     "color": "blue",
-                                    "icon": "copy",
+                                    "icon": "copy"
                                 },
                                 {
                                     "label": "Analyze",
                                     "action": "analyze_pin",
                                     "color": "gray",
-                                    "icon": "chart-bar",
-                                },
-                            ],
-                        },
+                                    "icon": "chart-bar"
+                                }
+                            ]
+                        }
                     ],
                     "filters": [
                         {
                             "key": "replication_health",
                             "label": "Health Status",
                             "type": "select",
-                            "options": ["all", "healthy", "warning", "critical", "excess"],
+                            "options": ["all", "healthy", "warning", "critical", "excess"]
                         }
                     ],
                     "pagination": True,
-                    "page_size": 20,
-                },
-            ],
+                    "page_size": 20
+                }
+            ]
         }
-
+    
     def _create_backup_section(self) -> Dict[str, Any]:
         """Create the backup and restore management section."""
         return {
@@ -282,24 +281,24 @@ class ReplicationDashboardPanel:
                                     {"label": "Pins", "value": "{{pin_count}}"},
                                     {"label": "Size", "value": "{{estimated_size_gb}}GB"},
                                     {"label": "Capacity", "value": "{{max_size_gb}}GB"},
-                                    {"label": "Health", "value": "{{health_status}}"},
+                                    {"label": "Health", "value": "{{health_status}}"}
                                 ],
                                 "status_indicator": "{{health_status}}",
                                 "actions": [
                                     {
                                         "label": "Export Backup",
                                         "action": "export_backend_backup",
-                                        "icon": "download",
+                                        "icon": "download"
                                     },
                                     {
                                         "label": "Import Backup",
                                         "action": "import_backend_backup",
-                                        "icon": "upload",
-                                    },
-                                ],
-                            },
+                                        "icon": "upload"
+                                    }
+                                ]
+                            }
                         }
-                    ],
+                    ]
                 },
                 {
                     "id": "backup_operations",
@@ -315,26 +314,26 @@ class ReplicationDashboardPanel:
                                     "label": "Select Backend",
                                     "api_endpoint": "/api/dashboard/replication/backends",
                                     "data_path": "data.backends",
-                                    "required": True,
+                                    "required": True
                                 },
                                 {
                                     "type": "text_input",
                                     "id": "backup_path",
                                     "label": "Backup Path",
                                     "placeholder": "/path/to/backup.json",
-                                    "description": "Leave empty for auto-generated path",
+                                    "description": "Leave empty for auto-generated path"
                                 },
                                 {
                                     "type": "checkbox",
                                     "id": "include_metadata",
                                     "label": "Include Metadata",
-                                    "default": True,
+                                    "default": True
                                 },
                                 {
                                     "type": "checkbox",
                                     "id": "compress_backup",
                                     "label": "Compress Backup",
-                                    "default": True,
+                                    "default": True
                                 },
                                 {
                                     "type": "button",
@@ -343,9 +342,9 @@ class ReplicationDashboardPanel:
                                     "action": "POST",
                                     "api_endpoint": "/api/dashboard/backup/{export_backend}/export",
                                     "color": "primary",
-                                    "icon": "download",
-                                },
-                            ],
+                                    "icon": "download"
+                                }
+                            ]
                         },
                         {
                             "type": "form_section",
@@ -357,14 +356,14 @@ class ReplicationDashboardPanel:
                                     "label": "Target Backend",
                                     "api_endpoint": "/api/dashboard/replication/backends",
                                     "data_path": "data.backends",
-                                    "required": True,
+                                    "required": True
                                 },
                                 {
                                     "type": "file_input",
                                     "id": "restore_file",
                                     "label": "Backup File",
                                     "accept": ".json,.json.gz",
-                                    "required": True,
+                                    "required": True
                                 },
                                 {
                                     "type": "button",
@@ -373,7 +372,7 @@ class ReplicationDashboardPanel:
                                     "action": "POST",
                                     "api_endpoint": "/api/dashboard/backup/verify",
                                     "color": "secondary",
-                                    "icon": "check-circle",
+                                    "icon": "check-circle"
                                 },
                                 {
                                     "type": "button",
@@ -383,11 +382,11 @@ class ReplicationDashboardPanel:
                                     "api_endpoint": "/api/dashboard/backup/{import_backend}/import",
                                     "color": "primary",
                                     "icon": "upload",
-                                    "confirm": "Are you sure you want to import this backup?",
-                                },
-                            ],
-                        },
-                    ],
+                                    "confirm": "Are you sure you want to import this backup?"
+                                }
+                            ]
+                        }
+                    ]
                 },
                 {
                     "id": "backup_history",
@@ -398,10 +397,26 @@ class ReplicationDashboardPanel:
                             "id": "backups_table",
                             "api_endpoint": "/api/dashboard/backup/{backend}/list",
                             "columns": [
-                                {"key": "backup_path", "label": "Backup File", "type": "text"},
-                                {"key": "backend_name", "label": "Backend", "type": "badge"},
-                                {"key": "size_mb", "label": "Size (MB)", "type": "number"},
-                                {"key": "created_date", "label": "Created", "type": "datetime"},
+                                {
+                                    "key": "backup_path",
+                                    "label": "Backup File",
+                                    "type": "text"
+                                },
+                                {
+                                    "key": "backend_name",
+                                    "label": "Backend",
+                                    "type": "badge"
+                                },
+                                {
+                                    "key": "size_mb",
+                                    "label": "Size (MB)",
+                                    "type": "number"
+                                },
+                                {
+                                    "key": "created_date",
+                                    "label": "Created",
+                                    "type": "datetime"
+                                },
                                 {
                                     "key": "actions",
                                     "label": "Actions",
@@ -411,84 +426,83 @@ class ReplicationDashboardPanel:
                                             "label": "Verify",
                                             "action": "verify_backup",
                                             "color": "blue",
-                                            "icon": "check",
+                                            "icon": "check"
                                         },
                                         {
                                             "label": "Download",
                                             "action": "download_backup",
                                             "color": "green",
-                                            "icon": "download",
+                                            "icon": "download"
                                         },
                                         {
                                             "label": "Delete",
                                             "action": "delete_backup",
                                             "color": "red",
                                             "icon": "trash",
-                                            "confirm": "Delete this backup?",
-                                        },
-                                    ],
-                                },
-                            ],
+                                            "confirm": "Delete this backup?"
+                                        }
+                                    ]
+                                }
+                            ]
                         }
-                    ],
-                },
-            ],
+                    ]
+                }
+            ]
         }
-
+    
     def _get_api_endpoints(self) -> List[Dict[str, str]]:
         """Get list of API endpoints used by this panel."""
         return [
             {
                 "endpoint": "/api/dashboard/replication/status",
                 "method": "GET",
-                "description": "Get replication status overview",
+                "description": "Get replication status overview"
             },
             {
                 "endpoint": "/api/dashboard/replication/settings",
                 "method": "GET/POST",
-                "description": "Get/update replication settings",
+                "description": "Get/update replication settings"
             },
             {
                 "endpoint": "/api/dashboard/replication/pins/{cid}/replicate",
                 "method": "POST",
-                "description": "Replicate specific pin to backends",
+                "description": "Replicate specific pin to backends"
             },
             {
                 "endpoint": "/api/dashboard/replication/backends",
                 "method": "GET",
-                "description": "Get backend capabilities and status",
+                "description": "Get backend capabilities and status"
             },
             {
                 "endpoint": "/api/dashboard/backup/{backend}/export",
                 "method": "POST",
-                "description": "Export pins from backend to backup",
+                "description": "Export pins from backend to backup"
             },
             {
                 "endpoint": "/api/dashboard/backup/{backend}/import",
                 "method": "POST",
-                "description": "Import pins from backup to backend",
+                "description": "Import pins from backup to backend"
             },
             {
                 "endpoint": "/api/dashboard/backup/verify",
                 "method": "POST",
-                "description": "Verify backup file integrity",
-            },
+                "description": "Verify backup file integrity"
+            }
         ]
-
+    
     def get_panel_config(self) -> Dict[str, Any]:
         """Get the complete panel configuration."""
         return self.panel_config
-
+    
     def export_config(self, file_path: str = None) -> str:
         """Export panel configuration to JSON file."""
         if not file_path:
             file_path = "/tmp/replication_dashboard_panel.json"
-
-        with open(file_path, "w") as f:
+        
+        with open(file_path, 'w') as f:
             json.dump(self.panel_config, f, indent=2)
-
+        
         return file_path
-
 
 # Usage example
 if __name__ == "__main__":

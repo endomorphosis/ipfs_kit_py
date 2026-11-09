@@ -25,7 +25,8 @@ import uvicorn
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
 
@@ -33,25 +34,24 @@ logger = logging.getLogger(__name__)
 server_start_time = datetime.now()
 request_count = 0
 
-
 class JSONRPCHandler:
     """JSON-RPC handler for MCP operations with comprehensive pin management"""
-
+    
     def __init__(self):
         self.methods = {}
         self.register_default_methods()
-
+    
     def register_method(self, name: str, method):
         """Register a JSON-RPC method"""
         self.methods[name] = method
         logger.info(f"Registered JSON-RPC method: {name}")
-
+    
     def register_default_methods(self):
         """Register all pin management and MCP methods"""
         # System methods
         self.register_method("system.health", self.system_health)
         self.register_method("system.status", self.system_status)
-
+        
         # Pin methods - comprehensive set
         self.register_method("ipfs.pin.add", self.ipfs_pin_add)
         self.register_method("ipfs.pin.rm", self.ipfs_pin_rm)
@@ -67,47 +67,47 @@ class JSONRPCHandler:
         self.register_method("ipfs.pin.bulk_rm", self.ipfs_pin_bulk_rm)
         self.register_method("ipfs.pin.search", self.ipfs_pin_search)
         self.register_method("ipfs.pin.cleanup", self.ipfs_pin_cleanup)
-
+        
         # Other basic methods
         self.register_method("bucket.list", self.bucket_list)
         self.register_method("peer.list", self.peer_list)
         self.register_method("backend.list", self.backend_list)
-
+    
     async def handle_request(self, request_data: Dict[str, Any]) -> Dict[str, Any]:
         """Handle a JSON-RPC request"""
         try:
             method = request_data.get("method")
             params = request_data.get("params", {})
             request_id = request_data.get("id")
-
+            
             if method not in self.methods:
                 return self.error_response(request_id, -32601, "Method not found")
-
+            
             result = await self.methods[method](params)
             return self.success_response(request_id, result)
-
+            
         except Exception as e:
             logger.error(f"Error handling request: {e}")
             return self.error_response(request_id, -32603, str(e))
-
+    
     def success_response(self, request_id, result):
         return {"jsonrpc": "2.0", "result": result, "id": request_id}
-
+    
     def error_response(self, request_id, code, message):
         return {"jsonrpc": "2.0", "error": {"code": code, "message": message}, "id": request_id}
-
+    
     # System methods
     async def system_health(self, params: Dict[str, Any]) -> Dict[str, Any]:
         return {"status": "healthy", "timestamp": time.time()}
-
+    
     async def system_status(self, params: Dict[str, Any]) -> Dict[str, Any]:
         return {
             "status": "running",
             "uptime": str(datetime.now() - server_start_time),
             "cpu_usage": 25.5,
-            "memory_usage": 68.2,
+            "memory_usage": 68.2
         }
-
+    
     # Pin management methods - All the methods I implemented earlier
     async def ipfs_pin_add(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Pin content in IPFS"""
@@ -115,7 +115,7 @@ class JSONRPCHandler:
         name = params.get("name")
         recursive = params.get("recursive", True)
         metadata = params.get("metadata", {})
-
+        
         return {
             "success": True,
             "cid": cid_or_file,
@@ -124,9 +124,9 @@ class JSONRPCHandler:
             "pinned": True,
             "metadata": metadata,
             "operation_id": f"pin_add_{int(time.time() * 1000)}",
-            "simulated": True,
+            "simulated": True
         }
-
+    
     async def ipfs_pin_rm(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Unpin content in IPFS"""
         cid = params.get("cid", "")
@@ -135,57 +135,57 @@ class JSONRPCHandler:
             "cid": cid,
             "unpinned": True,
             "operation_id": f"pin_rm_{int(time.time() * 1000)}",
-            "simulated": True,
+            "simulated": True
         }
-
+    
     async def ipfs_pin_ls(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """List pinned content"""
         limit = params.get("limit")
         metadata = params.get("metadata", False)
-
+        
         mock_pins = [
             {
                 "cid": "QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG",
                 "type": "recursive",
                 "name": "example-document.pdf",
                 "size": 1024576,
-                "timestamp": "2024-01-15T10:30:00Z",
+                "timestamp": "2024-01-15T10:30:00Z"
             },
             {
                 "cid": "QmHash123abc456def789",
-                "type": "direct",
+                "type": "direct", 
                 "name": "config.json",
                 "size": 2048,
-                "timestamp": "2024-01-14T15:45:00Z",
+                "timestamp": "2024-01-14T15:45:00Z"
             },
             {
                 "cid": "QmTest789xyz123abc456",
                 "type": "recursive",
                 "name": "dataset-folder",
                 "size": 104857600,
-                "timestamp": "2024-01-13T09:15:00Z",
-            },
+                "timestamp": "2024-01-13T09:15:00Z"
+            }
         ]
-
+        
         if metadata:
             for pin in mock_pins:
                 pin["metadata"] = {
                     "uploader": "user123",
                     "tags": ["document", "important"],
-                    "description": f"Content for {pin['name']}",
+                    "description": f"Content for {pin['name']}"
                 }
-
+        
         if limit:
             mock_pins = mock_pins[:limit]
-
+            
         return {
             "success": True,
             "pins": mock_pins,
             "count": len(mock_pins),
             "operation_id": f"pin_ls_{int(time.time() * 1000)}",
-            "simulated": True,
+            "simulated": True
         }
-
+    
     async def ipfs_pin_pending(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """List pending pin operations"""
         return {
@@ -196,13 +196,13 @@ class JSONRPCHandler:
                     "cid": "QmPending123",
                     "action": "add",
                     "status": "queued",
-                    "timestamp": "2024-01-15T12:00:00Z",
+                    "timestamp": "2024-01-15T12:00:00Z"
                 }
             ],
             "count": 1,
-            "operation_id": f"pin_pending_{int(time.time() * 1000)}",
+            "operation_id": f"pin_pending_{int(time.time() * 1000)}"
         }
-
+    
     async def ipfs_pin_status(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Check pin operation status"""
         operation_id = params.get("operation_id", "")
@@ -210,14 +210,19 @@ class JSONRPCHandler:
             "success": True,
             "operation_id": operation_id,
             "status": "completed",
-            "progress": 100,
+            "progress": 100
         }
-
+    
     async def ipfs_pin_get(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Download pinned content"""
         cid = params.get("cid", "")
-        return {"success": True, "cid": cid, "downloaded": True, "simulated": True}
-
+        return {
+            "success": True,
+            "cid": cid,
+            "downloaded": True,
+            "simulated": True
+        }
+    
     async def ipfs_pin_cat(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Stream pinned content"""
         cid = params.get("cid", "")
@@ -225,35 +230,53 @@ class JSONRPCHandler:
             "success": True,
             "cid": cid,
             "content": f"Mock content for CID {cid}",
-            "simulated": True,
+            "simulated": True
         }
-
+    
     async def ipfs_pin_init(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Initialize pin metadata index"""
-        return {"success": True, "message": "Pin metadata index initialized successfully"}
-
+        return {
+            "success": True,
+            "message": "Pin metadata index initialized successfully"
+        }
+    
     async def ipfs_pin_export_metadata(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Export pin metadata"""
         return {
             "success": True,
             "shards_created": 3,
-            "message": "Pin metadata exported successfully",
+            "message": "Pin metadata exported successfully"
         }
-
+    
     async def ipfs_pin_verify(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Verify pins"""
-        return {"success": True, "total_pins": 15, "verified_pins": 14, "failed_pins": 1}
-
+        return {
+            "success": True,
+            "total_pins": 15,
+            "verified_pins": 14,
+            "failed_pins": 1
+        }
+    
     async def ipfs_pin_bulk_add(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Bulk pin operations"""
         cids = params.get("cids", [])
-        return {"success": True, "total_requested": len(cids), "successful": len(cids), "failed": 0}
-
+        return {
+            "success": True,
+            "total_requested": len(cids),
+            "successful": len(cids),
+            "failed": 0
+        }
+    
     async def ipfs_pin_bulk_rm(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Bulk unpin operations"""
         cids = params.get("cids", [])
-        return {"success": True, "total_requested": len(cids), "successful": len(cids), "failed": 0}
-
+        return {
+            "success": True,
+            "total_requested": len(cids),
+            "successful": len(cids),
+            "failed": 0
+        }
+    
     async def ipfs_pin_search(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Search pins"""
         query = params.get("query", "")
@@ -261,44 +284,57 @@ class JSONRPCHandler:
             "success": True,
             "query": query,
             "total_matches": 2,
-            "pins": [{"cid": "QmExample", "name": "example.pdf", "type": "recursive"}],
+            "pins": [
+                {
+                    "cid": "QmExample",
+                    "name": "example.pdf",
+                    "type": "recursive"
+                }
+            ]
         }
-
+    
     async def ipfs_pin_cleanup(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Cleanup pins"""
         return {
             "success": True,
             "total_cleaned": 6,
             "space_freed_mb": 125.5,
-            "message": "Cleanup completed successfully",
+            "message": "Cleanup completed successfully"
         }
-
+    
     # Other basic methods
     async def bucket_list(self, params: Dict[str, Any]) -> Dict[str, Any]:
         return {
             "success": True,
-            "buckets": [{"id": "bucket1", "name": "Documents", "size": 1024000, "files": 15}],
+            "buckets": [
+                {"id": "bucket1", "name": "Documents", "size": 1024000, "files": 15}
+            ]
         }
-
+    
     async def peer_list(self, params: Dict[str, Any]) -> Dict[str, Any]:
-        return {"success": True, "peers": ["12D3KooWExample123"]}
-
+        return {
+            "success": True,
+            "peers": ["12D3KooWExample123"]
+        }
+    
     async def backend_list(self, params: Dict[str, Any]) -> Dict[str, Any]:
         return {
             "success": True,
-            "backends": [{"name": "Local IPFS", "status": "active", "type": "ipfs"}],
+            "backends": [
+                {"name": "Local IPFS", "status": "active", "type": "ipfs"}
+            ]
         }
 
 
 class UnifiedMCPDashboardServer:
     """Unified MCP Dashboard Server with comprehensive pin management"""
-
+    
     def __init__(self, host: str = "127.0.0.1", port: int = 8083):
         self.host = host
         self.port = port
         self.app = FastAPI(title="IPFS Kit - Unified MCP Dashboard")
         self.jsonrpc_handler = JSONRPCHandler()
-
+        
         # Setup CORS
         self.app.add_middleware(
             CORSMiddleware,
@@ -307,10 +343,10 @@ class UnifiedMCPDashboardServer:
             allow_methods=["*"],
             allow_headers=["*"],
         )
-
+        
         self.setup_templates()
         self.setup_routes()
-
+    
     def setup_templates(self):
         """Setup templates and static files"""
         # Create directories
@@ -318,17 +354,17 @@ class UnifiedMCPDashboardServer:
         static_dir = Path("static")
         templates_dir.mkdir(exist_ok=True)
         static_dir.mkdir(exist_ok=True)
-
+        
         self.templates = Jinja2Templates(directory=str(templates_dir))
         self.app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
-
+        
         # Create the dashboard HTML template
         self.create_dashboard_template(templates_dir)
         self.create_static_files(static_dir)
-
+    
     def create_dashboard_template(self, templates_dir: Path):
         """Create comprehensive pin management dashboard template"""
-        template_content = """<!DOCTYPE html>
+        template_content = '''<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -470,13 +506,13 @@ class UnifiedMCPDashboardServer:
 
     <script src="/static/dashboard.js"></script>
 </body>
-</html>"""
-
+</html>'''
+        
         (templates_dir / "dashboard.html").write_text(template_content)
-
+    
     def create_static_files(self, static_dir: Path):
         """Create static JavaScript files"""
-        js_content = """// Pin Management Dashboard JavaScript
+        js_content = '''// Pin Management Dashboard JavaScript
 class PinDashboard {
     constructor() {
         this.init();
@@ -716,17 +752,17 @@ class PinDashboard {
 let dashboard;
 document.addEventListener('DOMContentLoaded', () => {
     dashboard = new PinDashboard();
-});"""
-
+});'''
+        
         (static_dir / "dashboard.js").write_text(js_content)
-
+    
     def setup_routes(self):
         """Setup all routes"""
-
+        
         @self.app.get("/", response_class=HTMLResponse)
         async def dashboard_home(request: Request):
             return self.templates.TemplateResponse("dashboard.html", {"request": request})
-
+        
         @self.app.post("/api/jsonrpc")
         async def jsonrpc_endpoint(request: Request):
             try:
@@ -735,18 +771,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 return JSONResponse(result)
             except Exception as e:
                 logger.error(f"Error in JSON-RPC endpoint: {e}")
-                return JSONResponse(
-                    {
-                        "jsonrpc": "2.0",
-                        "error": {"code": -32700, "message": "Parse error"},
-                        "id": None,
-                    }
-                )
-
+                return JSONResponse({
+                    "jsonrpc": "2.0",
+                    "error": {"code": -32700, "message": "Parse error"},
+                    "id": None
+                })
+        
         @self.app.get("/api/health")
         async def health_check():
             return {"status": "healthy", "timestamp": time.time()}
-
+    
     def run(self):
         """Run the server"""
         logger.info(f"🚀 Starting IPFS Kit Pin Management Dashboard on {self.host}:{self.port}")
@@ -758,9 +792,9 @@ def main():
     parser = argparse.ArgumentParser(description="IPFS Kit Pin Management Dashboard")
     parser.add_argument("--host", default="127.0.0.1", help="Host to bind to")
     parser.add_argument("--port", type=int, default=8083, help="Port to run on")
-
+    
     args = parser.parse_args()
-
+    
     server = UnifiedMCPDashboardServer(host=args.host, port=args.port)
     server.run()
 

@@ -15,15 +15,17 @@ from typing import Dict, Any, Optional
 # Configure detailed logging
 logging.basicConfig(
     level=logging.DEBUG,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    handlers=[logging.StreamHandler(), logging.FileHandler("debug_ipfs_model.log")],
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(),
+        logging.FileHandler('debug_ipfs_model.log')
+    ]
 )
 logger = logging.getLogger("debug_ipfs_model")
 
 # Try to import the IPFS model
 try:
     from ipfs_kit_py.mcp.models.ipfs_model import IPFSModel
-
     logger.info("Successfully imported IPFSModel")
 except ImportError:
     logger.error("Failed to import IPFSModel. Make sure the module is available.")
@@ -32,35 +34,33 @@ except ImportError:
 # Try to import ipfs_kit
 try:
     from ipfs_kit_py.ipfs_kit import ipfs_kit
-
     logger.info("Successfully imported ipfs_kit")
 except ImportError:
     logger.error("Failed to import ipfs_kit. Make sure the module is available.")
     sys.exit(1)
 
-
 def test_ipfs_model():
     """Test the IPFSModel's check_daemon_status method directly."""
     logger.info("Creating IPFSModel instance with real ipfs_kit")
-
+    
     try:
         # Create the ipfs_kit instance
         kit = ipfs_kit()
         logger.info(f"Created ipfs_kit instance: {kit}")
-
+        
         # Create the model with the real kit
         model = IPFSModel(ipfs_kit_instance=kit)
         logger.info(f"Created IPFSModel instance with real kit: {model}")
-
+        
         # Inspect the check_daemon_status method in ipfs_kit
-        if hasattr(kit, "check_daemon_status"):
+        if hasattr(kit, 'check_daemon_status'):
             signature = inspect.signature(kit.check_daemon_status)
             logger.info(f"kit.check_daemon_status signature: {signature}")
             logger.info(f"Parameters: {signature.parameters}")
             logger.info(f"Parameter count: {len(signature.parameters)}")
         else:
             logger.warning("ipfs_kit has no check_daemon_status method")
-
+            
         # Test with no daemon_type
         logger.info("Testing check_daemon_status with no daemon_type")
         try:
@@ -70,7 +70,7 @@ def test_ipfs_model():
         except Exception as e:
             logger.error(f"Error in check_daemon_status with no daemon_type: {e}")
             logger.error(traceback.format_exc())
-
+            
         # Test with daemon_type="ipfs"
         logger.info("Testing check_daemon_status with daemon_type='ipfs'")
         try:
@@ -80,14 +80,13 @@ def test_ipfs_model():
         except Exception as e:
             logger.error(f"Error in check_daemon_status with daemon_type='ipfs': {e}")
             logger.error(traceback.format_exc())
-
+            
         return True
-
+        
     except Exception as e:
         logger.error(f"Error in test_ipfs_model: {e}")
         logger.error(traceback.format_exc())
         return False
-
 
 if __name__ == "__main__":
     logger.info("Starting debug script for IPFSModel")

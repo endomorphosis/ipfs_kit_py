@@ -21,8 +21,10 @@ import requests
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-    handlers=[logging.StreamHandler()],
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler()
+    ]
 )
 logger = logging.getLogger(__name__)
 
@@ -35,7 +37,6 @@ LOGS_DIR = os.path.join(os.getcwd(), "logs")
 BIN_DIR = os.path.join(os.getcwd(), "bin")
 FILECOIN_GATEWAY_URL = "https://api.node.glif.io/rpc/v0"
 
-
 def create_directories():
     """Create necessary directories"""
     directories = [
@@ -47,13 +48,12 @@ def create_directories():
         os.path.expanduser("~/.ipfs_kit/mock_s3/ipfs-storage-demo"),
         os.path.expanduser("~/.ipfs_kit/mock_filecoin/deals"),
         os.path.expanduser("~/.ipfs_kit/mock_storacha"),
-        os.path.expanduser("~/.ipfs_kit/mock_lassie"),
+        os.path.expanduser("~/.ipfs_kit/mock_lassie")
     ]
 
     for directory in directories:
         os.makedirs(directory, exist_ok=True)
         logger.info(f"Ensured directory exists: {directory}")
-
 
 def stop_existing_servers():
     """Stop any existing MCP server processes"""
@@ -68,7 +68,6 @@ def stop_existing_servers():
         time.sleep(2)
     except Exception as e:
         logger.error(f"Error stopping existing servers: {e}")
-
 
 def setup_lotus_gateway():
     """Set up the Lotus gateway client for Filecoin integration"""
@@ -88,7 +87,7 @@ def setup_lotus_gateway():
     lotus_path = os.path.join(BIN_DIR, "lotus")
 
     with open(lotus_path, "w") as f:
-        f.write("""#!/bin/bash
+        f.write('''#!/bin/bash
 # Lotus Gateway Client
 # Provides Filecoin integration via public gateway
 
@@ -143,7 +142,7 @@ except Exception as e:
         exit $?
         ;;
 esac
-""")
+''')
 
     # Make the script executable
     os.chmod(lotus_path, 0o755)
@@ -161,7 +160,6 @@ esac
     except Exception as e:
         logger.error(f"Error testing Lotus gateway: {e}")
         return False
-
 
 def create_unified_config():
     """Create a unified configuration for MCP server"""
@@ -212,7 +210,6 @@ echo "MCP configuration loaded"
     logger.info(f"Created unified configuration at: {config_path}")
     return config_path
 
-
 def start_mcp_server(config_path):
     """Start the MCP server with the unified configuration"""
     logger.info("Starting MCP server...")
@@ -245,7 +242,6 @@ def start_mcp_server(config_path):
         logger.error(f"Error starting MCP server: {e}")
         return False
 
-
 def verify_mcp_server():
     """Verify that the MCP server is running and all features are working"""
     logger.info("Verifying MCP server...")
@@ -265,13 +261,13 @@ def verify_mcp_server():
                     logger.info(f"Server status: {health_data.get('status', 'unknown')}")
 
                     # Log each backend status
-                    backends = health_data.get("storage_backends", {})
+                    backends = health_data.get('storage_backends', {})
                     all_working = True
 
                     for name, status in backends.items():
-                        available = status.get("available", False)
-                        simulation = status.get("simulation", True)
-                        message = status.get("message", "")
+                        available = status.get('available', False)
+                        simulation = status.get('simulation', True)
+                        message = status.get('message', '')
 
                         if available and not simulation:
                             logger.info(f"✅ {name}: Working - {message}")
@@ -289,7 +285,7 @@ def verify_mcp_server():
                     logger.warning(f"HTTP Error: {response.status_code}")
 
                     if attempt < max_attempts - 1:
-                        logger.info(f"Retrying in 5 seconds... ({attempt + 1}/{max_attempts})")
+                        logger.info(f"Retrying in 5 seconds... ({attempt+1}/{max_attempts})")
                         time.sleep(5)
                     else:
                         return False
@@ -298,7 +294,7 @@ def verify_mcp_server():
                 logger.warning(f"Connection error: {e}")
 
                 if attempt < max_attempts - 1:
-                    logger.info(f"Retrying in 5 seconds... ({attempt + 1}/{max_attempts})")
+                    logger.info(f"Retrying in 5 seconds... ({attempt+1}/{max_attempts})")
                     time.sleep(5)
                 else:
                     return False
@@ -308,7 +304,6 @@ def verify_mcp_server():
     except Exception as e:
         logger.error(f"Error verifying MCP server: {e}")
         return False
-
 
 def verify_filecoin_integration():
     """Verify that Filecoin integration is working"""
@@ -331,21 +326,16 @@ def verify_filecoin_integration():
             if response.status_code == 200:
                 health_data = response.json()
 
-                if (
-                    "storage_backends" in health_data
-                    and "filecoin" in health_data["storage_backends"]
-                ):
-                    filecoin_status = health_data["storage_backends"]["filecoin"]
-                    available = filecoin_status.get("available", False)
-                    simulation = filecoin_status.get("simulation", True)
+                if 'storage_backends' in health_data and 'filecoin' in health_data['storage_backends']:
+                    filecoin_status = health_data['storage_backends']['filecoin']
+                    available = filecoin_status.get('available', False)
+                    simulation = filecoin_status.get('simulation', True)
 
                     if available and not simulation:
                         logger.info("✅ Filecoin integration is working correctly in MCP server")
                         return True
                     else:
-                        logger.warning(
-                            "⚠️ Filecoin integration is not properly configured in MCP server"
-                        )
+                        logger.warning("⚠️ Filecoin integration is not properly configured in MCP server")
                         return False
                 else:
                     logger.warning("Filecoin backend not found in health response")
@@ -360,7 +350,6 @@ def verify_filecoin_integration():
     except Exception as e:
         logger.error(f"Error verifying Filecoin integration: {e}")
         return False
-
 
 def main():
     """Main execution function"""
@@ -393,7 +382,6 @@ def main():
     logger.info(f"Health endpoint: http://localhost:{MCP_PORT}/api/v0/health")
     logger.info(f"API documentation: http://localhost:{MCP_PORT}/docs")
     logger.info(f"Log file: {LOGS_DIR}/enhanced_mcp_server.log")
-
 
 if __name__ == "__main__":
     main()

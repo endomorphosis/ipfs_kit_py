@@ -102,7 +102,7 @@ api = extend_high_level_api(api)
 api.wal_telemetry(
     enabled=True,
     aggregation_interval=30,  # Aggregate metrics every 30 seconds
-    max_history_entries=100,  # Keep the last 100 history entries
+    max_history_entries=100   # Keep the last 100 history entries
 )
 
 # Extend with AI/ML telemetry capabilities
@@ -120,13 +120,17 @@ with api.wal_track_model_operation(
     operation_type="model_load",
     model_id="my_model",
     framework="pytorch",
-    model_size=50 * 1024 * 1024,  # 50MB
+    model_size=50 * 1024 * 1024  # 50MB
 ):
     # Load your model here
     model = load_model("path/to/model")
 
 # Track model initialization
-with api.wal_track_model_operation(operation_type="model_init", model_id="my_model", device="cuda"):
+with api.wal_track_model_operation(
+    operation_type="model_init",
+    model_id="my_model",
+    device="cuda"
+):
     # Initialize model on device
     model.to(device)
 ```
@@ -135,7 +139,11 @@ with api.wal_track_model_operation(operation_type="model_init", model_id="my_mod
 
 ```python
 # Track model inference
-with api.wal_track_inference(model_id="my_model", batch_size=32, input_type="image"):
+with api.wal_track_inference(
+    model_id="my_model",
+    batch_size=32,
+    input_type="image"
+):
     # Run inference
     outputs = model(inputs)
 ```
@@ -146,18 +154,20 @@ with api.wal_track_inference(model_id="my_model", batch_size=32, input_type="ima
 # Track training epoch
 for epoch in range(num_epochs):
     with api.wal_track_training_epoch(
-        model_id="my_model", epoch=epoch, num_samples=len(train_loader.dataset)
+        model_id="my_model",
+        epoch=epoch,
+        num_samples=len(train_loader.dataset)
     ):
         # Train for one epoch
         train_one_epoch(model, train_loader, optimizer)
-
+    
     # Record training statistics
     api.wal_record_training_stats(
         model_id="my_model",
         epoch=epoch,
         loss=epoch_loss,
         learning_rate=current_lr,
-        gradient_norm=compute_grad_norm(model),
+        gradient_norm=compute_grad_norm(model)
     )
 ```
 
@@ -169,14 +179,16 @@ with api.wal_track_dataset_operation(
     operation_type="dataset_load",
     dataset_id="imagenet",
     format="tfrecord",
-    dataset_size=150 * 1024 * 1024 * 1024,  # 150GB
+    dataset_size=150 * 1024 * 1024 * 1024  # 150GB
 ):
     # Load your dataset
     dataset = load_dataset("path/to/dataset")
 
 # Track dataset preprocessing
 with api.wal_track_dataset_operation(
-    operation_type="dataset_preprocess", dataset_id="imagenet", operation="normalize"
+    operation_type="dataset_preprocess",
+    dataset_id="imagenet",
+    operation="normalize"
 ):
     # Preprocess the dataset
     preprocessed_dataset = preprocess(dataset)
@@ -187,7 +199,9 @@ with api.wal_track_dataset_operation(
 ```python
 # Track worker coordination
 with api.wal_track_distributed_operation(
-    operation_type="worker_coordination", task_id="training_task_1", num_workers=8
+    operation_type="worker_coordination",
+    task_id="training_task_1",
+    num_workers=8
 ):
     # Coordinate workers
     workers = initialize_workers()
@@ -196,7 +210,7 @@ with api.wal_track_distributed_operation(
 for worker_id, utilization in worker_stats.items():
     api.wal_record_worker_utilization(
         worker_id=worker_id,
-        utilization=utilization,  # 0.0-1.0
+        utilization=utilization  # 0.0-1.0
     )
 ```
 
@@ -422,13 +436,20 @@ Track model loading, initialization, and inference performance to identify bottl
 ```python
 # Track model loading performance
 with api.wal_track_model_operation(
-    operation_type="model_load", model_id="my_model", framework="pytorch", model_size=model_size
+    operation_type="model_load",
+    model_id="my_model",
+    framework="pytorch",
+    model_size=model_size
 ):
     model = load_model("path/to/model")
 
 # Benchmark inference performance across batch sizes
 for batch_size in [1, 2, 4, 8, 16, 32]:
-    with api.wal_track_inference(model_id="my_model", batch_size=batch_size, track_memory=True):
+    with api.wal_track_inference(
+        model_id="my_model",
+        batch_size=batch_size,
+        track_memory=True
+    ):
         outputs = model(generate_batch(batch_size))
 ```
 
@@ -440,20 +461,22 @@ Track training progress and performance metrics to optimize hyperparameters and 
 # Track training epochs and collect metrics
 for epoch in range(num_epochs):
     with api.wal_track_training_epoch(
-        model_id="my_model", epoch=epoch, num_samples=len(train_loader.dataset)
+        model_id="my_model",
+        epoch=epoch,
+        num_samples=len(train_loader.dataset)
     ):
         # Train for one epoch
         epoch_loss, epoch_accuracy = train_one_epoch(model, train_loader, optimizer)
-
+    
     # Record training statistics
     api.wal_record_training_stats(
         model_id="my_model",
         epoch=epoch,
         loss=epoch_loss,
         learning_rate=scheduler.get_last_lr()[0],
-        gradient_norm=compute_grad_norm(model),
+        gradient_norm=compute_grad_norm(model)
     )
-
+    
     # Get training metrics report for monitoring
     report = api.wal_generate_metrics_report(format="markdown")
     print(report["report"])
@@ -468,27 +491,32 @@ Monitor distributed training coordination overhead and worker utilization to opt
 with api.wal_track_distributed_operation(
     operation_type="worker_coordination",
     task_id=f"training_task_{task_id}",
-    num_workers=len(workers),
+    num_workers=len(workers)
 ):
     # Set up distributed training
     workers = initialize_workers()
 
 # Track task distribution
 with api.wal_track_distributed_operation(
-    operation_type="task_distribution", task_id=f"training_task_{task_id}", num_workers=len(workers)
+    operation_type="task_distribution",
+    task_id=f"training_task_{task_id}",
+    num_workers=len(workers)
 ):
     # Distribute tasks to workers
     distribute_tasks(workers, tasks)
 
 # Monitor worker utilization
 for worker_id, worker in workers.items():
-    api.wal_record_worker_utilization(worker_id=worker_id, utilization=worker.get_utilization())
+    api.wal_record_worker_utilization(
+        worker_id=worker_id,
+        utilization=worker.get_utilization()
+    )
 
 # Track result aggregation
 with api.wal_track_distributed_operation(
     operation_type="result_aggregation",
     task_id=f"training_task_{task_id}",
-    num_workers=len(workers),
+    num_workers=len(workers)
 ):
     # Aggregate results from workers
     results = aggregate_results(workers)
@@ -504,7 +532,7 @@ with api.wal_track_dataset_operation(
     operation_type="dataset_load",
     dataset_id="imagenet",
     format="tfrecord",
-    dataset_size=dataset_size,
+    dataset_size=dataset_size
 ):
     # Load dataset from IPFS
     dataset = load_dataset_from_ipfs("Qm...")
@@ -512,7 +540,9 @@ with api.wal_track_dataset_operation(
 # Track multiple preprocessing steps
 for operation in ["resize", "normalize", "augment"]:
     with api.wal_track_dataset_operation(
-        operation_type="dataset_preprocess", dataset_id="imagenet", operation=operation
+        operation_type="dataset_preprocess",
+        dataset_id="imagenet",
+        operation=operation
     ):
         # Apply preprocessing operation
         dataset = apply_preprocessing(dataset, operation)
@@ -528,23 +558,33 @@ with api.wal_track_dataset_operation(
     operation_type="dataset_load",
     dataset_id="my_dataset",
     format="parquet",
-    dataset_size=dataset_size,
+    dataset_size=dataset_size
 ):
     dataset = load_dataset("path/to/dataset")
 
 # Track model loading
 with api.wal_track_model_operation(
-    operation_type="model_load", model_id="my_model", framework="pytorch", model_size=model_size
+    operation_type="model_load",
+    model_id="my_model",
+    framework="pytorch",
+    model_size=model_size
 ):
     model = load_model("path/to/model")
 
 # Track training
 for epoch in range(num_epochs):
-    with api.wal_track_training_epoch(model_id="my_model", epoch=epoch, num_samples=len(dataset)):
+    with api.wal_track_training_epoch(
+        model_id="my_model",
+        epoch=epoch,
+        num_samples=len(dataset)
+    ):
         train_one_epoch(model, dataset)
 
 # Track inference
-with api.wal_track_inference(model_id="my_model", batch_size=32):
+with api.wal_track_inference(
+    model_id="my_model",
+    batch_size=32
+):
     predictions = model(test_data)
 
 # Generate comprehensive report
@@ -650,12 +690,10 @@ Set up a FastAPI server with metrics endpoints for easy visualization:
 
 ```python
 from fastapi import FastAPI
-
 app = FastAPI()
 
 # Add metrics endpoint to FastAPI app
 api.wal_add_metrics_endpoint(app)
-
 
 # Add custom endpoint for AI/ML metrics report
 @app.get("/aiml-report")
@@ -704,7 +742,10 @@ pip install prometheus-client opentelemetry-api opentelemetry-sdk matplotlib plo
 
 ```python
 # Initialize Prometheus integration
-api.wal_prometheus(enabled=True, port=9090)
+api.wal_prometheus(
+    enabled=True,
+    port=9090
+)
 
 # Then initialize AI/ML telemetry
 api.wal_aiml_telemetry()
@@ -732,7 +773,6 @@ Enable debug logging to troubleshoot telemetry issues:
 
 ```python
 import logging
-
 logging.basicConfig(level=logging.DEBUG)
 logging.getLogger("ipfs_kit_py.wal_telemetry_ai_ml").setLevel(logging.DEBUG)
 ```

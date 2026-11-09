@@ -8,7 +8,6 @@ and their integration with the MCP server.
 
 class BackendStatusResponse(OperationResponse):
     """Response model for backend status information."""
-
     backend_name: str = Field(..., description="Name of the storage backend")
     is_available: bool = Field(..., description="Whether the backend is available")
     capabilities: List[str] = Field(
@@ -19,7 +18,6 @@ class BackendStatusResponse(OperationResponse):
 
 class AllBackendsStatusResponse(OperationResponse):
     """Response model for status of all storage backends."""
-
     backends: Dict[str, BackendStatusResponse] = Field(
         {}, description="Status of each storage backend"
     )
@@ -29,7 +27,6 @@ class AllBackendsStatusResponse(OperationResponse):
 
 class StorageTransferRequest(BaseModel):
     """Request model for transferring content between storage backends."""
-
     source_backend: str = Field(..., description="Source backend name")
     target_backend: str = Field(..., description="Target backend name")
     content_id: str = Field(..., description="Content identifier (CID)")
@@ -38,7 +35,6 @@ class StorageTransferRequest(BaseModel):
 
 class StorageTransferResponse(OperationResponse):
     """Response model for content transfer operations."""
-
     source_backend: str = Field(..., description="Source backend name")
     target_backend: str = Field(..., description="Target backend name")
     content_id: str = Field(..., description="Content identifier (CID)")
@@ -49,7 +45,6 @@ class StorageTransferResponse(OperationResponse):
 
 class ContentMigrationRequest(BaseModel):
     """Request model for migrating content between storage backends."""
-
     source_backend: str = Field(..., description="Source backend name")
     target_backend: str = Field(..., description="Target backend name")
     content_ids: List[str] = Field(..., description="List of content identifiers (CIDs) to migrate")
@@ -64,7 +59,6 @@ class ContentMigrationRequest(BaseModel):
 
 class ContentMigrationResponse(OperationResponse):
     """Response model for content migration operations."""
-
     source_backend: str = Field(..., description="Source backend name")
     target_backend: str = Field(..., description="Target backend name")
     content_count: int = Field(..., description="Number of content items in migration")
@@ -81,7 +75,6 @@ class StorageManagerController:
     Provides endpoints for managing multiple storage backends and
     transferring content between them.
     """
-
     def __init__(self, storage_manager):
         """
         Initialize the storage manager controller.
@@ -342,7 +335,7 @@ class StorageManagerController:
                         "backend_name": backend_name,
                         "is_available": is_available,
                         "capabilities": capabilities,
-                        "stats": stats,
+                        "stats": stats
                     }
                 except Exception as e:
                     logger.error(f"Error processing backend {backend_name}: {str(e)}")
@@ -395,7 +388,7 @@ class StorageManagerController:
                 "is_available": False,
                 "capabilities": [],
                 "stats": None,
-                "duration_ms": 0,
+                "duration_ms": 0
             }
 
             # Get backend model
@@ -473,7 +466,7 @@ class StorageManagerController:
                 "source_backend": request.source_backend,
                 "target_backend": request.target_backend,
                 "content_id": request.content_id,
-                "duration_ms": 0,
+                "duration_ms": 0
             }
 
             # Validate source backend
@@ -647,8 +640,8 @@ class StorageManagerController:
             }
 
     async def handle_verify_request(
-        self,
-        content_id: str = Body(..., embed=True),
+    self,
+    content_id: str = Body(..., embed=True),
         backends: List[str] = Body(None, embed=True),
     ):
         """

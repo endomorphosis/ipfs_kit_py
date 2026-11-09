@@ -136,7 +136,9 @@ def hashlib_sha256(value: bytes) -> str:
 
 def filesystem() -> tuple[IrohFileSystem, ManifestStore, BlobStore]:
     seed = b"seed"
-    manifests = ManifestStore([directory(""), directory("docs"), file_entry("docs/seed.bin", seed)])
+    manifests = ManifestStore(
+        [directory(""), directory("docs"), file_entry("docs/seed.bin", seed)]
+    )
     blobs = BlobStore({digest(seed): seed})
     return IrohFileSystem(manifest_store=manifests, blob_store=blobs), manifests, blobs
 
@@ -156,7 +158,9 @@ def test_registry_factory_and_direct_iroh_mount_are_canonical() -> None:
     )
     assert vfs.read("/archive/docs/seed.bin")["content"] == "seed"
 
-    inferred = vfs.mount("/direct-url", "auto", f"iroh://{NAMESPACE}/docs", filesystem=fs)
+    inferred = vfs.mount(
+        "/direct-url", "auto", f"iroh://{NAMESPACE}/docs", filesystem=fs
+    )
     assert inferred["success"] is True
     assert inferred["backend"] == "iroh"
     assert vfs.resolve_path("/direct-url/seed.bin")["resolved_path"] == (
@@ -275,14 +279,16 @@ def test_named_mount_state_is_restart_safe(tmp_path: Path) -> None:
 def test_read_only_and_immutable_mounts_reject_mutation() -> None:
     fs, _manifests, blobs = filesystem()
     vfs = VFSCore(persist_mounts=False)
-    assert vfs.mount("/readonly", "iroh", f"iroh://{NAMESPACE}/", filesystem=fs, read_only=True)[
-        "success"
-    ]
+    assert vfs.mount(
+        "/readonly", "iroh", f"iroh://{NAMESPACE}/", filesystem=fs, read_only=True
+    )["success"]
     result = vfs.write("/readonly/no.bin", b"no")
     assert result["success"] is False
 
     blob_hash = digest(b"seed")
     blob_fs = IrohFileSystem(protocol="iroh+blob", blob_store=blobs)
-    assert vfs.mount("/blob", "iroh", f"iroh+blob://{blob_hash}", filesystem=blob_fs)["success"]
+    assert vfs.mount(
+        "/blob", "iroh", f"iroh+blob://{blob_hash}", filesystem=blob_fs
+    )["success"]
     assert vfs.read("/blob")["content"] == "seed"
     assert vfs.write("/blob", b"no")["success"] is False

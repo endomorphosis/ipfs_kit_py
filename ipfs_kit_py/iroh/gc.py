@@ -526,7 +526,9 @@ class ReferenceTracker:
         if self.database != ":memory:":
             path = Path(self.database)
             if path.is_symlink() or (path.exists() and not path.is_file()):
-                raise IrohIntegrityError("GC index is not a regular file", operation="gc.open")
+                raise IrohIntegrityError(
+                    "GC index is not a regular file", operation="gc.open"
+                )
             parent_existed = path.parent.exists()
             path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
             if not parent_existed:
@@ -1363,7 +1365,10 @@ class IrohGarbageCollector:
                FROM gc_actions WHERE run_id=? ORDER BY unreferenced_at,blob_hash""",
             (run_id,),
         ).fetchall()
-        marked = tuple(GCCandidate(row[1], row[2], _rfc3339(row[3]), row[4]) for row in rows)
+        marked = tuple(
+            GCCandidate(row[1], row[2], _rfc3339(row[3]), row[4])
+            for row in rows
+        )
         started = run[1]
         if actual_dry_run:
             with self.index._transaction():
@@ -1396,7 +1401,9 @@ class IrohGarbageCollector:
                 )
                 # A remove/re-add cycle changes unreferenced_at.  Such a blob is
                 # skipped even if its new reference has already disappeared.
-                changed = current is not None and current[0] != row[3]
+                changed = (
+                    current is not None and current[0] != row[3]
+                )
                 if protected or changed:
                     db.execute(
                         "UPDATE gc_actions SET state='skipped' WHERE run_id=? AND blob_hash=?",
@@ -1414,7 +1421,9 @@ class IrohGarbageCollector:
                 result = _call_delete(self._delete_blob, row[1], row[4])
                 if inspect.isawaitable(result):
                     result = await result
-                if not _release_confirmed(result, row[1], strict=self._strict_release_receipt):
+                if not _release_confirmed(
+                    result, row[1], strict=self._strict_release_receipt
+                ):
                     with self.index._transaction():
                         db.execute(
                             "UPDATE gc_actions SET state='skipped' WHERE run_id=? AND blob_hash=?",
@@ -1453,7 +1462,9 @@ class IrohGarbageCollector:
                     self.index._journal(run_id, row[1], row[4], "skipped")
                     skipped.append(row[1])
                 else:
-                    db.execute("UPDATE blobs SET deleted_at=? WHERE blob_hash=?", (now, row[1]))
+                    db.execute(
+                        "UPDATE blobs SET deleted_at=? WHERE blob_hash=?", (now, row[1])
+                    )
                     db.execute(
                         "UPDATE gc_actions SET state='deleted',error_code=NULL WHERE run_id=? AND blob_hash=?",
                         (run_id, row[1]),

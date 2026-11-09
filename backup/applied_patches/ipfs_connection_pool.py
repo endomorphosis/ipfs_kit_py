@@ -20,7 +20,6 @@ from urllib3.util.retry import Retry
 # Set up logging
 logger = logging.getLogger(__name__)
 
-
 class IPFSConnectionConfig:
     """Configuration class for IPFS connection pool."""
 
@@ -71,7 +70,6 @@ class IPFSConnectionConfig:
         self.host = parsed_url.netloc
         self.scheme = parsed_url.scheme
         self.api_path = parsed_url.path
-
 
 class IPFSConnection:
     """Represents a single connection to an IPFS node."""
@@ -235,7 +233,6 @@ class IPFSConnection:
             return 0.0
         return self.total_response_time / self.request_count
 
-
 class IPFSConnectionPool:
     """
     Pool of IPFS connections for reuse.
@@ -255,12 +252,8 @@ class IPFSConnectionPool:
         self._lock = threading.RLock()
         self._connections: List[IPFSConnection] = []
         self._executor = ThreadPoolExecutor(max_workers=self.config.max_connections)
-        self._cleanup_thread = threading.Thread(
-            target=self._cleanup_expired_connections, daemon=True
-        )
-        self._health_check_thread = threading.Thread(
-            target=self._check_connection_health, daemon=True
-        )
+        self._cleanup_thread = threading.Thread(target=self._cleanup_expired_connections, daemon=True)
+        self._health_check_thread = threading.Thread(target=self._check_connection_health, daemon=True)
         self._shutdown = False
 
         # Metrics
@@ -273,9 +266,7 @@ class IPFSConnectionPool:
         self._cleanup_thread.start()
         self._health_check_thread.start()
 
-        logger.info(
-            f"Initialized IPFS connection pool with max {self.config.max_connections} connections"
-        )
+        logger.info(f"Initialized IPFS connection pool with max {self.config.max_connections} connections")
 
     def _cleanup_expired_connections(self):
         """Background thread to clean up expired connections."""
@@ -283,9 +274,7 @@ class IPFSConnectionPool:
             try:
                 with self._lock:
                     current_time = time.time()
-                    expired_connections = [
-                        conn for conn in self._connections if conn.is_expired(current_time)
-                    ]
+                    expired_connections = [conn for conn in self._connections if conn.is_expired(current_time)]
 
                     for conn in expired_connections:
                         logger.debug(f"Removing expired connection {conn.id}")
@@ -366,15 +355,11 @@ class IPFSConnectionPool:
             for conn in self._connections:
                 if not conn.in_use:
                     conn.in_use = True
-                    logger.warning(
-                        f"Using potentially unhealthy connection {conn.id} as all connections are busy"
-                    )
+                    logger.warning(f"Using potentially unhealthy connection {conn.id} as all connections are busy")
                     return conn
 
             # As a last resort, create a new connection even if we exceed the max
-            logger.warning(
-                f"Creating connection beyond max ({len(self._connections)} >= {self.config.max_connections})"
-            )
+            logger.warning(f"Creating connection beyond max ({len(self._connections)} >= {self.config.max_connections})")
             conn = IPFSConnection(self.config)
             conn.in_use = True
             self._connections.append(conn)
@@ -409,7 +394,11 @@ class IPFSConnectionPool:
 
             # Update endpoint stats
             if path not in self.endpoint_stats:
-                self.endpoint_stats[path] = {"count": 0, "total_time": 0.0, "errors": 0}
+                self.endpoint_stats[path] = {
+                    "count": 0,
+                    "total_time": 0.0,
+                    "errors": 0
+                }
 
             endpoint_stat = self.endpoint_stats[path]
             endpoint_stat["count"] += 1
@@ -437,9 +426,9 @@ class IPFSConnectionPool:
         success = False
 
         try:
-            if method.upper() == "GET":
+            if method.upper() == 'GET':
                 response = conn.get(path, **kwargs)
-            elif method.upper() == "POST":
+            elif method.upper() == 'POST':
                 response = conn.post(path, **kwargs)
             else:
                 raise ValueError(f"Unsupported HTTP method: {method}")
@@ -465,7 +454,7 @@ class IPFSConnectionPool:
         Returns:
             The HTTP response
         """
-        return self.execute("GET", path, **kwargs)
+        return self.execute('GET', path, **kwargs)
 
     def post(self, path: str, **kwargs) -> requests.Response:
         """
@@ -478,11 +467,9 @@ class IPFSConnectionPool:
         Returns:
             The HTTP response
         """
-        return self.execute("POST", path, **kwargs)
+        return self.execute('POST', path, **kwargs)
 
-    def async_execute(
-        self, method: str, path: str, callback: Callable[[requests.Response], Any] = None, **kwargs
-    ):
+    def async_execute(self, method: str, path: str, callback: Callable[[requests.Response], Any] = None, **kwargs):
         """
         Execute a request asynchronously.
 
@@ -495,7 +482,6 @@ class IPFSConnectionPool:
         Returns:
             Future object with the response
         """
-
         def _execute_and_callback():
             try:
                 response = self.execute(method, path, **kwargs)
@@ -508,9 +494,7 @@ class IPFSConnectionPool:
 
         return self._executor.submit(_execute_and_callback)
 
-    def batch_execute(
-        self, requests_list: List[Dict[str, Any]]
-    ) -> List[Optional[requests.Response]]:
+    def batch_execute(self, requests_list: List[Dict[str, Any]]) -> List[Optional[requests.Response]]:
         """
         Execute multiple requests in parallel.
 
@@ -522,9 +506,9 @@ class IPFSConnectionPool:
         """
         futures = []
         for request in requests_list:
-            method = request.get("method", "GET")
-            path = request.get("path")
-            kwargs = request.get("kwargs", {})
+            method = request.get('method', 'GET')
+            path = request.get('path')
+            kwargs = request.get('kwargs', {})
 
             if not path:
                 logger.warning("Skipping request with no path")
@@ -548,7 +532,7 @@ class IPFSConnectionPool:
         requests_list: List[Dict[str, Any]],
         max_concurrency: int = None,
         timeout: float = None,
-        error_strategy: str = "continue",
+        error_strategy: str = "continue"
     ) -> Dict[str, Any]:
         """
         Execute multiple requests with optimized concurrency control and improved error handling.
@@ -597,21 +581,19 @@ class IPFSConnectionPool:
             # Prepare futures with request metadata
             futures_with_meta = []
             for i, request in enumerate(requests_list):
-                method = request.get("method", "GET")
-                path = request.get("path")
-                kwargs = request.get("kwargs", {})
-                request_id = request.get("id", i)
+                method = request.get('method', 'GET')
+                path = request.get('path')
+                kwargs = request.get('kwargs', {})
+                request_id = request.get('id', i)
 
                 if not path:
                     logger.warning(f"Skipping request with no path at index {i}")
-                    results.append(
-                        {
-                            "success": False,
-                            "error": "No path specified",
-                            "id": request_id,
-                            "index": i,
-                        }
-                    )
+                    results.append({
+                        "success": False,
+                        "error": "No path specified",
+                        "id": request_id,
+                        "index": i
+                    })
                     continue
 
                 # Create a future with metadata
@@ -622,7 +604,9 @@ class IPFSConnectionPool:
             remaining_futures = [f[0] for f in futures_with_meta]
             if timeout:
                 done_futures, _ = concurrent.futures.wait(
-                    remaining_futures, timeout=timeout, return_when=concurrent.futures.ALL_COMPLETED
+                    remaining_futures,
+                    timeout=timeout,
+                    return_when=concurrent.futures.ALL_COMPLETED
                 )
                 # Handle timeout for remaining futures
                 for future, idx, req_id, path, method in futures_with_meta:
@@ -634,7 +618,7 @@ class IPFSConnectionPool:
                             "id": req_id,
                             "index": idx,
                             "path": path,
-                            "method": method,
+                            "method": method
                         }
                         results.append(error_info)
                         errors.append(error_info)
@@ -659,7 +643,7 @@ class IPFSConnectionPool:
                         "index": idx,
                         "path": path,
                         "method": method,
-                        "duration": req_time,
+                        "duration": req_time
                     }
 
                     # Include response data if successful
@@ -693,7 +677,7 @@ class IPFSConnectionPool:
                         "index": idx,
                         "path": path,
                         "method": method,
-                        "duration": req_time,
+                        "duration": req_time
                     }
                     results.append(error_info)
                     errors.append(error_info)
@@ -729,7 +713,11 @@ class IPFSConnectionPool:
         }
 
         # Create the final response
-        response = {"success": error_count == 0, "results": results, "metrics": metrics}
+        response = {
+            "success": error_count == 0,
+            "results": results,
+            "metrics": metrics
+        }
 
         # Include errors if using collect strategy
         if error_strategy == "collect" and errors:
@@ -764,12 +752,14 @@ class IPFSConnectionPool:
                     endpoint_stats[path] = {
                         "count": count,
                         "avg_time": stats["total_time"] / count,
-                        "error_rate": stats["errors"] / count if count > 0 else 0.0,
+                        "error_rate": stats["errors"] / count if count > 0 else 0.0
                     }
 
             # Sort endpoints by request count
             sorted_endpoints = sorted(
-                endpoint_stats.items(), key=lambda x: x[1]["count"], reverse=True
+                endpoint_stats.items(),
+                key=lambda x: x[1]["count"],
+                reverse=True
             )
 
             return {
@@ -781,7 +771,7 @@ class IPFSConnectionPool:
                 "error_rate": error_rate,
                 "avg_response_time": avg_response_time,
                 "top_endpoints": dict(sorted_endpoints[:10]) if sorted_endpoints else {},
-                "connection_pool_size": self.config.max_connections,
+                "connection_pool_size": self.config.max_connections
             }
 
     def shutdown(self):
@@ -812,7 +802,6 @@ class IPFSConnectionPool:
 # Global connection pool instance
 _default_pool = None
 
-
 def get_connection_pool(config: IPFSConnectionConfig = None) -> IPFSConnectionPool:
     """
     Get or create the global connection pool.
@@ -829,7 +818,6 @@ def get_connection_pool(config: IPFSConnectionConfig = None) -> IPFSConnectionPo
         _default_pool = IPFSConnectionPool(config)
 
     return _default_pool
-
 
 def shutdown_connection_pool():
     """Shut down the global connection pool."""

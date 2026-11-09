@@ -55,8 +55,16 @@ class TestJournalMonitor(unittest.TestCase):
 
         # Set up tier stats on mock backend
         self.mock_backend.get_tier_stats.return_value = {
-            "memory": {"items": 10, "bytes_stored": 1024000, "operations": 100},
-            "disk": {"items": 50, "bytes_stored": 5120000, "operations": 200},
+            "memory": {
+                "items": 10,
+                "bytes_stored": 1024000,
+                "operations": 100
+            },
+            "disk": {
+                "items": 50,
+                "bytes_stored": 5120000,
+                "operations": 200
+            }
         }
 
         # Create temp directory for stats
@@ -67,7 +75,7 @@ class TestJournalMonitor(unittest.TestCase):
             journal=self.mock_journal,
             backend=self.mock_backend,
             check_interval=1,  # Short interval for testing
-            stats_dir=self.temp_dir,
+            stats_dir=self.temp_dir
         )
 
         # Stop monitoring thread to avoid side effects
@@ -79,7 +87,6 @@ class TestJournalMonitor(unittest.TestCase):
         """Clean up after tests."""
         # Delete temp directory
         import shutil
-
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
     def test_init(self):
@@ -132,9 +139,7 @@ class TestJournalMonitor(unittest.TestCase):
         self.assertEqual(self.monitor.health_status, "warning")
         # The _analyze_health method creates a new list of issues, so we can't check the length
         # Instead, check that at least one issue is of type "journal_size"
-        journal_size_issues = [
-            issue for issue in self.monitor.issues if issue["type"] == "journal_size"
-        ]
+        journal_size_issues = [issue for issue in self.monitor.issues if issue["type"] == "journal_size"]
         self.assertTrue(len(journal_size_issues) > 0)
 
         # The _analyze_health method doesn't update the alerts list directly
@@ -173,9 +178,7 @@ class TestJournalMonitor(unittest.TestCase):
         """Test getting health status."""
         # Set up a health issue
         self.monitor.health_status = "warning"
-        self.monitor.issues = [
-            {"type": "journal_size", "severity": "warning", "message": "Test issue"}
-        ]
+        self.monitor.issues = [{"type": "journal_size", "severity": "warning", "message": "Test issue"}]
 
         # Get status
         status = self.monitor.get_health_status()
@@ -207,15 +210,20 @@ class TestJournalVisualization(unittest.TestCase):
                     "entry_count": 50,
                     "checkpoint_age": 300,
                     "entry_types": {"write": 30, "read": 15, "mkdir": 5},
-                    "entry_statuses": {"completed": 45, "pending": 5},
+                    "entry_statuses": {"completed": 45, "pending": 5}
                 },
                 "backend": {
                     "total_items": 30,
                     "total_bytes": 3072000,
-                    "content_by_tier": {"memory": 10, "disk": 20},
+                    "content_by_tier": {"memory": 10, "disk": 20}
                 },
-                "performance": {"avg_operation_times": {"write": 0.1, "read": 0.05, "mkdir": 0.2}},
-                "health": {"status": "healthy", "error_rate": 0.0},
+                "performance": {
+                    "avg_operation_times": {"write": 0.1, "read": 0.05, "mkdir": 0.2}
+                },
+                "health": {
+                    "status": "healthy",
+                    "error_rate": 0.0
+                }
             },
             {
                 "timestamp": current_time - 900,  # 15 minutes ago
@@ -223,18 +231,21 @@ class TestJournalVisualization(unittest.TestCase):
                     "entry_count": 55,
                     "checkpoint_age": 360,
                     "entry_types": {"write": 33, "read": 17, "mkdir": 5},
-                    "entry_statuses": {"completed": 50, "pending": 5},
+                    "entry_statuses": {"completed": 50, "pending": 5}
                 },
                 "backend": {
                     "total_items": 33,
                     "total_bytes": 3276800,
-                    "content_by_tier": {"memory": 11, "disk": 22},
+                    "content_by_tier": {"memory": 11, "disk": 22}
                 },
                 "performance": {
                     "avg_operation_times": {"write": 0.11, "read": 0.06, "mkdir": 0.19}
                 },
-                "health": {"status": "healthy", "error_rate": 0.0},
-            },
+                "health": {
+                    "status": "healthy",
+                    "error_rate": 0.0
+                }
+            }
         ]
 
         # Create temp directory for output
@@ -245,13 +256,11 @@ class TestJournalVisualization(unittest.TestCase):
             journal=self.mock_journal,
             backend=self.mock_backend,
             monitor=self.mock_monitor,
-            output_dir=self.temp_dir,
+            output_dir=self.temp_dir
         )
 
         # Patch matplotlib to avoid display issues
-        self.matplotlib_available_patcher = patch(
-            "ipfs_kit_py.fs_journal_monitor.MATPLOTLIB_AVAILABLE", True
-        )
+        self.matplotlib_available_patcher = patch("ipfs_kit_py.fs_journal_monitor.MATPLOTLIB_AVAILABLE", True)
         self.matplotlib_available_patcher.start()
 
         # Patch actual plotting to avoid errors
@@ -269,7 +278,6 @@ class TestJournalVisualization(unittest.TestCase):
         """Clean up after tests."""
         # Delete temp directory
         import shutil
-
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
         # Stop patchers
@@ -292,27 +300,23 @@ class TestJournalVisualization(unittest.TestCase):
             "journal_metrics": {
                 "entry_counts": [50, 55],
                 "checkpoint_ages": [300, 360],
-                "growth_rates": [0, 5],
+                "growth_rates": [0, 5]
             },
             "backend_metrics": {
                 "total_items": [30, 33],
                 "total_bytes": [3072000, 3276800],
                 "content_by_tier": {"memory": 11, "disk": 22},
-                "tier_stats": {"memory": {"items": 11}, "disk": {"items": 22}},
+                "tier_stats": {"memory": {"items": 11}, "disk": {"items": 22}}
             },
             "performance_metrics": {
-                "operation_times": {
-                    "write": [0.1, 0.11],
-                    "read": [0.05, 0.06],
-                    "mkdir": [0.2, 0.19],
-                },
-                "error_rates": [0.0, 0.0],
+                "operation_times": {"write": [0.1, 0.11], "read": [0.05, 0.06], "mkdir": [0.2, 0.19]},
+                "error_rates": [0.0, 0.0]
             },
             "entry_types": {"write": 33, "read": 17, "mkdir": 5},
             "entry_statuses": {"completed": 50, "pending": 5},
             "health_status": "healthy",
             "active_transactions": 0,
-            "collected_at": time.time(),
+            "collected_at": time.time()
         }
 
         # Replace the actual method with our mock
@@ -354,27 +358,23 @@ class TestJournalVisualization(unittest.TestCase):
             "journal_metrics": {
                 "entry_counts": [50, 55],
                 "checkpoint_ages": [300, 360],
-                "growth_rates": [0, 5],
+                "growth_rates": [0, 5]
             },
             "backend_metrics": {
                 "total_items": [30, 33],
                 "total_bytes": [3072000, 3276800],
                 "content_by_tier": {"memory": 11, "disk": 22},
-                "tier_stats": {"memory": {"items": 11}, "disk": {"items": 22}},
+                "tier_stats": {"memory": {"items": 11}, "disk": {"items": 22}}
             },
             "performance_metrics": {
-                "operation_times": {
-                    "write": [0.1, 0.11],
-                    "read": [0.05, 0.06],
-                    "mkdir": [0.2, 0.19],
-                },
-                "error_rates": [0.0, 0.0],
+                "operation_times": {"write": [0.1, 0.11], "read": [0.05, 0.06], "mkdir": [0.2, 0.19]},
+                "error_rates": [0.0, 0.0]
             },
             "entry_types": {"write": 33, "read": 17, "mkdir": 5},
             "entry_statuses": {"completed": 50, "pending": 5},
             "health_status": "healthy",
             "active_transactions": 0,
-            "collected_at": time.time(),
+            "collected_at": time.time()
         }
 
         # Mock the save_stats method to return a filepath
@@ -400,10 +400,8 @@ class TestJournalVisualization(unittest.TestCase):
         # Check that loaded stats match original
         self.assertEqual(loaded_stats["success"], mock_stats["success"])
         self.assertEqual(loaded_stats["timeframe_hours"], mock_stats["timeframe_hours"])
-        self.assertEqual(
-            len(loaded_stats["journal_metrics"]["entry_counts"]),
-            len(mock_stats["journal_metrics"]["entry_counts"]),
-        )
+        self.assertEqual(len(loaded_stats["journal_metrics"]["entry_counts"]),
+                        len(mock_stats["journal_metrics"]["entry_counts"]))
 
     @patch("matplotlib.pyplot.savefig")
     def test_plot_entry_types(self, mock_savefig):
@@ -413,7 +411,7 @@ class TestJournalVisualization(unittest.TestCase):
             "success": True,
             "timeframe_hours": 1,
             "entry_types": {"write": 33, "read": 17, "mkdir": 5},
-            "collected_at": time.time(),
+            "collected_at": time.time()
         }
 
         # Create a mock for the plot_entry_types method
@@ -441,27 +439,23 @@ class TestJournalVisualization(unittest.TestCase):
             "journal_metrics": {
                 "entry_counts": [50, 55],
                 "checkpoint_ages": [300, 360],
-                "growth_rates": [0, 5],
+                "growth_rates": [0, 5]
             },
             "backend_metrics": {
                 "total_items": [30, 33],
                 "total_bytes": [3072000, 3276800],
                 "content_by_tier": {"memory": 11, "disk": 22},
-                "tier_stats": {"memory": {"items": 11}, "disk": {"items": 22}},
+                "tier_stats": {"memory": {"items": 11}, "disk": {"items": 22}}
             },
             "performance_metrics": {
-                "operation_times": {
-                    "write": [0.1, 0.11],
-                    "read": [0.05, 0.06],
-                    "mkdir": [0.2, 0.19],
-                },
-                "error_rates": [0.0, 0.0],
+                "operation_times": {"write": [0.1, 0.11], "read": [0.05, 0.06], "mkdir": [0.2, 0.19]},
+                "error_rates": [0.0, 0.0]
             },
             "entry_types": {"write": 33, "read": 17, "mkdir": 5},
             "entry_statuses": {"completed": 50, "pending": 5},
             "health_status": "healthy",
             "active_transactions": 0,
-            "collected_at": time.time(),
+            "collected_at": time.time()
         }
 
         # Mock the create_dashboard method to return a dashboard
@@ -471,7 +465,7 @@ class TestJournalVisualization(unittest.TestCase):
             "journal_growth": os.path.join(self.temp_dir, "journal_growth.png"),
             "tier_distribution": os.path.join(self.temp_dir, "tier_distribution.png"),
             "operation_times": os.path.join(self.temp_dir, "operation_times.png"),
-            "html_report": os.path.join(self.temp_dir, "dashboard.html"),
+            "html_report": os.path.join(self.temp_dir, "dashboard.html")
         }
 
         # Replace the actual method with our mock
@@ -541,17 +535,14 @@ class TestHighLevelAPIJournalMonitoring(unittest.TestCase):
 
     def test_create_journal_monitor(self):
         """Test creating a journal health monitor."""
-
         # Add the create_journal_monitor method to the API
-        def mock_create_journal_monitor(
-            check_interval=60, stats_dir="~/.ipfs_kit/journal_stats", alert_callback=None
-        ):
+        def mock_create_journal_monitor(check_interval=60, stats_dir="~/.ipfs_kit/journal_stats", alert_callback=None):
             monitor = self.mock_monitor_class(
                 journal=self.api._journal_integration.journal,
                 backend=self.api._journal_integration.backend,
                 check_interval=check_interval,
                 alert_callback=alert_callback,
-                stats_dir=stats_dir,
+                stats_dir=stats_dir
             )
             self.api._journal_monitor = monitor
             return {"success": True, "monitor": monitor}
@@ -572,7 +563,7 @@ class TestHighLevelAPIJournalMonitoring(unittest.TestCase):
             backend=self.api._journal_integration.backend,
             check_interval=30,
             alert_callback=None,
-            stats_dir="/test/stats",
+            stats_dir="/test/stats"
         )
 
         # Check that the monitor was stored on the API instance
@@ -581,17 +572,14 @@ class TestHighLevelAPIJournalMonitoring(unittest.TestCase):
     def test_create_journal_visualization(self):
         """Test creating journal visualization tools."""
         # Add the create_journal_monitor method to the API if it doesn't exist
-        if not hasattr(self.api, "create_journal_monitor"):
-
-            def mock_create_journal_monitor(
-                check_interval=60, stats_dir="~/.ipfs_kit/journal_stats", alert_callback=None
-            ):
+        if not hasattr(self.api, 'create_journal_monitor'):
+            def mock_create_journal_monitor(check_interval=60, stats_dir="~/.ipfs_kit/journal_stats", alert_callback=None):
                 monitor = self.mock_monitor_class(
                     journal=self.api._journal_integration.journal,
                     backend=self.api._journal_integration.backend,
                     check_interval=check_interval,
                     alert_callback=alert_callback,
-                    stats_dir=stats_dir,
+                    stats_dir=stats_dir
                 )
                 self.api._journal_monitor = monitor
                 return {"success": True, "monitor": monitor}
@@ -605,7 +593,7 @@ class TestHighLevelAPIJournalMonitoring(unittest.TestCase):
                 journal=self.api._journal_integration.journal,
                 backend=self.api._journal_integration.backend,
                 monitor=self.api._journal_monitor,
-                output_dir=output_dir,
+                output_dir=output_dir
             )
             self.api._journal_visualization = visualization
             return {"success": True, "visualization": visualization}
@@ -630,7 +618,7 @@ class TestHighLevelAPIJournalMonitoring(unittest.TestCase):
             journal=self.api._journal_integration.journal,
             backend=self.api._journal_integration.backend,
             monitor=monitor,
-            output_dir="/test/visualizations",
+            output_dir="/test/visualizations"
         )
 
         # Check that the visualization was stored on the API instance
@@ -643,21 +631,18 @@ class TestHighLevelAPIJournalMonitoring(unittest.TestCase):
             "status": "healthy",
             "issues": [],
             "threshold_values": {"journal_size_warning": 1000},
-            "active_transactions": 0,
+            "active_transactions": 0
         }
 
         # Add the create_journal_monitor method to the API if it doesn't exist
-        if not hasattr(self.api, "create_journal_monitor"):
-
-            def mock_create_journal_monitor(
-                check_interval=60, stats_dir="~/.ipfs_kit/journal_stats", alert_callback=None
-            ):
+        if not hasattr(self.api, 'create_journal_monitor'):
+            def mock_create_journal_monitor(check_interval=60, stats_dir="~/.ipfs_kit/journal_stats", alert_callback=None):
                 monitor = self.mock_monitor_class(
                     journal=self.api._journal_integration.journal,
                     backend=self.api._journal_integration.backend,
                     check_interval=check_interval,
                     alert_callback=alert_callback,
-                    stats_dir=stats_dir,
+                    stats_dir=stats_dir
                 )
                 self.api._journal_monitor = monitor
                 return {"success": True, "monitor": monitor}
@@ -667,7 +652,7 @@ class TestHighLevelAPIJournalMonitoring(unittest.TestCase):
 
         # Add the get_journal_health_status method to the API
         def mock_get_journal_health_status():
-            if not hasattr(self.api, "_journal_monitor") or self.api._journal_monitor is None:
+            if not hasattr(self.api, '_journal_monitor') or self.api._journal_monitor is None:
                 return {"success": False, "error": "No journal monitor available"}
 
             health_status = self.api._journal_monitor.get_health_status()
@@ -676,7 +661,7 @@ class TestHighLevelAPIJournalMonitoring(unittest.TestCase):
                 "status": health_status["status"],
                 "issues": health_status["issues"],
                 "threshold_values": health_status["threshold_values"],
-                "active_transactions": health_status["active_transactions"],
+                "active_transactions": health_status["active_transactions"]
             }
 
         # Add the method to the API
@@ -704,22 +689,19 @@ class TestHighLevelAPIJournalMonitoring(unittest.TestCase):
             "entry_types": "/path/to/entry_types.png",
             "entry_statuses": "/path/to/entry_statuses.png",
             "journal_growth": "/path/to/journal_growth.png",
-            "html_report": "/path/to/dashboard.html",
+            "html_report": "/path/to/dashboard.html"
         }
         self.mock_visualization.create_dashboard.return_value = dashboard_return
 
         # Add the create_journal_monitor method to the API if it doesn't exist
-        if not hasattr(self.api, "create_journal_monitor"):
-
-            def mock_create_journal_monitor(
-                check_interval=60, stats_dir="~/.ipfs_kit/journal_stats", alert_callback=None
-            ):
+        if not hasattr(self.api, 'create_journal_monitor'):
+            def mock_create_journal_monitor(check_interval=60, stats_dir="~/.ipfs_kit/journal_stats", alert_callback=None):
                 monitor = self.mock_monitor_class(
                     journal=self.api._journal_integration.journal,
                     backend=self.api._journal_integration.backend,
                     check_interval=check_interval,
                     alert_callback=alert_callback,
-                    stats_dir=stats_dir,
+                    stats_dir=stats_dir
                 )
                 self.api._journal_monitor = monitor
                 return {"success": True, "monitor": monitor}
@@ -728,14 +710,13 @@ class TestHighLevelAPIJournalMonitoring(unittest.TestCase):
             self.api.create_journal_monitor = mock_create_journal_monitor
 
         # Add the create_journal_visualization method to the API if it doesn't exist
-        if not hasattr(self.api, "create_journal_visualization"):
-
+        if not hasattr(self.api, 'create_journal_visualization'):
             def mock_create_journal_visualization(output_dir="~/.ipfs_kit/visualizations"):
                 visualization = self.mock_visualization_class(
                     journal=self.api._journal_integration.journal,
                     backend=self.api._journal_integration.backend,
                     monitor=self.api._journal_monitor,
-                    output_dir=output_dir,
+                    output_dir=output_dir
                 )
                 self.api._journal_visualization = visualization
                 return {"success": True, "visualization": visualization}
@@ -745,17 +726,15 @@ class TestHighLevelAPIJournalMonitoring(unittest.TestCase):
 
         # Add the generate_journal_dashboard method to the API
         def mock_generate_journal_dashboard(timeframe_hours=24, output_dir=None):
-            if (
-                not hasattr(self.api, "_journal_visualization")
-                or self.api._journal_visualization is None
-            ):
+            if not hasattr(self.api, '_journal_visualization') or self.api._journal_visualization is None:
                 return {"success": False, "error": "No journal visualization available"}
 
             # Call the create_dashboard method but don't use its return value directly
             self.api._journal_visualization.create_dashboard(
-                timeframe_hours=timeframe_hours, output_dir=output_dir
+                timeframe_hours=timeframe_hours,
+                output_dir=output_dir
             )
-
+            
             # Instead, use the fixed paths we defined earlier
             return {
                 "success": True,
@@ -764,8 +743,8 @@ class TestHighLevelAPIJournalMonitoring(unittest.TestCase):
                     "/path/to/entry_types.png",
                     "/path/to/entry_statuses.png",
                     "/path/to/journal_growth.png",
-                    "/path/to/dashboard.html",
-                ],
+                    "/path/to/dashboard.html"
+                ]
             }
 
         # Add the method to the API
@@ -785,7 +764,8 @@ class TestHighLevelAPIJournalMonitoring(unittest.TestCase):
 
         # Check that the visualization's create_dashboard method was called with correct parameters
         self.mock_visualization.create_dashboard.assert_called_once_with(
-            timeframe_hours=12, output_dir=None
+            timeframe_hours=12,
+            output_dir=None
         )
 
 
@@ -802,7 +782,7 @@ class TestMCPJournalMonitoring(unittest.TestCase):
                 FsJournalController,
                 JournalMonitorRequest,
                 JournalVisualizationRequest,
-                JournalDashboardRequest,
+                JournalDashboardRequest
             )
             from fastapi import APIRouter
             from fastapi.testclient import TestClient
@@ -823,7 +803,7 @@ class TestMCPJournalMonitoring(unittest.TestCase):
             "status": "healthy",
             "issues": [],
             "threshold_values": {"journal_size_warning": 1000},
-            "active_transactions": 0,
+            "active_transactions": 0
         }
 
         # Create the controller
@@ -847,11 +827,14 @@ class TestMCPJournalMonitoring(unittest.TestCase):
         # Set up return value for create_journal_monitor
         self.mock_model.ipfs_kit.create_journal_monitor.return_value = {
             "success": True,
-            "monitor": MagicMock(),
+            "monitor": MagicMock()
         }
 
         # Create a request
-        request = self.JournalMonitorRequest(check_interval=30, stats_dir="/test/stats")
+        request = self.JournalMonitorRequest(
+            check_interval=30,
+            stats_dir="/test/stats"
+        )
 
         # Mock the controller's create_journal_monitor method to return a non-coroutine
         original_method = self.controller.create_journal_monitor
@@ -887,15 +870,13 @@ class TestMCPJournalMonitoring(unittest.TestCase):
 
         # Mock the controller's get_journal_health_status method to return a non-coroutine
         original_method = self.controller.get_journal_health_status
-        self.controller.get_journal_health_status = MagicMock(
-            return_value={
-                "success": True,
-                "status": "healthy",
-                "issues": [],
-                "threshold_values": {"journal_size_warning": 1000},
-                "active_transactions": 0,
-            }
-        )
+        self.controller.get_journal_health_status = MagicMock(return_value={
+            "success": True,
+            "status": "healthy",
+            "issues": [],
+            "threshold_values": {"journal_size_warning": 1000},
+            "active_transactions": 0
+        })
 
         try:
             # Call the method

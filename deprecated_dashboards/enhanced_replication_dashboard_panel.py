@@ -10,14 +10,13 @@ VFS metadata linking, and data loss protection features.
 import json
 from typing import Dict, List, Any
 
-
 class EnhancedReplicationDashboardPanel:
     """Configuration for the enhanced replication management dashboard panel."""
-
+    
     def __init__(self):
         """Initialize the enhanced replication dashboard panel."""
         self.panel_config = self._create_panel_config()
-
+    
     def _create_panel_config(self) -> Dict[str, Any]:
         """Create the complete dashboard panel configuration."""
         return {
@@ -25,7 +24,12 @@ class EnhancedReplicationDashboardPanel:
             "title": "Enhanced Pin Replication & Traffic Analytics",
             "description": "Comprehensive replication management with traffic monitoring and VFS integration",
             "version": "2.0.0",
-            "layout": {"type": "grid", "columns": 12, "rows": "auto", "gap": "1rem"},
+            "layout": {
+                "type": "grid",
+                "columns": 12,
+                "rows": "auto",
+                "gap": "1rem"
+            },
             "sections": [
                 self._create_overview_section(),
                 self._create_traffic_monitoring_section(),
@@ -33,21 +37,21 @@ class EnhancedReplicationDashboardPanel:
                 self._create_settings_section(),
                 self._create_backend_management_section(),
                 self._create_replication_operations_section(),
-                self._create_data_protection_section(),
+                self._create_data_protection_section()
             ],
             "real_time_updates": {
                 "enabled": True,
                 "interval_seconds": 10,
-                "endpoints": self._get_api_endpoints(),
+                "endpoints": self._get_api_endpoints()
             },
             "styling": {
                 "theme": "bootstrap",
                 "color_scheme": "light",
                 "charts": "chart.js",
-                "icons": "fontawesome",
-            },
+                "icons": "fontawesome"
+            }
         }
-
+    
     def _create_overview_section(self) -> Dict[str, Any]:
         """Create the overview status section."""
         return {
@@ -62,7 +66,7 @@ class EnhancedReplicationDashboardPanel:
                     "endpoint": "/api/dashboard/replication/status",
                     "value_path": "data.total_pins",
                     "icon": "fas fa-thumbtack",
-                    "color": "primary",
+                    "color": "primary"
                 },
                 {
                     "id": "replication_efficiency",
@@ -71,7 +75,7 @@ class EnhancedReplicationDashboardPanel:
                     "value_path": "data.replication_efficiency",
                     "suffix": "%",
                     "icon": "fas fa-shield-alt",
-                    "color": "success",
+                    "color": "success"
                 },
                 {
                     "id": "total_traffic",
@@ -80,7 +84,7 @@ class EnhancedReplicationDashboardPanel:
                     "value_path": "data.usage_statistics.summary.total_traffic_gb",
                     "suffix": " GB",
                     "icon": "fas fa-exchange-alt",
-                    "color": "info",
+                    "color": "info"
                 },
                 {
                     "id": "active_backends",
@@ -88,7 +92,7 @@ class EnhancedReplicationDashboardPanel:
                     "endpoint": "/api/dashboard/analytics/traffic",
                     "value_path": "data.usage_statistics.summary.active_backends",
                     "icon": "fas fa-server",
-                    "color": "warning",
+                    "color": "warning"
                 },
                 {
                     "id": "vfs_linked_pins",
@@ -96,7 +100,7 @@ class EnhancedReplicationDashboardPanel:
                     "endpoint": "/api/dashboard/analytics/traffic",
                     "value_path": "data.usage_statistics.summary.vfs_linked_pins",
                     "icon": "fas fa-link",
-                    "color": "secondary",
+                    "color": "secondary"
                 },
                 {
                     "id": "under_replicated",
@@ -105,11 +109,11 @@ class EnhancedReplicationDashboardPanel:
                     "value_path": "data.under_replicated",
                     "icon": "fas fa-exclamation-triangle",
                     "color": "danger",
-                    "alert_threshold": 0,
-                },
-            ],
+                    "alert_threshold": 0
+                }
+            ]
         }
-
+    
     def _create_traffic_monitoring_section(self) -> Dict[str, Any]:
         """Create the traffic monitoring section."""
         return {
@@ -128,15 +132,15 @@ class EnhancedReplicationDashboardPanel:
                     "data_transform": {
                         "labels_path": "data.usage_statistics",
                         "values_path": "data.usage_statistics",
-                        "transform_function": "extract_backend_traffic",
+                        "transform_function": "extract_backend_traffic"
                     },
                     "options": {
                         "responsive": True,
                         "plugins": {
                             "legend": {"position": "right"},
-                            "tooltip": {"callbacks": {"label": "show_traffic_details"}},
-                        },
-                    },
+                            "tooltip": {"callbacks": {"label": "show_traffic_details"}}
+                        }
+                    }
                 },
                 {
                     "id": "backend_performance_table",
@@ -146,33 +150,18 @@ class EnhancedReplicationDashboardPanel:
                     "endpoint": "/api/dashboard/analytics/traffic",
                     "columns": [
                         {"key": "backend", "title": "Backend", "sortable": True},
-                        {
-                            "key": "traffic_gb",
-                            "title": "Traffic (GB)",
-                            "sortable": True,
-                            "format": "decimal",
-                        },
+                        {"key": "traffic_gb", "title": "Traffic (GB)", "sortable": True, "format": "decimal"},
                         {"key": "file_count", "title": "Files", "sortable": True},
                         {"key": "operations", "title": "Operations", "sortable": True},
-                        {
-                            "key": "error_rate",
-                            "title": "Error Rate (%)",
-                            "sortable": True,
-                            "format": "percentage",
-                        },
-                        {
-                            "key": "replication_efficiency",
-                            "title": "Efficiency (%)",
-                            "sortable": True,
-                            "format": "percentage",
-                        },
+                        {"key": "error_rate", "title": "Error Rate (%)", "sortable": True, "format": "percentage"},
+                        {"key": "replication_efficiency", "title": "Efficiency (%)", "sortable": True, "format": "percentage"}
                     ],
                     "data_path": "data.usage_statistics",
-                    "transform_function": "flatten_backend_stats",
-                },
-            ],
+                    "transform_function": "flatten_backend_stats"
+                }
+            ]
         }
-
+    
     def _create_vfs_integration_section(self) -> Dict[str, Any]:
         """Create the VFS integration section."""
         return {
@@ -189,21 +178,10 @@ class EnhancedReplicationDashboardPanel:
                     "endpoint": "/api/dashboard/vfs/backend_mapping",
                     "fields": [
                         {"label": "Total VFS Entries", "path": "data.summary.total_vfs_entries"},
-                        {
-                            "label": "Storage Backends",
-                            "path": "data.summary.total_storage_backends",
-                        },
-                        {
-                            "label": "Total Storage (GB)",
-                            "path": "data.summary.total_storage_size_gb",
-                            "format": "decimal",
-                        },
-                        {
-                            "label": "Avg Replication Factor",
-                            "path": "data.summary.average_replication_factor",
-                            "format": "decimal",
-                        },
-                    ],
+                        {"label": "Storage Backends", "path": "data.summary.total_storage_backends"},
+                        {"label": "Total Storage (GB)", "path": "data.summary.total_storage_size_gb", "format": "decimal"},
+                        {"label": "Avg Replication Factor", "path": "data.summary.average_replication_factor", "format": "decimal"}
+                    ]
                 },
                 {
                     "id": "vfs_mapping_table",
@@ -216,27 +194,17 @@ class EnhancedReplicationDashboardPanel:
                         {"key": "cid", "title": "Content ID", "sortable": True, "truncate": 16},
                         {"key": "backends", "title": "Storage Backends", "type": "badges"},
                         {"key": "replication_count", "title": "Replicas", "sortable": True},
-                        {
-                            "key": "storage_size_mb",
-                            "title": "Size (MB)",
-                            "sortable": True,
-                            "format": "decimal",
-                        },
-                        {
-                            "key": "last_check",
-                            "title": "Last Check",
-                            "sortable": True,
-                            "format": "datetime",
-                        },
+                        {"key": "storage_size_mb", "title": "Size (MB)", "sortable": True, "format": "decimal"},
+                        {"key": "last_check", "title": "Last Check", "sortable": True, "format": "datetime"}
                     ],
                     "data_path": "data.vfs_backend_mapping",
                     "transform_function": "flatten_vfs_mapping",
                     "pagination": {"enabled": True, "page_size": 10},
-                    "search": {"enabled": True, "fields": ["vfs_id", "cid"]},
-                },
-            ],
+                    "search": {"enabled": True, "fields": ["vfs_id", "cid"]}
+                }
+            ]
         }
-
+    
     def _create_settings_section(self) -> Dict[str, Any]:
         """Create the replication settings section."""
         return {
@@ -254,7 +222,7 @@ class EnhancedReplicationDashboardPanel:
                     "default": 2,
                     "min": 1,
                     "max": 10,
-                    "help": "Minimum number of replica copies to maintain",
+                    "help": "Minimum number of replica copies to maintain"
                 },
                 {
                     "name": "target_replicas",
@@ -263,7 +231,7 @@ class EnhancedReplicationDashboardPanel:
                     "default": 3,
                     "min": 2,
                     "max": 10,
-                    "help": "Preferred number of replica copies",
+                    "help": "Preferred number of replica copies"
                 },
                 {
                     "name": "max_replicas",
@@ -272,7 +240,7 @@ class EnhancedReplicationDashboardPanel:
                     "default": 5,
                     "min": 3,
                     "max": 15,
-                    "help": "Maximum number of replica copies allowed",
+                    "help": "Maximum number of replica copies allowed"
                 },
                 {
                     "name": "max_size_gb",
@@ -281,7 +249,7 @@ class EnhancedReplicationDashboardPanel:
                     "default": 100.0,
                     "min": 1.0,
                     "step": 0.1,
-                    "help": "Maximum storage capacity per backend",
+                    "help": "Maximum storage capacity per backend"
                 },
                 {
                     "name": "replication_strategy",
@@ -291,24 +259,24 @@ class EnhancedReplicationDashboardPanel:
                     "options": [
                         {"value": "balanced", "label": "Balanced"},
                         {"value": "priority", "label": "Priority-based"},
-                        {"value": "size_based", "label": "Size-based"},
+                        {"value": "size_based", "label": "Size-based"}
                     ],
-                    "help": "Strategy for selecting target backends",
+                    "help": "Strategy for selecting target backends"
                 },
                 {
                     "name": "auto_replication",
                     "type": "checkbox",
                     "label": "Auto Replication",
                     "default": True,
-                    "help": "Automatically maintain target replica counts",
-                },
+                    "help": "Automatically maintain target replica counts"
+                }
             ],
             "actions": [
                 {"type": "submit", "label": "Update Settings", "class": "btn-primary"},
-                {"type": "reset", "label": "Reset", "class": "btn-secondary"},
-            ],
+                {"type": "reset", "label": "Reset", "class": "btn-secondary"}
+            ]
         }
-
+    
     def _create_backend_management_section(self) -> Dict[str, Any]:
         """Create the backend management section."""
         return {
@@ -326,7 +294,7 @@ class EnhancedReplicationDashboardPanel:
                     "items_path": "data.backends",
                     "status_field": "health",
                     "title_field": "name",
-                    "subtitle_field": "type",
+                    "subtitle_field": "type"
                 },
                 {
                     "id": "backend_capacity_chart",
@@ -341,28 +309,25 @@ class EnhancedReplicationDashboardPanel:
                             {
                                 "label": "Used (GB)",
                                 "data_path": "data.traffic_analytics.usage_statistics",
-                                "transform": "extract_used_storage",
+                                "transform": "extract_used_storage"
                             },
                             {
                                 "label": "Capacity (GB)",
                                 "data_path": "data.replication_status.backend_usage",
-                                "transform": "extract_max_capacity",
-                            },
-                        ],
+                                "transform": "extract_max_capacity"
+                            }
+                        ]
                     },
                     "options": {
                         "responsive": True,
                         "scales": {
-                            "y": {
-                                "beginAtZero": True,
-                                "title": {"display": True, "text": "Storage (GB)"},
-                            }
-                        },
-                    },
-                },
-            ],
+                            "y": {"beginAtZero": True, "title": {"display": True, "text": "Storage (GB)"}}
+                        }
+                    }
+                }
+            ]
         }
-
+    
     def _create_replication_operations_section(self) -> Dict[str, Any]:
         """Create the replication operations section."""
         return {
@@ -384,13 +349,13 @@ class EnhancedReplicationDashboardPanel:
                             "type": "text",
                             "label": "Content ID (CID)",
                             "required": True,
-                            "placeholder": "Qm...",
+                            "placeholder": "Qm..."
                         },
                         {
                             "name": "vfs_metadata_id",
                             "type": "text",
                             "label": "VFS Metadata ID",
-                            "placeholder": "Optional VFS linking",
+                            "placeholder": "Optional VFS linking"
                         },
                         {
                             "name": "target_backends",
@@ -398,18 +363,18 @@ class EnhancedReplicationDashboardPanel:
                             "label": "Target Backends",
                             "options_endpoint": "/api/dashboard/replication/backends",
                             "value_field": "name",
-                            "label_field": "name",
+                            "label_field": "name"
                         },
                         {
                             "name": "force",
                             "type": "checkbox",
                             "label": "Force Replication",
-                            "help": "Override existing replications",
-                        },
+                            "help": "Override existing replications"
+                        }
                     ],
                     "actions": [
                         {"type": "submit", "label": "Start Replication", "class": "btn-success"}
-                    ],
+                    ]
                 },
                 {
                     "id": "pin_status_table",
@@ -423,25 +388,20 @@ class EnhancedReplicationDashboardPanel:
                         {"key": "backends", "title": "Storage Backends", "type": "badges"},
                         {"key": "replication_health", "title": "Health", "type": "status_badge"},
                         {"key": "replica_count", "title": "Replicas", "sortable": True},
-                        {
-                            "key": "last_check",
-                            "title": "Last Check",
-                            "sortable": True,
-                            "format": "datetime",
-                        },
-                        {"key": "actions", "title": "Actions", "type": "actions"},
+                        {"key": "last_check", "title": "Last Check", "sortable": True, "format": "datetime"},
+                        {"key": "actions", "title": "Actions", "type": "actions"}
                     ],
                     "data_path": "data.pins",
                     "pagination": {"enabled": True, "page_size": 15},
                     "search": {"enabled": True, "fields": ["cid", "vfs_metadata_id"]},
                     "actions": [
                         {"type": "replicate", "label": "Replicate", "class": "btn-sm btn-primary"},
-                        {"type": "analyze", "label": "Analyze", "class": "btn-sm btn-info"},
-                    ],
-                },
-            ],
+                        {"type": "analyze", "label": "Analyze", "class": "btn-sm btn-info"}
+                    ]
+                }
+            ]
         }
-
+    
     def _create_data_protection_section(self) -> Dict[str, Any]:
         """Create the data protection section."""
         return {
@@ -469,24 +429,24 @@ class EnhancedReplicationDashboardPanel:
                                     "options_endpoint": "/api/dashboard/replication/backends",
                                     "value_field": "name",
                                     "label_field": "name",
-                                    "required": True,
+                                    "required": True
                                 },
                                 {
                                     "name": "backup_path",
                                     "type": "text",
                                     "label": "Backup Path",
-                                    "placeholder": "/path/to/backup.json",
+                                    "placeholder": "/path/to/backup.json"
                                 },
                                 {
                                     "name": "include_metadata",
                                     "type": "checkbox",
                                     "label": "Include Metadata",
-                                    "default": True,
-                                },
+                                    "default": True
+                                }
                             ],
                             "actions": [
                                 {"type": "submit", "label": "Export Backup", "class": "btn-warning"}
-                            ],
+                            ]
                         },
                         {
                             "id": "import_form",
@@ -501,21 +461,21 @@ class EnhancedReplicationDashboardPanel:
                                     "options_endpoint": "/api/dashboard/replication/backends",
                                     "value_field": "name",
                                     "label_field": "name",
-                                    "required": True,
+                                    "required": True
                                 },
                                 {
                                     "name": "backup_path",
                                     "type": "text",
                                     "label": "Backup File Path",
                                     "required": True,
-                                    "placeholder": "/path/to/backup.json",
-                                },
+                                    "placeholder": "/path/to/backup.json"
+                                }
                             ],
                             "actions": [
                                 {"type": "submit", "label": "Import Backup", "class": "btn-success"}
-                            ],
-                        },
-                    ],
+                            ]
+                        }
+                    ]
                 },
                 {
                     "id": "backup_list",
@@ -525,113 +485,95 @@ class EnhancedReplicationDashboardPanel:
                     "endpoint": "/api/dashboard/backup/list",
                     "columns": [
                         {"key": "backend_name", "title": "Backend", "sortable": True},
-                        {
-                            "key": "backup_path",
-                            "title": "Backup Path",
-                            "sortable": True,
-                            "truncate": 30,
-                        },
+                        {"key": "backup_path", "title": "Backup Path", "sortable": True, "truncate": 30},
                         {"key": "pins_count", "title": "Pins", "sortable": True},
-                        {
-                            "key": "backup_size_mb",
-                            "title": "Size (MB)",
-                            "sortable": True,
-                            "format": "decimal",
-                        },
-                        {
-                            "key": "created_date",
-                            "title": "Created",
-                            "sortable": True,
-                            "format": "datetime",
-                        },
-                        {"key": "actions", "title": "Actions", "type": "actions"},
+                        {"key": "backup_size_mb", "title": "Size (MB)", "sortable": True, "format": "decimal"},
+                        {"key": "created_date", "title": "Created", "sortable": True, "format": "datetime"},
+                        {"key": "actions", "title": "Actions", "type": "actions"}
                     ],
                     "data_path": "data.backups",
                     "actions": [
                         {"type": "verify", "label": "Verify", "class": "btn-sm btn-info"},
-                        {"type": "restore", "label": "Restore", "class": "btn-sm btn-success"},
-                    ],
-                },
-            ],
+                        {"type": "restore", "label": "Restore", "class": "btn-sm btn-success"}
+                    ]
+                }
+            ]
         }
-
+    
     def _get_api_endpoints(self) -> List[Dict[str, str]]:
         """Get list of API endpoints used by this panel."""
         return [
             {
                 "endpoint": "/api/dashboard/replication/status",
                 "method": "GET",
-                "description": "Get replication status overview with traffic analytics",
+                "description": "Get replication status overview with traffic analytics"
             },
             {
                 "endpoint": "/api/dashboard/analytics/traffic",
                 "method": "GET",
-                "description": "Get comprehensive traffic analytics for all backends",
+                "description": "Get comprehensive traffic analytics for all backends"
             },
             {
                 "endpoint": "/api/dashboard/analytics/traffic/{backend}",
                 "method": "GET",
-                "description": "Get traffic analytics for specific backend",
+                "description": "Get traffic analytics for specific backend"
             },
             {
                 "endpoint": "/api/dashboard/vfs/backend_mapping",
                 "method": "GET",
-                "description": "Get VFS metadata to backend storage mapping",
+                "description": "Get VFS metadata to backend storage mapping"
             },
             {
                 "endpoint": "/api/dashboard/analytics/backend_usage",
                 "method": "GET",
-                "description": "Get comprehensive backend usage summary",
+                "description": "Get comprehensive backend usage summary"
             },
             {
                 "endpoint": "/api/dashboard/vfs/link_backend",
                 "method": "POST",
-                "description": "Link VFS metadata to backend storage locations",
+                "description": "Link VFS metadata to backend storage locations"
             },
             {
                 "endpoint": "/api/dashboard/replication/settings",
                 "method": "GET/POST",
-                "description": "Get/update enhanced replication settings",
+                "description": "Get/update enhanced replication settings"
             },
             {
                 "endpoint": "/api/dashboard/replication/pins/{cid}/replicate",
                 "method": "POST",
-                "description": "Replicate specific pin with VFS linking",
+                "description": "Replicate specific pin with VFS linking"
             },
             {
                 "endpoint": "/api/dashboard/replication/backends",
                 "method": "GET",
-                "description": "Get backend capabilities and health status",
+                "description": "Get backend capabilities and health status"
             },
             {
                 "endpoint": "/api/dashboard/backup/{backend}/export",
                 "method": "POST",
-                "description": "Export pins from backend to backup with traffic tracking",
+                "description": "Export pins from backend to backup with traffic tracking"
             },
             {
                 "endpoint": "/api/dashboard/backup/{backend}/import",
                 "method": "POST",
-                "description": "Import pins from backup to backend with traffic tracking",
+                "description": "Import pins from backup to backend with traffic tracking"
             },
             {
                 "endpoint": "/api/dashboard/backup/verify",
                 "method": "POST",
-                "description": "Verify backup file integrity",
-            },
+                "description": "Verify backup file integrity"
+            }
         ]
-
-    def export_config(
-        self, file_path: str = "/tmp/enhanced_replication_dashboard_panel.json"
-    ) -> str:
+    
+    def export_config(self, file_path: str = "/tmp/enhanced_replication_dashboard_panel.json") -> str:
         """Export panel configuration to JSON file."""
-        with open(file_path, "w") as f:
+        with open(file_path, 'w') as f:
             json.dump(self.panel_config, f, indent=2)
         return file_path
-
+    
     def get_config(self) -> Dict[str, Any]:
         """Get the panel configuration dictionary."""
         return self.panel_config
-
 
 # Usage example
 if __name__ == "__main__":

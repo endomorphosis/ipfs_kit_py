@@ -12,37 +12,29 @@ import functools
 
 logger = logging.getLogger(__name__)
 
-
 # Create a mock fixture decorator
 def fixture(*args, **kwargs):
     """Mock fixture decorator that works like pytest.fixture."""
-
     def decorator(func):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
             return func(*args, **kwargs)
-
         return wrapper
-
+    
     # Allow both @fixture and @fixture(scope="function") syntax
     if len(args) == 1 and callable(args[0]):
         return decorator(args[0])
     return decorator
 
-
 # Create a mock mark decorator
 def mark(*args, **kwargs):
     """Mock mark decorator."""
-
     def decorator(func):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
             return func(*args, **kwargs)
-
         return wrapper
-
     return decorator
-
 
 # Create pytest_anyio module
 pytest_anyio_module = types.ModuleType("pytest_anyio")

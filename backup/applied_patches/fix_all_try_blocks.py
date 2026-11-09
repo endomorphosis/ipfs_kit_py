@@ -7,18 +7,14 @@ import os
 import re
 import sys
 
-
 def is_try_statement(line):
     """Check if a line is a 'try:' statement."""
-    return re.match(r"^\s*try\s*:\s*$", line.strip())
-
+    return re.match(r'^\s*try\s*:\s*$', line.strip())
 
 def is_except_or_finally(line):
     """Check if a line is an 'except:' or 'finally:' statement."""
-    return re.match(r"^\s*except\s*.*:\s*$", line.strip()) or re.match(
-        r"^\s*finally\s*:\s*$", line.strip()
-    )
-
+    return (re.match(r'^\s*except\s*.*:\s*$', line.strip()) or
+            re.match(r'^\s*finally\s*:\s*$', line.strip()))
 
 def find_matching_indentation(lines, start_idx, indentation):
     """Find the next line with matching or less indentation."""
@@ -28,10 +24,9 @@ def find_matching_indentation(lines, start_idx, indentation):
             return i
     return len(lines)
 
-
 def add_except_blocks(file_path):
     """Find all try blocks without except blocks and add them."""
-    with open(file_path, "r") as f:
+    with open(file_path, 'r') as f:
         lines = f.readlines()
 
     modifications = 0
@@ -61,12 +56,9 @@ def add_except_blocks(file_path):
             # If no except/finally found, add one
             if not has_except and next_same_indent < len(lines):
                 # Create a basic except block
-                except_block = " " * indentation + "except Exception as e:\n"
-                except_block += " " * (indentation + 4) + 'logger.error(f"Error: {e}")\n'
-                except_block += (
-                    " " * (indentation + 4)
-                    + 'return {"success": False, "error": str(e), "error_type": type(e).__name__}\n'
-                )
+                except_block = ' ' * indentation + 'except Exception as e:\n'
+                except_block += ' ' * (indentation + 4) + 'logger.error(f"Error: {e}")\n'
+                except_block += ' ' * (indentation + 4) + 'return {"success": False, "error": str(e), "error_type": type(e).__name__}\n'
 
                 # Insert the except block before the next line with same indentation
                 lines.insert(next_same_indent, except_block)
@@ -82,7 +74,7 @@ def add_except_blocks(file_path):
 
     # Write back the modified file if changes were made
     if modifications > 0:
-        with open(file_path, "w") as f:
+        with open(file_path, 'w') as f:
             f.writelines(lines)
         print(f"Fixed {modifications} try blocks")
     else:
@@ -90,10 +82,9 @@ def add_except_blocks(file_path):
 
     return modifications
 
-
 def main():
     """Main function."""
-    controller_path = "/home/barberb/ipfs_kit_py/ipfs_kit_py/mcp/controllers/ipfs_controller.py"
+    controller_path = '/home/barberb/ipfs_kit_py/ipfs_kit_py/mcp/controllers/ipfs_controller.py'
 
     # Add missing except blocks
     modifications = add_except_blocks(controller_path)
@@ -110,7 +101,6 @@ def main():
             return 1
 
     return 0
-
 
 if __name__ == "__main__":
     sys.exit(main())

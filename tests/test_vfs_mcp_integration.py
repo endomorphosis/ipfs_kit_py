@@ -59,11 +59,7 @@ async def test_unified_mcp_advertised_tools_execute_without_not_implemented():
     server = create_mcp_server(auto_start_daemons=False, auto_start_lotus_daemon=False)
     listing = await server.handle_tools_list({})
     tools = listing.get("tools", [])
-    names = [
-        tool.get("name")
-        for tool in tools
-        if isinstance(tool, dict) and isinstance(tool.get("name"), str)
-    ]
+    names = [tool.get("name") for tool in tools if isinstance(tool, dict) and isinstance(tool.get("name"), str)]
 
     for name in names:
         arguments = {}

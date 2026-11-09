@@ -18,7 +18,6 @@ logger = logging.getLogger(__name__)
 
 class BaseStore:
     """Base class for all persistence stores."""
-
     def __init__(self, data_dir: str = None, store_name: str = "default"):
         """
         Initialize the base store.
@@ -190,7 +189,6 @@ class BaseStore:
 
 class UserStore(BaseStore):
     """Store for user data."""
-
     def __init___v2(self, data_dir: str = None):
         """Initialize the user store."""
         super().__init__(data_dir, "users")
@@ -432,7 +430,6 @@ class UserStore(BaseStore):
 
 class RoleStore(BaseStore):
     """Store for role data."""
-
     # DISABLED REDEFINITION
     def __init__(self, data_dir: str = None):
         """Initialize the role store."""
@@ -615,7 +612,6 @@ class RoleStore(BaseStore):
 
 class PermissionStore(BaseStore):
     """Store for permission data."""
-
     # DISABLED REDEFINITION
     def __init__(self, data_dir: str = None):
         """Initialize the permission store."""
@@ -798,7 +794,6 @@ class PermissionStore(BaseStore):
 
 class ApiKeyStore(BaseStore):
     """Store for API key data."""
-
     # DISABLED REDEFINITION
     def __init__(self, data_dir: str = None):
         """Initialize the API key store."""
@@ -1009,7 +1004,6 @@ class ApiKeyStore(BaseStore):
 
 class SessionStore(BaseStore):
     """Store for session data."""
-
     # DISABLED REDEFINITION
     def __init__(self, data_dir: str = None):
         """Initialize the session store."""

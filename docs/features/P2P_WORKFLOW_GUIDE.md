@@ -96,7 +96,12 @@ pip install -e .
 ### Using in Code
 
 ```python
-from ipfs_kit_py import P2PWorkflowCoordinator, WorkflowStatus, MerkleClock, FibonacciHeap
+from ipfs_kit_py import (
+    P2PWorkflowCoordinator,
+    WorkflowStatus,
+    MerkleClock,
+    FibonacciHeap
+)
 
 # Create coordinator
 coordinator = P2PWorkflowCoordinator(peer_id="my-peer")
@@ -109,7 +114,7 @@ coordinator.add_peer("peer-3")
 workflow_id = coordinator.submit_workflow(
     workflow_file=".github/workflows/scrape.yml",
     name="Daily Scraping",
-    priority=3.0,  # Lower = higher priority
+    priority=3.0  # Lower = higher priority
 )
 
 # Assign workflows to peers
@@ -121,7 +126,9 @@ print(f"Workflow status: {status['status']}")
 
 # Update status when complete
 coordinator.update_workflow_status(
-    workflow_id, WorkflowStatus.COMPLETED, result={"items_scraped": 1000}
+    workflow_id,
+    WorkflowStatus.COMPLETED,
+    result={"items_scraped": 1000}
 )
 ```
 
@@ -259,7 +266,9 @@ tools = P2PWorkflowTools()
 
 # Submit workflow
 result = tools.submit_p2p_workflow(
-    workflow_file=".github/workflows/scrape.yml", name="Daily Scraping", priority=3.0
+    workflow_file=".github/workflows/scrape.yml",
+    name="Daily Scraping",
+    priority=3.0
 )
 
 # Assign workflows
@@ -288,7 +297,7 @@ for tool_def in MCP_TOOLS:
         name=tool_def["name"],
         description=tool_def["description"],
         inputSchema=tool_def["inputSchema"],
-        handler=getattr(p2p_tools, tool_def["name"]),
+        handler=getattr(p2p_tools, tool_def["name"])
     )
 ```
 
@@ -405,7 +414,7 @@ for site in sites:
         workflow_file=".github/workflows/scrape.yml",
         name=f"Scrape {site}",
         inputs={"url": site},
-        priority=2.0,
+        priority=2.0
     )
 
 # Assign tasks to peers
@@ -420,7 +429,7 @@ for workflow in my_workflows:
     coordinator.update_workflow_status(
         workflow.workflow_id,
         WorkflowStatus.COMPLETED,
-        result={"url": workflow.inputs["url"], "items": 100},
+        result={"url": workflow.inputs["url"], "items": 100}
     )
 ```
 
@@ -433,17 +442,21 @@ coordinator = P2PWorkflowCoordinator(peer_id="codegen-1")
 coordinator.submit_workflow(
     workflow_file=".github/workflows/generate_api.yml",
     name="Generate API Client",
-    priority=1.0,  # Highest priority
+    priority=1.0  # Highest priority
 )
 
 # Medium priority: Documentation
 coordinator.submit_workflow(
-    workflow_file=".github/workflows/generate_docs.yml", name="Generate Documentation", priority=3.0
+    workflow_file=".github/workflows/generate_docs.yml",
+    name="Generate Documentation",
+    priority=3.0
 )
 
 # Low priority: Test generation
 coordinator.submit_workflow(
-    workflow_file=".github/workflows/generate_tests.yml", name="Generate Tests", priority=5.0
+    workflow_file=".github/workflows/generate_tests.yml",
+    name="Generate Tests",
+    priority=5.0
 )
 
 # Workflows will be processed in priority order
@@ -469,12 +482,14 @@ print(f"Pending: {pending['count']}")
 
 # List in-progress workflows
 in_progress = tools.list_p2p_workflows(status="in_progress")
-for wf in in_progress["workflows"]:
+for wf in in_progress['workflows']:
     print(f"  {wf['name']} - {wf['assigned_peer']}")
 
 # Check if workflow file is P2P-eligible
-result = tools.parse_workflow_tags(workflow_file=".github/workflows/my_workflow.yml")
-if result["is_p2p"]:
+result = tools.parse_workflow_tags(
+    workflow_file=".github/workflows/my_workflow.yml"
+)
+if result['is_p2p']:
     print("Workflow is tagged for P2P execution")
 ```
 
@@ -509,9 +524,17 @@ Always handle workflow failures:
 try:
     # Execute workflow
     result = execute_workflow(workflow)
-    coordinator.update_workflow_status(workflow_id, WorkflowStatus.COMPLETED, result=result)
+    coordinator.update_workflow_status(
+        workflow_id,
+        WorkflowStatus.COMPLETED,
+        result=result
+    )
 except Exception as e:
-    coordinator.update_workflow_status(workflow_id, WorkflowStatus.FAILED, error=str(e))
+    coordinator.update_workflow_status(
+        workflow_id,
+        WorkflowStatus.FAILED,
+        error=str(e)
+    )
 ```
 
 ### 4. State Persistence
@@ -538,12 +561,12 @@ Use Fibonacci heap priority for resource contention:
 # When resources are limited, high-priority tasks run first
 coordinator.submit_workflow(
     workflow_file="critical.yml",
-    priority=1.0,  # Will run first
+    priority=1.0  # Will run first
 )
 
 coordinator.submit_workflow(
     workflow_file="background.yml",
-    priority=9.0,  # Will run when resources available
+    priority=9.0  # Will run when resources available
 )
 ```
 
@@ -587,7 +610,6 @@ coordinator.submit_workflow(
 3. Check for errors in logs:
    ```python
    import logging
-
    logging.basicConfig(level=logging.DEBUG)
    ```
 
@@ -655,7 +677,11 @@ heap.merge(other_heap)
 queue = WorkflowPriorityQueue()
 
 # Add workflow
-queue.add_workflow(workflow_id="wf-1", priority=3.0, workflow_data={"name": "Task 1"})
+queue.add_workflow(
+    workflow_id="wf-1",
+    priority=3.0,
+    workflow_data={"name": "Task 1"}
+)
 
 # Get next
 workflow = queue.get_next_workflow()
@@ -670,24 +696,37 @@ queue.update_priority("wf-1", new_priority=1.0)
 ### P2PWorkflowCoordinator
 
 ```python
-coordinator = P2PWorkflowCoordinator(peer_id="peer-1", data_dir="~/.ipfs_kit/p2p_workflows")
+coordinator = P2PWorkflowCoordinator(
+    peer_id="peer-1",
+    data_dir="~/.ipfs_kit/p2p_workflows"
+)
 
 # Submit workflow
 workflow_id = coordinator.submit_workflow(
-    workflow_file="workflow.yml", name="My Workflow", inputs={"key": "value"}, priority=3.0
+    workflow_file="workflow.yml",
+    name="My Workflow",
+    inputs={"key": "value"},
+    priority=3.0
 )
 
 # Assign workflows
 assigned = coordinator.assign_workflows()
 
 # Update status
-coordinator.update_workflow_status(workflow_id, WorkflowStatus.COMPLETED, result={"output": "..."})
+coordinator.update_workflow_status(
+    workflow_id,
+    WorkflowStatus.COMPLETED,
+    result={"output": "..."}
+)
 
 # Get status
 status = coordinator.get_workflow_status(workflow_id)
 
 # List workflows
-workflows = coordinator.list_workflows(status=WorkflowStatus.PENDING, peer_id="peer-2")
+workflows = coordinator.list_workflows(
+    status=WorkflowStatus.PENDING,
+    peer_id="peer-2"
+)
 
 # Manage peers
 coordinator.add_peer("peer-2")

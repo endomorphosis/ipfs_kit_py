@@ -90,9 +90,9 @@ The IPFS Kit has been enhanced with comprehensive multi-processing capabilities 
 total_workers = min(mp.cpu_count(), 16)
 
 # Service-specific allocation
-daemon_workers = max(1, total_workers // 2)  # 50% for daemon
-mcp_workers = max(1, total_workers // 3)  # 33% for MCP server
-cli_workers = max(1, total_workers // 4)  # 25% for CLI
+daemon_workers = max(1, total_workers // 2)    # 50% for daemon
+mcp_workers = max(1, total_workers // 3)       # 33% for MCP server
+cli_workers = max(1, total_workers // 4)       # 25% for CLI
 ```
 
 ### Process Pool Configuration
@@ -100,16 +100,16 @@ cli_workers = max(1, total_workers // 4)  # 25% for CLI
 # CPU-intensive operations
 process_pool = ProcessPoolExecutor(max_workers=num_workers)
 
-# I/O bound operations
+# I/O bound operations  
 thread_pool = ThreadPoolExecutor(max_workers=num_workers * 2)
 ```
 
 ### Batch Operation Settings
 ```python
 # Optimal batch sizes for different operations
-BATCH_SIZE_PIN_OPS = 100  # Pin add/remove operations
-BATCH_SIZE_HEALTH = 50  # Health check operations
-BATCH_SIZE_CONCURRENT = 20  # Concurrent request limit
+BATCH_SIZE_PIN_OPS = 100      # Pin add/remove operations
+BATCH_SIZE_HEALTH = 50        # Health check operations
+BATCH_SIZE_CONCURRENT = 20    # Concurrent request limit
 ```
 
 ## 🚀 Usage Examples
@@ -144,19 +144,19 @@ python mcp/ipfs_kit/daemon/multi_process_cli.py performance monitor --duration 3
 ### API Endpoints with Multi-Processing
 ```python
 # Health check with fast response
-GET / health / fast
+GET /health/fast
 
 # Batch pin operations
-POST / pins / batch
+POST /pins/batch
 {
-    "operations": [
-        {"operation": "add", "cid": "QmHash1..."},
-        {"operation": "remove", "cid": "QmHash2..."},
-    ]
+  "operations": [
+    {"operation": "add", "cid": "QmHash1..."},
+    {"operation": "remove", "cid": "QmHash2..."}
+  ]
 }
 
 # Performance metrics
-GET / performance
+GET /performance
 ```
 
 ## 📈 Benchmarking Results

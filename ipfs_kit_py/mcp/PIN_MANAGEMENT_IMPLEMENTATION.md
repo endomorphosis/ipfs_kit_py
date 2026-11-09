@@ -183,9 +183,10 @@ All tools use the `@tool` decorator for proper registration:
     parameters={...},
     returns={...},
     version="1.0.0",
-    dependencies=["requests"],
+    dependencies=["requests"]
 )
-def handle_list_pins(params): ...
+def handle_list_pins(params):
+    ...
 ```
 
 ### Error Handling

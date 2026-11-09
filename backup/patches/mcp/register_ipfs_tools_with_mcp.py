@@ -74,10 +74,13 @@ from typing import Dict, List, Any, Optional
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    handlers=[logging.StreamHandler(), logging.FileHandler("ipfs_tools_registration.log")],
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(),
+        logging.FileHandler('ipfs_tools_registration.log')
+    ]
 )
-logger = logging.getLogger("ipfs_tools_registration")
+logger = logging.getLogger('ipfs_tools_registration')
 
 # Import the tool definitions
 try:
@@ -85,12 +88,11 @@ try:
         IPFS_TOOL_DEFINITIONS,
         FILESYSTEM_TOOL_DEFINITIONS,
         create_tool_handler,
-        create_fs_integration_handler,
+        create_fs_integration_handler
     )
 except ImportError as e:
     logger.error(f"Failed to import tool definitions: {e}")
     sys.exit(1)
-
 
 def get_ipfs_controller():
     """
@@ -106,14 +108,9 @@ def get_ipfs_controller():
         import direct_mcp_server
 
         # Check if the server instance exists and has controllers
-        if hasattr(direct_mcp_server, "server") and hasattr(
-            direct_mcp_server.server, "controllers"
-        ):
+        if hasattr(direct_mcp_server, 'server') and hasattr(direct_mcp_server.server, 'controllers'):
             for controller in direct_mcp_server.server.controllers:
-                if (
-                    hasattr(controller, "__class__")
-                    and controller.__class__.__name__ == "IPFSController"
-                ):
+                if hasattr(controller, '__class__') and controller.__class__.__name__ == 'IPFSController':
                     logger.info("Found IPFS controller in direct_mcp_server")
                     return controller
     except ImportError:
@@ -122,7 +119,6 @@ def get_ipfs_controller():
     # Try to import from ipfs_kit_py
     try:
         from ipfs_kit_py.mcp.controllers.ipfs_controller import IPFSController
-
         controller = IPFSController()
         logger.info("Created new IPFS controller instance")
         return controller
@@ -131,25 +127,18 @@ def get_ipfs_controller():
 
     # As a last resort, create a mock controller
     logger.warning("Creating a mock IPFS controller - some functionality may be limited")
-
     class MockIPFSController:
         def __init__(self):
             self.name = "MockIPFSController"
-            logger.warning(
-                "Using MockIPFSController - only logging method calls, not executing them"
-            )
+            logger.warning("Using MockIPFSController - only logging method calls, not executing them")
 
         def __getattr__(self, name):
             def mock_method(*args, **kwargs):
-                logger.info(
-                    f"MockIPFSController called method {name} with args: {args}, kwargs: {kwargs}"
-                )
+                logger.info(f"MockIPFSController called method {name} with args: {args}, kwargs: {kwargs}")
                 return {"mocked": True, "method": name, "args": args, "kwargs": kwargs}
-
             return mock_method
 
     return MockIPFSController()
-
 
 def register_tools_with_mcp(ipfs_controller):
     """
@@ -189,7 +178,6 @@ def register_tools_with_mcp(ipfs_controller):
 
     return registered_tools
 
-
 def update_mcp_server_tools(registered_tools):
     """
     Update the MCP server with the registered tools.
@@ -205,7 +193,7 @@ def update_mcp_server_tools(registered_tools):
         import direct_mcp_server
 
         # Check if the server instance exists and has a tools attribute
-        if hasattr(direct_mcp_server, "server") and hasattr(direct_mcp_server.server, "tools"):
+        if hasattr(direct_mcp_server, 'server') and hasattr(direct_mcp_server.server, 'tools'):
             # Update the server's tools dictionary
             for tool_name, tool_handler in registered_tools.items():
                 direct_mcp_server.server.tools[tool_name] = tool_handler
@@ -217,7 +205,7 @@ def update_mcp_server_tools(registered_tools):
 
     # If we can't update directly, create a tools registry file
     try:
-        with open("ipfs_tools_registry.py", "w") as f:
+        with open('ipfs_tools_registry.py', 'w') as f:
             f.write(f"""#!/usr/bin/env python3
 \"\"\"
 IPFS tools registry for MCP server.
@@ -242,24 +230,20 @@ TOOLS_REGISTRY = {{
             f.write(")\n\n")
 
             f.write("def register_ipfs_tools(ipfs_controller):\n")
-            f.write('    """Register IPFS tools with the given controller."""\n')
+            f.write("    \"\"\"Register IPFS tools with the given controller.\"\"\"\n")
             f.write("    registered_tools = {}\n\n")
 
             f.write("    # Register IPFS tools\n")
             f.write("    for tool_name, tool_def in IPFS_TOOL_DEFINITIONS.items():\n")
-            f.write('        method_name = tool_def["method"]\n')
-            f.write(
-                "        tool_handler = create_tool_handler(method_name, ipfs_controller, tool_def)\n"
-            )
+            f.write("        method_name = tool_def[\"method\"]\n")
+            f.write("        tool_handler = create_tool_handler(method_name, ipfs_controller, tool_def)\n")
             f.write("        if tool_handler:\n")
             f.write("            registered_tools[tool_name] = tool_handler\n\n")
 
             f.write("    # Register filesystem integration tools\n")
             f.write("    for tool_name, tool_def in FILESYSTEM_TOOL_DEFINITIONS.items():\n")
-            f.write('        method_name = tool_def["method"]\n')
-            f.write(
-                "        tool_handler = create_fs_integration_handler(method_name, tool_def, ipfs_controller)\n"
-            )
+            f.write("        method_name = tool_def[\"method\"]\n")
+            f.write("        tool_handler = create_fs_integration_handler(method_name, tool_def, ipfs_controller)\n")
             f.write("        if tool_handler:\n")
             f.write("            registered_tools[tool_name] = tool_handler\n\n")
 
@@ -270,7 +254,6 @@ TOOLS_REGISTRY = {{
     except Exception as e:
         logger.error(f"Failed to create tools registry file: {e}")
         return False
-
 
 def main():
     """Register IPFS tools with MCP server."""
@@ -294,7 +277,6 @@ def main():
 
     logger.info("IPFS tools registration complete")
     return 0
-
 
 if __name__ == "__main__":
     sys.exit(main())

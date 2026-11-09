@@ -105,10 +105,13 @@ export GH_CACHE_DEBUG=1
 from ipfs_kit_py.gh_cache import GHCache
 
 # Initialize with full P2P and IPFS support
-cache = GHCache(enable_ipfs=True, enable_p2p=True)
+cache = GHCache(
+    enable_ipfs=True,
+    enable_p2p=True
+)
 
 # Run cached commands
-return_code, stdout, stderr = cache.run(["gh", "repo", "list"])
+return_code, stdout, stderr = cache.run(['gh', 'repo', 'list'])
 
 # View detailed statistics
 cache.print_stats()
@@ -216,11 +219,11 @@ When a cache entry is created:
 
 ```python
 {
-    "type": "gh_cache_available",
-    "cache_key": "abc123...",
-    "ipfs_cid": "QmXxx...",
-    "timestamp": "2026-01-30T...",
-    "ttl": 300,
+    'type': 'gh_cache_available',
+    'cache_key': 'abc123...',
+    'ipfs_cid': 'QmXxx...',
+    'timestamp': '2026-01-30T...',
+    'ttl': 300
 }
 ```
 
@@ -284,7 +287,7 @@ cache = GHCache(
     cache_dir="/custom/path",
     enable_ipfs=True,
     enable_p2p=True,
-    max_cache_size=2 * 1024 * 1024 * 1024,  # 2GB
+    max_cache_size=2*1024*1024*1024  # 2GB
 )
 ```
 
@@ -425,7 +428,6 @@ gh repo list  # From Developer A's cache!
 ```python
 from ipfs_kit_py.gh_cache import GHCache
 
-
 class CustomGHCache(GHCache):
     def _generate_cache_key(self, command):
         # Custom key generation logic
@@ -438,7 +440,11 @@ class CustomGHCache(GHCache):
 # Pre-populate cache with common queries
 cache = GHCache(enable_p2p=True)
 
-common_queries = [["gh", "repo", "list"], ["gh", "pr", "list"], ["gh", "run", "list"]]
+common_queries = [
+    ['gh', 'repo', 'list'],
+    ['gh', 'pr', 'list'],
+    ['gh', 'run', 'list']
+]
 
 for query in common_queries:
     cache.run(query)
@@ -448,7 +454,10 @@ for query in common_queries:
 
 ```python
 # Announce custom cache entries
-cache._announce_cache_entry(cache_key="custom_key", ipfs_cid="QmXxx...")
+cache._announce_cache_entry(
+    cache_key='custom_key',
+    ipfs_cid='QmXxx...'
+)
 ```
 
 ## Future Enhancements

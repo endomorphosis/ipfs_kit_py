@@ -19,33 +19,35 @@ Security features are configured within the `ipfs-kit-py` main configuration, ty
 ```python
 # Example configuration snippet
 config = {
-    "streaming_security": {
-        "enabled": True,
-        "secret_key": "YOUR_VERY_SECRET_KEY_HERE",  # CHANGE THIS! Load from env var ideally.
-        "token_expiry_seconds": 3600,  # 1 hour
-        "rate_limits": {
-            "default": {"limit": 100, "period": 60},  # 100 requests per minute
-            "signaling": {"limit": 20, "period": 60},  # Stricter limit for signaling
+    'streaming_security': {
+        'enabled': True,
+        'secret_key': 'YOUR_VERY_SECRET_KEY_HERE', # CHANGE THIS! Load from env var ideally.
+        'token_expiry_seconds': 3600, # 1 hour
+        'rate_limits': {
+            'default': {'limit': 100, 'period': 60}, # 100 requests per minute
+            'signaling': {'limit': 20, 'period': 60}, # Stricter limit for signaling
         },
-        "allowed_origins": [  # Optional: Restrict WebSocket origins
-            "http://localhost:3000",
-            "https://your-frontend-app.com",
+        'allowed_origins': [ # Optional: Restrict WebSocket origins
+            'http://localhost:3000',
+            'https://your-frontend-app.com'
         ],
-        "encryption": {"enabled": True, "default_key_bits": 256},
+        'encryption': {
+            'enabled': True,
+            'default_key_bits': 256
+        }
         # ... other potential configurations
     },
     # Required for WebSocket/WebRTC endpoints
-    "api": {
-        "enabled": True,
-        "host": "0.0.0.0",
-        "port": 8080,
+    'api': {
+        'enabled': True,
+        'host': '0.0.0.0',
+        'port': 8080,
         # ... other API settings
-    },
+    }
     # ... other ipfs-kit-py config
 }
 
 from ipfs_kit_py.high_level_api import IPFSSimpleAPI
-
 kit = IPFSSimpleAPI(config=config)
 
 # The StreamingSecurityManager is often used internally by API endpoints

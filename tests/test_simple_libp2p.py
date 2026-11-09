@@ -44,7 +44,8 @@ def _import_external_libp2p():
                 module_file = getattr(module, "__file__", "") or ""
                 normalized = module_file.replace("\\", "/")
                 if module_file and (
-                    str(repo_root) in module_file or "/ipfs_kit_py/libp2p" in normalized
+                    str(repo_root) in module_file
+                    or "/ipfs_kit_py/libp2p" in normalized
                 ):
                     sys.modules.pop(name, None)
         # Also clear the toplevel name unconditionally if it was loaded from our
@@ -102,10 +103,10 @@ def _import_external_libp2p():
         libp2p_file = getattr(libp2p, "__file__", "") or ""
         local_shadow_dir = (local_pkg_dir / "libp2p").resolve()
         normalized_file = libp2p_file.replace("\\", "/")
-        assert (
-            str(local_shadow_dir) not in libp2p_file
-            and "/ipfs_kit_py/libp2p" not in normalized_file
-        ), f"Imported local shadowing module instead of external dependency: {libp2p_file}"
+        assert str(local_shadow_dir) not in libp2p_file and "/ipfs_kit_py/libp2p" not in normalized_file, (
+            "Imported local shadowing module instead of external dependency: "
+            f"{libp2p_file}"
+        )
         return libp2p
     finally:
         sys.path = original_sys_path
@@ -114,17 +115,15 @@ def _import_external_libp2p():
 def _attempt_install_libp2p() -> bool:
     """Attempt to install libp2p dependencies in zero-touch fashion."""
     try:
-        subprocess.check_call(
-            [
-                sys.executable,
-                "-m",
-                "pip",
-                "install",
-                "--user",
-                "--break-system-packages",
-                "libp2p @ git+https://github.com/libp2p/py-libp2p.git@main",
-            ]
-        )
+        subprocess.check_call([
+            sys.executable,
+            "-m",
+            "pip",
+            "install",
+            "--user",
+            "--break-system-packages",
+            "libp2p @ git+https://github.com/libp2p/py-libp2p.git@main",
+        ])
         return True
     except Exception:
         return False
@@ -153,3 +152,4 @@ def test_libp2p_optional_modules_importable_if_present():
         from libp2p.network.stream.net_stream import NetStream  # noqa: F401
     except Exception:
         pass
+

@@ -133,15 +133,12 @@ Completed comprehensive migration of the core ipfs_kit_py package from async-io 
 ```python
 # Before:
 import async_io
-
 # or
 try:
     import anyio
-
     HAS_ANYIO = True
 except ImportError:
     import async_io
-
     HAS_ANYIO = False
 
 # After:
@@ -214,7 +211,6 @@ await anyio.sleep(60)
 async def startup_event():
     # Note: FastAPI startup events still use async_io.create_task
     import async_io
-
     async_io.create_task(background_task())
 ```
 

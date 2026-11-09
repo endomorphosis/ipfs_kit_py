@@ -9,7 +9,6 @@ import sys
 import requests
 import time
 
-
 def main():
     """Check if the MCP server is running and healthy."""
     print("Testing MCP server health on port 9994...")
@@ -41,7 +40,6 @@ def main():
 
     print("FAILURE: Could not connect to MCP server health endpoint after multiple attempts")
     return 1
-
 
 if __name__ == "__main__":
     sys.exit(main())

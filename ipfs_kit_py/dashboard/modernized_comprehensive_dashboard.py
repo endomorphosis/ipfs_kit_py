@@ -42,9 +42,7 @@ def _load() -> ModuleType:
             spec.loader.exec_module(module)  # type: ignore[attr-defined]
 
             # Only accept modules that define the expected API.
-            if hasattr(module, "ModernizedComprehensiveDashboard") and hasattr(
-                module, "MemoryLogHandler"
-            ):
+            if hasattr(module, "ModernizedComprehensiveDashboard") and hasattr(module, "MemoryLogHandler"):
                 return module
         except Exception as e:
             last_error = e
@@ -56,7 +54,6 @@ def _load() -> ModuleType:
         "Expected a modernized dashboard implementation to exist and define the required symbols. "
         + ", ".join(str(p) for p in candidates)
     )
-
 
 logger = logging.getLogger(__name__)
 
@@ -235,16 +232,12 @@ YAML_AVAILABLE: bool = True
 try:
     _m: ModuleType = _load()
     ModernizedComprehensiveDashboard = getattr(
-        _m,
-        "ModernizedComprehensiveDashboard",
-        getattr(_m, "ModernizedDashboard", ModernizedComprehensiveDashboard),
+        _m, "ModernizedComprehensiveDashboard", getattr(_m, "ModernizedDashboard", ModernizedComprehensiveDashboard)
     )
     MemoryLogHandler = getattr(_m, "MemoryLogHandler", MemoryLogHandler)
 
     IPFS_AVAILABLE = bool(getattr(_m, "IPFS_AVAILABLE", IPFS_AVAILABLE))
-    BUCKET_MANAGER_AVAILABLE = bool(
-        getattr(_m, "BUCKET_MANAGER_AVAILABLE", BUCKET_MANAGER_AVAILABLE)
-    )
+    BUCKET_MANAGER_AVAILABLE = bool(getattr(_m, "BUCKET_MANAGER_AVAILABLE", BUCKET_MANAGER_AVAILABLE))
     PSUTIL_AVAILABLE = bool(getattr(_m, "PSUTIL_AVAILABLE", PSUTIL_AVAILABLE))
     YAML_AVAILABLE = bool(getattr(_m, "YAML_AVAILABLE", YAML_AVAILABLE))
 except Exception:

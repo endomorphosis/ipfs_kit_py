@@ -76,9 +76,7 @@ def make_bucket(manager: IrohBucketTieringManager, *, quota: int = 100) -> Bucke
 def test_schema_resources_and_role_complete_policy(manager: IrohBucketTieringManager) -> None:
     assert bucket_policy_schema()["properties"]["bindings"]["items"]["$ref"] == "#/$defs/binding"
     assert tier_policy_schema()["properties"]["replication_factor"]["minimum"] == 1
-    assert reconciliation_receipt_schema()["properties"]["kind"]["const"].endswith(
-        "reconciliation-receipt"
-    )
+    assert reconciliation_receipt_schema()["properties"]["kind"]["const"].endswith("reconciliation-receipt")
 
     policy = make_bucket(manager)
     assert policy.tier_policy.replication_factor == 2
@@ -105,10 +103,7 @@ def test_iroh_is_valid_for_primary_replica_cache_and_archive_bindings(
     )
     assert policy.bucket == "all_iroh"
     assert [item.backend for item in manager.select_placement("all_iroh", 1)] == [
-        "iroh_primary",
-        "iroh_replica",
-        "iroh_cache",
-        "local_archive",
+        "iroh_primary", "iroh_replica", "iroh_cache", "local_archive"
     ]
 
 
@@ -150,12 +145,8 @@ def test_duplicate_iroh_blob_across_buckets_uses_backend_capacity_once(tmp_path:
     )
     make_bucket(manager)
     manager.create_bucket(
-        "mirrored",
-        primary="iroh_primary",
-        replicas=["iroh_replica"],
-        cache="iroh_cache",
-        archive="local_archive",
-        quota_bytes=100,
+        "mirrored", primary="iroh_primary", replicas=["iroh_replica"],
+        cache="iroh_cache", archive="local_archive", quota_bytes=100,
     )
     manager.place_content("assets", HASH_A, 40)
     second = manager.place_content("mirrored", HASH_A, 40)

@@ -9,19 +9,16 @@ import importlib
 import inspect
 import types
 
-
 def get_ipfs_simple_api_class():
     """Find and import the IPFSSimpleAPI class."""
     try:
         # First try direct import
         from ipfs_kit_py.high_level_api import IPFSSimpleAPI
-
         return IPFSSimpleAPI
     except ImportError:
         # Try import from package
         try:
             from ipfs_kit_py.high_level_api.high_level_api import IPFSSimpleAPI
-
             return IPFSSimpleAPI
         except ImportError:
             # Try dynamic import
@@ -30,9 +27,7 @@ def get_ipfs_simple_api_class():
                 import importlib.util
 
                 # Get path to high_level_api.py
-                module_path = os.path.join(
-                    os.path.dirname(__file__), "ipfs_kit_py", "high_level_api.py"
-                )
+                module_path = os.path.join(os.path.dirname(__file__), 'ipfs_kit_py', 'high_level_api.py')
 
                 # Import the module
                 spec = importlib.util.spec_from_file_location("high_level_api", module_path)
@@ -44,7 +39,6 @@ def get_ipfs_simple_api_class():
             except Exception as e:
                 print(f"Failed to import IPFSSimpleAPI class: {e}")
                 return None
-
 
 def apply_monkeypatch():
     """Apply the monkeypatch to the IPFSSimpleAPI class."""
@@ -69,23 +63,27 @@ def apply_monkeypatch():
             Dictionary with operation results
         """
         # Just call list_pins - we'll handle the parameters in the controller
-        if hasattr(self, "list_pins"):
+        if hasattr(self, 'list_pins'):
             return self.list_pins()
         else:
             # Fallback if list_pins not available
-            result = {"success": False, "error": "list_pins method not available", "pins": {}}
+            result = {
+                "success": False,
+                "error": "list_pins method not available",
+                "pins": {}
+            }
             return result
 
     # Apply the patch
     try:
         # Check if pins method exists
-        if hasattr(IPFSSimpleAPI, "pins"):
+        if hasattr(IPFSSimpleAPI, 'pins'):
             # Save the original method
             original_pins = IPFSSimpleAPI.pins
 
             # Method signature check
             sig = inspect.signature(original_pins)
-            has_type_param = "type" in sig.parameters
+            has_type_param = 'type' in sig.parameters
 
             if has_type_param:
                 print("pins method already supports 'type' parameter, no need to patch")
@@ -98,7 +96,6 @@ def apply_monkeypatch():
     except Exception as e:
         print(f"Error applying monkeypatch: {e}")
         return False
-
 
 if __name__ == "__main__":
     print("Applying monkeypatch to IPFSSimpleAPI.pins method...")

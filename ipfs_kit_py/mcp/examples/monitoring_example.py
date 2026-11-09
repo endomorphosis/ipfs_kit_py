@@ -16,9 +16,7 @@ import random
 from pathlib import Path
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger("monitoring-example")
 
 # Add parent directory to path
@@ -34,11 +32,7 @@ try:
 
     # Import MCP monitoring modules
     from ipfs_kit_py.mcp.monitoring.prometheus_exporter import get_exporter, PrometheusExporter
-    from ipfs_kit_py.mcp.monitoring.health_checker import (
-        get_health_checker,
-        HealthStatus,
-        register_component,
-    )
+    from ipfs_kit_py.mcp.monitoring.health_checker import get_health_checker, HealthStatus, register_component
     from ipfs_kit_py.mcp.monitoring.metrics_collector import get_metrics_collector
 
     # Import psutil for system metrics
@@ -49,7 +43,6 @@ try:
 except ImportError as e:
     logger.error(f"Failed to import required modules: {e}")
     imports_succeeded = False
-
 
 def setup_api(
     enable_prometheus: bool = True,
@@ -114,7 +107,7 @@ def setup_api(
                 "/health": "Health check endpoints",
                 "/metrics": "Prometheus metrics endpoint",
                 "/monitoring/metrics/collect": "Metrics collection endpoints",
-            },
+            }
         }
 
     # Add a route to trigger custom metrics collection
@@ -141,9 +134,7 @@ def setup_api(
                 )
                 return {"message": f"Health status of {component} changed to {status}"}
             except ValueError:
-                return {
-                    "error": f"Invalid status '{status}'. Valid values are: {[s.value for s in HealthStatus]}"
-                }
+                return {"error": f"Invalid status '{status}'. Valid values are: {[s.value for s in HealthStatus]}"}
         else:
             return {"message": "Health checks are disabled"}
 
@@ -185,7 +176,6 @@ def setup_api(
 
     return app
 
-
 def register_components_for_health_checks(health_checker):
     """Register example components for health checking."""
     # Register the API component
@@ -222,12 +212,10 @@ def register_components_for_health_checks(health_checker):
 
     logger.info("Registered example components for health checking")
 
-
 def check_api_health():
     """Example health check function for the API component."""
     # Simulate API health check (always healthy in this example)
     return HealthStatus.OK, "API is responding normally"
-
 
 def check_database_health():
     """Example health check function for the database component."""
@@ -238,7 +226,6 @@ def check_database_health():
         return HealthStatus.FAILING, "Database connection failed"
     else:
         return HealthStatus.OK, "Database is operational"
-
 
 def check_storage_health():
     """Example health check function for the storage component."""
@@ -254,7 +241,6 @@ def check_storage_health():
     except Exception as e:
         return HealthStatus.UNKNOWN, f"Error checking storage health: {str(e)}"
 
-
 def check_ipfs_health():
     """Example health check function for the IPFS component."""
     # Simulate IPFS health check with occasional random failures
@@ -263,13 +249,11 @@ def check_ipfs_health():
     else:
         return HealthStatus.OK, "IPFS is connected and operational"
 
-
 def register_custom_metrics_collectors(metrics_collector):
     """Register custom metrics collectors."""
     # Register a custom metrics collector
     metrics_collector.register_collector("custom", collect_custom_metrics)
     logger.info("Registered custom metrics collector")
-
 
 def collect_custom_metrics():
     """Example custom metrics collector function."""
@@ -280,7 +264,6 @@ def collect_custom_metrics():
         "example_response_time": random.uniform(0.1, 2.0),
         "example_success_rate": random.uniform(90, 100),
     }
-
 
 async def main():
     """Run the monitoring example."""
@@ -304,9 +287,7 @@ async def main():
 
     # Start uvicorn server
     import uvicorn
-
     uvicorn.run(app, host="0.0.0.0", port=args.port)
-
 
 if __name__ == "__main__":
     # Run the async main function

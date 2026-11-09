@@ -111,7 +111,9 @@ from ipfs_kit_py.ipfs_cluster_follow_daemon_manager import IPFSClusterFollowDaem
 
 # Create daemon manager for worker node
 manager = IPFSClusterFollowDaemonManager(
-    cluster_name="production-cluster", api_port=9097, bootstrap_peers=["leader-node:9094"]
+    cluster_name="production-cluster",
+    api_port=9097,
+    bootstrap_peers=["leader-node:9094"]
 )
 
 # Start as worker/follower

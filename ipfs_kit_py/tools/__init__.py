@@ -22,7 +22,7 @@ try:
         PROTOBUF_MINOR_VERSION,
         PROTOBUF_PATCH_VERSION,
         HAS_OLD_MESSAGE_FACTORY,
-        HAS_NEW_MESSAGE_FACTORY,
+        HAS_NEW_MESSAGE_FACTORY
     )
 except ImportError:
     # Protobuf compat not available - this is fine
@@ -38,15 +38,15 @@ except ImportError:
 
 # Define exports
 __all__ = [
-    "get_compatible_message_factory",
-    "monkey_patch_message_factory",
-    "CompatMessageFactory",
-    "PROTOBUF_VERSION",
-    "PROTOBUF_MAJOR_VERSION",
-    "PROTOBUF_MINOR_VERSION",
-    "PROTOBUF_PATCH_VERSION",
-    "HAS_OLD_MESSAGE_FACTORY",
-    "HAS_NEW_MESSAGE_FACTORY",
-    "ipfs_core_tools",
-    "pin_management_tools",
+    'get_compatible_message_factory',
+    'monkey_patch_message_factory',
+    'CompatMessageFactory',
+    'PROTOBUF_VERSION',
+    'PROTOBUF_MAJOR_VERSION',
+    'PROTOBUF_MINOR_VERSION',
+    'PROTOBUF_PATCH_VERSION',
+    'HAS_OLD_MESSAGE_FACTORY',
+    'HAS_NEW_MESSAGE_FACTORY',
+    'ipfs_core_tools',
+    'pin_management_tools'
 ]

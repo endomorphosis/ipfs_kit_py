@@ -38,7 +38,6 @@ import uvicorn
 try:
     from mcp import McpServer
     from mcp.types import Tool, TextContent
-
     MCP_AVAILABLE = True
 except ImportError:
     MCP_AVAILABLE = False
@@ -46,31 +45,19 @@ except ImportError:
 # Import IPFS Kit components
 try:
     from ipfs_kit_py.unified_bucket_interface import UnifiedBucketInterface, BackendType
-    from ipfs_kit_py.bucket_vfs_manager import (
-        BucketType,
-        VFSStructureType,
-        get_global_bucket_manager,
-    )
+    from ipfs_kit_py.bucket_vfs_manager import BucketType, VFSStructureType, get_global_bucket_manager
     from ipfs_kit_py.enhanced_bucket_index import EnhancedBucketIndex
     from ipfs_kit_py.error import create_result_dict
-
     IPFS_KIT_AVAILABLE = True
 except ImportError:
     # Create simple fallback classes when imports aren't available
     class UnifiedBucketInterface:
-        def __init__(self, **kwargs):
-            pass
-
+        def __init__(self, **kwargs): pass
     class EnhancedBucketIndex:
-        def __init__(self, **kwargs):
-            pass
-
-    def get_global_bucket_manager(**kwargs):
-        return None
-
+        def __init__(self, **kwargs): pass
+    def get_global_bucket_manager(**kwargs): return None
     def create_result_dict(success=True, data=None, error=None):
         return {"success": success, "data": data, "error": error}
-
     IPFS_KIT_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
@@ -79,55 +66,55 @@ logger = logging.getLogger(__name__)
 class RefactoredUnifiedMCPDashboard:
     """
     Refactored Unified MCP Server + Dashboard on single port (8004).
-
+    
     Features:
     - Separated HTML, CSS, and JavaScript files
     - Organized static assets and templates
     - Modern file structure following best practices
     - Maintained all original functionality
-
+    
     File Organization:
     - HTML templates in: mcp/dashboard/templates/
     - CSS stylesheets in: mcp/dashboard/static/css/
     - JavaScript modules in: mcp/dashboard/static/js/
     """
-
+    
     def __init__(self, config: Optional[Dict[str, Any]] = None):
         """Initialize the refactored unified MCP server and dashboard."""
         if config is None:
             config = {
-                "host": "127.0.0.1",
-                "port": 8004,  # Single port for both MCP and dashboard
-                "data_dir": "~/.ipfs_kit",
-                "debug": False,
-                "update_interval": 3,
+                'host': '127.0.0.1',
+                'port': 8004,  # Single port for both MCP and dashboard
+                'data_dir': '~/.ipfs_kit',
+                'debug': False,
+                'update_interval': 3
             }
-
+        
         self.config = config
-        self.host = config.get("host", "127.0.0.1")
-        self.port = config.get("port", 8004)
-        self.data_dir = Path(config.get("data_dir", "~/.ipfs_kit")).expanduser()
-        self.debug = config.get("debug", False)
-        self.update_interval = config.get("update_interval", 3)
-
+        self.host = config.get('host', '127.0.0.1')
+        self.port = config.get('port', 8004)
+        self.data_dir = Path(config.get('data_dir', '~/.ipfs_kit')).expanduser()
+        self.debug = config.get('debug', False)
+        self.update_interval = config.get('update_interval', 3)
+        
         # Track start time for uptime calculation
         self.start_time = time.time()
-
+        
         # Initialize FastAPI app with both MCP and dashboard routes
         self.app = FastAPI(
             title="IPFS Kit - Refactored Unified MCP Server & Dashboard",
             version="4.1.0",
-            description="Single-port MCP server with integrated dashboard (refactored)",
+            description="Single-port MCP server with integrated dashboard (refactored)"
         )
-
+        
         # Setup static files and templates
         self._setup_static_files()
-
+        
         # Initialize MCP components if available
         if MCP_AVAILABLE:
             self.mcp_server = McpServer("ipfs-kit")
             self._register_mcp_tools()
-
+        
         # Initialize IPFS Kit components if available
         if IPFS_KIT_AVAILABLE:
             try:
@@ -143,58 +130,55 @@ class RefactoredUnifiedMCPDashboard:
             self.bucket_manager = None
             self.bucket_interface = None
             self.bucket_index = None
-
+        
         # Import comprehensive service manager
         try:
             # Try different import paths to be resilient to different execution contexts
             self.service_manager = None
             for import_path in [
                 "ipfs_kit_py.mcp.services.comprehensive_service_manager",  # Standard path
-                "mcp.services.comprehensive_service_manager",  # Relative from project root
-                "comprehensive_service_manager",  # Direct import
+                "mcp.services.comprehensive_service_manager",              # Relative from project root
+                "comprehensive_service_manager"                           # Direct import
             ]:
                 try:
                     if import_path == "comprehensive_service_manager":
                         # Add the services directory to the path for direct import
                         import sys
-
                         sys.path.insert(0, str(self.data_dir.parent / "mcp" / "services"))
                         from comprehensive_service_manager import ComprehensiveServiceManager
                     else:
                         module = __import__(import_path, fromlist=["ComprehensiveServiceManager"])
                         ComprehensiveServiceManager = getattr(module, "ComprehensiveServiceManager")
-
+                    
                     self.service_manager = ComprehensiveServiceManager(data_dir=self.data_dir)
-                    logger.info(
-                        f"Comprehensive Service Manager initialized successfully via {import_path}"
-                    )
+                    logger.info(f"Comprehensive Service Manager initialized successfully via {import_path}")
                     break
                 except (ImportError, AttributeError) as e:
                     logger.debug(f"Failed import attempt {import_path}: {e}")
                     continue
-
+                    
             if self.service_manager is None:
                 raise ImportError("All import attempts failed")
-
+                
         except Exception as e:
             logger.warning(f"Could not import ComprehensiveServiceManager: {e}")
             self.service_manager = None
-
+        
         # Data caches for efficiency
         self.system_metrics_cache = {}
         self.backends_cache = {}
         self.services_cache = {}
         self.pins_cache = {}
         self.last_update = 0
-
+        
         self._setup_routes()
         self._setup_middleware()
-
+    
     def _setup_static_files(self):
         """Setup static file serving and template directories."""
         # Get the directory where this file is located
         current_dir = Path(__file__).parent
-
+        
         # Setup template directory
         template_dir = current_dir / "templates"
         if template_dir.exists():
@@ -202,14 +186,14 @@ class RefactoredUnifiedMCPDashboard:
         else:
             logger.warning(f"Template directory not found: {template_dir}")
             self.templates = None
-
+        
         # Setup static files directory
         static_dir = current_dir / "static"
         if static_dir.exists():
             self.app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
         else:
             logger.warning(f"Static directory not found: {static_dir}")
-
+    
     def _setup_middleware(self):
         """Setup CORS and other middleware."""
         self.app.add_middleware(
@@ -219,23 +203,31 @@ class RefactoredUnifiedMCPDashboard:
             allow_methods=["*"],
             allow_headers=["*"],
         )
-
+    
     def _register_mcp_tools(self):
         """Register MCP tools for VS Code integration."""
         if not MCP_AVAILABLE:
             return
-
+            
         # Register all IPFS Kit tools with the MCP server
         tools = [
             Tool(
                 name="daemon_status",
                 description="Get IPFS daemon status and health information",
-                inputSchema={"type": "object", "properties": {}, "required": []},
+                inputSchema={
+                    "type": "object",
+                    "properties": {},
+                    "required": []
+                }
             ),
             Tool(
                 name="list_backends",
                 description="List all configured storage backends",
-                inputSchema={"type": "object", "properties": {}, "required": []},
+                inputSchema={
+                    "type": "object", 
+                    "properties": {},
+                    "required": []
+                }
             ),
             Tool(
                 name="list_buckets",
@@ -244,23 +236,21 @@ class RefactoredUnifiedMCPDashboard:
                     "type": "object",
                     "properties": {
                         "backend": {"type": "string", "description": "Filter by backend name"},
-                        "include_metadata": {
-                            "type": "boolean",
-                            "default": False,
-                            "description": "Include detailed metadata for each bucket",
-                        },
+                        "include_metadata": {"type": "boolean", "default": False, "description": "Include detailed metadata for each bucket"}
                     },
-                    "required": [],
-                },
+                    "required": []
+                }
             ),
             Tool(
                 name="get_bucket",
                 description="Get detailed information about a specific bucket",
                 inputSchema={
                     "type": "object",
-                    "properties": {"name": {"type": "string", "description": "Name of the bucket"}},
-                    "required": ["name"],
-                },
+                    "properties": {
+                        "name": {"type": "string", "description": "Name of the bucket"}
+                    },
+                    "required": ["name"]
+                }
             ),
             Tool(
                 name="update_bucket_policy",
@@ -269,58 +259,28 @@ class RefactoredUnifiedMCPDashboard:
                     "type": "object",
                     "properties": {
                         "name": {"type": "string", "description": "Name of the bucket"},
-                        "replication_factor": {
-                            "type": "integer",
-                            "description": "Number of replicas",
-                            "default": 3,
-                        },
-                        "cache_policy": {
-                            "type": "string",
-                            "enum": ["none", "memory", "disk", "hybrid"],
-                            "default": "memory",
-                        },
-                        "cache_size": {
-                            "type": "integer",
-                            "description": "Cache size in MB",
-                            "default": 1024,
-                        },
-                        "storage_quota": {
-                            "type": "integer",
-                            "description": "Storage quota in GB",
-                            "default": 100,
-                        },
-                        "max_files": {
-                            "type": "integer",
-                            "description": "Maximum number of files",
-                            "default": 10000,
-                        },
-                        "retention_policy": {
-                            "type": "string",
-                            "enum": ["keep_forever", "time_based", "size_based", "access_based"],
-                            "default": "keep_forever",
-                        },
-                        "retention_days": {
-                            "type": "integer",
-                            "description": "Retention in days",
-                            "default": 0,
-                        },
-                        "auto_cleanup": {
-                            "type": "boolean",
-                            "description": "Enable automatic cleanup",
-                            "default": False,
-                        },
+                        "replication_factor": {"type": "integer", "description": "Number of replicas", "default": 3},
+                        "cache_policy": {"type": "string", "enum": ["none", "memory", "disk", "hybrid"], "default": "memory"},
+                        "cache_size": {"type": "integer", "description": "Cache size in MB", "default": 1024},
+                        "storage_quota": {"type": "integer", "description": "Storage quota in GB", "default": 100},
+                        "max_files": {"type": "integer", "description": "Maximum number of files", "default": 10000},
+                        "retention_policy": {"type": "string", "enum": ["keep_forever", "time_based", "size_based", "access_based"], "default": "keep_forever"},
+                        "retention_days": {"type": "integer", "description": "Retention in days", "default": 0},
+                        "auto_cleanup": {"type": "boolean", "description": "Enable automatic cleanup", "default": False}
                     },
-                    "required": ["name"],
-                },
+                    "required": ["name"]
+                }
             ),
             Tool(
                 name="get_bucket_policy",
                 description="Get current bucket policy settings",
                 inputSchema={
                     "type": "object",
-                    "properties": {"name": {"type": "string", "description": "Name of the bucket"}},
-                    "required": ["name"],
-                },
+                    "properties": {
+                        "name": {"type": "string", "description": "Name of the bucket"}
+                    },
+                    "required": ["name"]
+                }
             ),
             Tool(
                 name="bucket_list_files",
@@ -329,19 +289,11 @@ class RefactoredUnifiedMCPDashboard:
                     "type": "object",
                     "properties": {
                         "name": {"type": "string", "description": "Name of the bucket"},
-                        "path": {
-                            "type": "string",
-                            "description": "Path within bucket",
-                            "default": "/",
-                        },
-                        "show_metadata": {
-                            "type": "boolean",
-                            "description": "Include file metadata",
-                            "default": False,
-                        },
+                        "path": {"type": "string", "description": "Path within bucket", "default": "/"},
+                        "show_metadata": {"type": "boolean", "description": "Include file metadata", "default": False}
                     },
-                    "required": ["name"],
-                },
+                    "required": ["name"]
+                }
             ),
             Tool(
                 name="bucket_upload_file",
@@ -351,19 +303,12 @@ class RefactoredUnifiedMCPDashboard:
                     "properties": {
                         "bucket": {"type": "string", "description": "Name of the bucket"},
                         "path": {"type": "string", "description": "File path in bucket"},
-                        "content": {
-                            "type": "string",
-                            "description": "File content (for text files)",
-                        },
+                        "content": {"type": "string", "description": "File content (for text files)"},
                         "mode": {"type": "string", "enum": ["text", "binary"], "default": "text"},
-                        "apply_policy": {
-                            "type": "boolean",
-                            "description": "Apply bucket policy",
-                            "default": True,
-                        },
+                        "apply_policy": {"type": "boolean", "description": "Apply bucket policy", "default": True}
                     },
-                    "required": ["bucket", "path", "content"],
-                },
+                    "required": ["bucket", "path", "content"]
+                }
             ),
             Tool(
                 name="bucket_delete_file",
@@ -373,14 +318,10 @@ class RefactoredUnifiedMCPDashboard:
                     "properties": {
                         "bucket": {"type": "string", "description": "Name of the bucket"},
                         "path": {"type": "string", "description": "File path in bucket"},
-                        "remove_replicas": {
-                            "type": "boolean",
-                            "description": "Remove all replicas",
-                            "default": True,
-                        },
+                        "remove_replicas": {"type": "boolean", "description": "Remove all replicas", "default": True}
                     },
-                    "required": ["bucket", "path"],
-                },
+                    "required": ["bucket", "path"]
+                }
             ),
             Tool(
                 name="bucket_download_file",
@@ -390,10 +331,10 @@ class RefactoredUnifiedMCPDashboard:
                     "properties": {
                         "bucket": {"type": "string", "description": "Name of the bucket"},
                         "path": {"type": "string", "description": "File path in bucket"},
-                        "filename": {"type": "string", "description": "Optional filename override"},
+                        "filename": {"type": "string", "description": "Optional filename override"}
                     },
-                    "required": ["bucket", "path"],
-                },
+                    "required": ["bucket", "path"]
+                }
             ),
             Tool(
                 name="bucket_create_folder",
@@ -402,10 +343,10 @@ class RefactoredUnifiedMCPDashboard:
                     "type": "object",
                     "properties": {
                         "bucket": {"type": "string", "description": "Name of the bucket"},
-                        "path": {"type": "string", "description": "Folder path to create"},
+                        "path": {"type": "string", "description": "Folder path to create"}
                     },
-                    "required": ["bucket", "path"],
-                },
+                    "required": ["bucket", "path"]
+                }
             ),
             Tool(
                 name="bucket_sync_replicas",
@@ -414,14 +355,10 @@ class RefactoredUnifiedMCPDashboard:
                     "type": "object",
                     "properties": {
                         "bucket": {"type": "string", "description": "Name of the bucket"},
-                        "force_sync": {
-                            "type": "boolean",
-                            "description": "Force synchronization",
-                            "default": True,
-                        },
+                        "force_sync": {"type": "boolean", "description": "Force synchronization", "default": True}
                     },
-                    "required": ["bucket"],
-                },
+                    "required": ["bucket"]
+                }
             ),
             Tool(
                 name="generate_bucket_share_link",
@@ -430,19 +367,11 @@ class RefactoredUnifiedMCPDashboard:
                     "type": "object",
                     "properties": {
                         "bucket": {"type": "string", "description": "Name of the bucket"},
-                        "access_type": {
-                            "type": "string",
-                            "enum": ["read_only", "read_write", "admin"],
-                            "default": "read_only",
-                        },
-                        "expiration": {
-                            "type": "string",
-                            "description": "Expiration time (1h, 24h, 7d, 30d, never)",
-                            "default": "24h",
-                        },
+                        "access_type": {"type": "string", "enum": ["read_only", "read_write", "admin"], "default": "read_only"},
+                        "expiration": {"type": "string", "description": "Expiration time (1h, 24h, 7d, 30d, never)", "default": "24h"}
                     },
-                    "required": ["bucket"],
-                },
+                    "required": ["bucket"]
+                }
             ),
             Tool(
                 name="create_bucket",
@@ -451,34 +380,38 @@ class RefactoredUnifiedMCPDashboard:
                     "type": "object",
                     "properties": {
                         "name": {"type": "string", "description": "Name of the bucket"},
-                        "bucket_type": {
-                            "type": "string",
-                            "enum": ["general", "dataset", "knowledge", "media", "archive", "temp"],
-                            "default": "general",
-                        },
-                        "description": {
-                            "type": "string",
-                            "description": "Bucket description",
-                            "default": "",
-                        },
+                        "bucket_type": {"type": "string", "enum": ["general", "dataset", "knowledge", "media", "archive", "temp"], "default": "general"},
+                        "description": {"type": "string", "description": "Bucket description", "default": ""}
                     },
-                    "required": ["name"],
-                },
+                    "required": ["name"]
+                }
             ),
             Tool(
                 name="system_metrics",
                 description="Get detailed system performance metrics",
-                inputSchema={"type": "object", "properties": {}, "required": []},
+                inputSchema={
+                    "type": "object",
+                    "properties": {},
+                    "required": []
+                }
             ),
             Tool(
                 name="get_system_status",
                 description="Get current system status and metrics",
-                inputSchema={"type": "object", "properties": {}, "required": []},
+                inputSchema={
+                    "type": "object",
+                    "properties": {},
+                    "required": []
+                }
             ),
             Tool(
                 name="get_system_overview",
                 description="Get system overview information",
-                inputSchema={"type": "object", "properties": {}, "required": []},
+                inputSchema={
+                    "type": "object",
+                    "properties": {},
+                    "required": []
+                }
             ),
             Tool(
                 name="list_services",
@@ -486,13 +419,10 @@ class RefactoredUnifiedMCPDashboard:
                 inputSchema={
                     "type": "object",
                     "properties": {
-                        "include_metadata": {
-                            "type": "boolean",
-                            "description": "Include service metadata",
-                        }
+                        "include_metadata": {"type": "boolean", "description": "Include service metadata"}
                     },
-                    "required": [],
-                },
+                    "required": []
+                }
             ),
             Tool(
                 name="service_control",
@@ -500,21 +430,12 @@ class RefactoredUnifiedMCPDashboard:
                 inputSchema={
                     "type": "object",
                     "properties": {
-                        "service": {
-                            "type": "string",
-                            "description": "Service ID (e.g., 'ipfs', 's3', 'ftp')",
-                        },
-                        "action": {
-                            "type": "string",
-                            "description": "Action to perform (start, stop, restart, configure)",
-                        },
-                        "params": {
-                            "type": "object",
-                            "description": "Parameters for the action (e.g., configuration data)",
-                        },
+                        "service": {"type": "string", "description": "Service ID (e.g., 'ipfs', 's3', 'ftp')"},
+                        "action": {"type": "string", "description": "Action to perform (start, stop, restart, configure)"},
+                        "params": {"type": "object", "description": "Parameters for the action (e.g., configuration data)"}
                     },
-                    "required": ["service", "action"],
-                },
+                    "required": ["service", "action"]
+                }
             ),
             Tool(
                 name="service_status",
@@ -522,18 +443,19 @@ class RefactoredUnifiedMCPDashboard:
                 inputSchema={
                     "type": "object",
                     "properties": {
-                        "service": {
-                            "type": "string",
-                            "description": "Service ID (e.g., 'ipfs', 's3', 'ftp')",
-                        }
+                        "service": {"type": "string", "description": "Service ID (e.g., 'ipfs', 's3', 'ftp')"}
                     },
-                    "required": ["service"],
-                },
+                    "required": ["service"]
+                }
             ),
             Tool(
                 name="get_peers",
                 description="Get IPFS network peers information",
-                inputSchema={"type": "object", "properties": {}, "required": []},
+                inputSchema={
+                    "type": "object",
+                    "properties": {},
+                    "required": []
+                }
             ),
             Tool(
                 name="get_logs",
@@ -542,13 +464,10 @@ class RefactoredUnifiedMCPDashboard:
                     "type": "object",
                     "properties": {
                         "level": {"type": "string", "description": "Log level filter"},
-                        "limit": {
-                            "type": "integer",
-                            "description": "Maximum number of log entries",
-                        },
+                        "limit": {"type": "integer", "description": "Maximum number of log entries"}
                     },
-                    "required": [],
-                },
+                    "required": []
+                }
             ),
             Tool(
                 name="read_config_file",
@@ -556,13 +475,10 @@ class RefactoredUnifiedMCPDashboard:
                 inputSchema={
                     "type": "object",
                     "properties": {
-                        "filename": {
-                            "type": "string",
-                            "description": "Configuration filename (e.g., pins.json, buckets.json, backends.json)",
-                        }
+                        "filename": {"type": "string", "description": "Configuration filename (e.g., pins.json, buckets.json, backends.json)"}
                     },
-                    "required": ["filename"],
-                },
+                    "required": ["filename"]
+                }
             ),
             Tool(
                 name="write_config_file",
@@ -571,18 +487,19 @@ class RefactoredUnifiedMCPDashboard:
                     "type": "object",
                     "properties": {
                         "filename": {"type": "string", "description": "Configuration filename"},
-                        "content": {
-                            "type": "object",
-                            "description": "Configuration content (will be JSON-serialized)",
-                        },
+                        "content": {"type": "object", "description": "Configuration content (will be JSON-serialized)"}
                     },
-                    "required": ["filename", "content"],
-                },
+                    "required": ["filename", "content"]
+                }
             ),
             Tool(
                 name="list_config_files",
                 description="List all configuration files in ~/.ipfs_kit/ directory with metadata",
-                inputSchema={"type": "object", "properties": {}, "required": []},
+                inputSchema={
+                    "type": "object",
+                    "properties": {},
+                    "required": []
+                }
             ),
             Tool(
                 name="get_config_metadata",
@@ -592,40 +509,44 @@ class RefactoredUnifiedMCPDashboard:
                     "properties": {
                         "filename": {"type": "string", "description": "Configuration filename"}
                     },
-                    "required": ["filename"],
-                },
+                    "required": ["filename"]
+                }
             ),
             Tool(
                 name="health_check",
                 description="Perform comprehensive health check of all system components",
-                inputSchema={"type": "object", "properties": {}, "required": []},
-            ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {},
+                    "required": []
+                }
+            )
         ]
-
+        
         for tool in tools:
             self.mcp_server.register_tool(tool)
-
+    
     def _setup_routes(self):
         """Setup all API routes for both MCP and dashboard."""
-
+        
         # MCP Protocol Routes (for VS Code integration)
         @self.app.post("/mcp/initialize")
         async def mcp_initialize(request: Request):
             """MCP initialization endpoint."""
             return {"capabilities": {"tools": {}, "resources": {}}}
-
+        
         @self.app.post("/mcp/tools/list")
         async def mcp_list_tools():
             """List available MCP tools."""
             if not MCP_AVAILABLE:
                 return {"tools": []}
             return {"tools": [tool.model_dump() for tool in self.mcp_server.tools.values()]}
-
+        
         @self.app.post("/mcp/tools/call")
         async def mcp_call_tool(request: Request):
             """Execute MCP tool."""
             data = await request.json()
-
+            
             # Handle both direct calls and JSON-RPC format
             if "params" in data:
                 # JSON-RPC format
@@ -637,7 +558,7 @@ class RefactoredUnifiedMCPDashboard:
                 tool_name = data.get("name")
                 arguments = data.get("arguments", {})
                 request_id = None
-
+            
             try:
                 # Route to appropriate handler
                 if tool_name == "daemon_status":
@@ -685,9 +606,7 @@ class RefactoredUnifiedMCPDashboard:
                 elif tool_name == "read_config_file":
                     result = await self._read_config_file(arguments.get("filename"))
                 elif tool_name == "write_config_file":
-                    result = await self._write_config_file(
-                        arguments.get("filename"), arguments.get("content")
-                    )
+                    result = await self._write_config_file(arguments.get("filename"), arguments.get("content"))
                 elif tool_name == "list_config_files":
                     result = await self._list_config_files()
                 elif tool_name == "get_config_metadata":
@@ -697,14 +616,10 @@ class RefactoredUnifiedMCPDashboard:
                 else:
                     error_msg = f"Tool '{tool_name}' not found"
                     if request_id:
-                        return {
-                            "jsonrpc": "2.0",
-                            "error": {"code": -32601, "message": error_msg},
-                            "id": request_id,
-                        }
+                        return {"jsonrpc": "2.0", "error": {"code": -32601, "message": error_msg}, "id": request_id}
                     else:
                         raise HTTPException(status_code=404, detail=error_msg)
-
+                
                 # Return appropriate format
                 if request_id:
                     # JSON-RPC format
@@ -712,37 +627,35 @@ class RefactoredUnifiedMCPDashboard:
                 else:
                     # Direct format
                     return {"content": [{"type": "text", "text": json.dumps(result, indent=2)}]}
-
+                    
             except Exception as e:
                 # Return error in JSON-RPC format without logging to avoid scope issues
                 if request_id:
-                    return {
-                        "jsonrpc": "2.0",
-                        "error": {"code": -32603, "message": str(e)},
-                        "id": request_id,
-                    }
+                    return {"jsonrpc": "2.0", "error": {"code": -32603, "message": str(e)}, "id": request_id}
                 else:
                     raise HTTPException(status_code=500, detail=str(e))
-
+        
         # Dashboard Routes
         @self.app.get("/", response_class=HTMLResponse)
         async def dashboard_home(request: Request):
             """Serve the main dashboard."""
             if self.templates:
                 return self.templates.TemplateResponse(
-                    "dashboard.html", {"request": request, "port": self.port}
+                    "dashboard.html", 
+                    {"request": request, "port": self.port}
                 )
             else:
                 return HTMLResponse(
-                    content="<h1>Dashboard templates not found</h1>", status_code=500
+                    content="<h1>Dashboard templates not found</h1>",
+                    status_code=500
                 )
-
+        
         # API Routes (same as original implementation)
         @self.app.get("/api/system/overview")
         async def api_system_overview():
             """Get system overview data."""
             return await self._get_system_overview()
-
+        
         @self.app.get("/api/mcp/status")
         async def api_mcp_status():
             """Get MCP server status with service counts."""
@@ -755,14 +668,14 @@ class RefactoredUnifiedMCPDashboard:
                 else:
                     services = []
                     services_active = 0
-
+                
                 # Get other counts
                 backends_data = await self._get_backends_data()
                 backends_count = len(backends_data.get("items", []))
-
+                
                 buckets_data = await self._get_buckets_data()
                 buckets_count = len(buckets_data.get("items", []))
-
+                
                 # Return MCP status format expected by frontend
                 return {
                     "success": True,
@@ -775,53 +688,55 @@ class RefactoredUnifiedMCPDashboard:
                             "backends": backends_count,
                             "buckets": buckets_count,
                             "pins": 0,  # TODO: implement pin counting
-                            "requests": 0,  # TODO: implement request counting
+                            "requests": 0  # TODO: implement request counting
                         },
-                        "security": {"auth_enabled": False},
+                        "security": {
+                            "auth_enabled": False
+                        },
                         "endpoints": {
                             "tools_list": "/mcp/tools/list",
                             "tools_call": "/mcp/tools/call",
                             "sse_logs": "/api/logs/stream",
-                            "websocket": "/ws",
-                        },
-                    },
+                            "websocket": "/ws"
+                        }
+                    }
                 }
             except Exception as e:
                 logger.error(f"Error getting MCP status: {e}")
                 return {"success": False, "error": str(e)}
 
-        @self.app.get("/api/metrics/system")
+        @self.app.get("/api/metrics/system") 
         async def api_metrics_system():
             """Get system performance metrics."""
             try:
                 import psutil
-
+                
                 # Get CPU, memory, and disk metrics
                 cpu_percent = psutil.cpu_percent(interval=0.1)
                 memory = psutil.virtual_memory()
-                disk = psutil.disk_usage("/")
-
+                disk = psutil.disk_usage('/')
+                
                 return {
                     "cpu_percent": cpu_percent,
                     "memory": {
                         "total": memory.total,
                         "used": memory.used,
                         "available": memory.available,
-                        "percent": memory.percent,
+                        "percent": memory.percent
                     },
                     "disk": {
                         "total": disk.total,
                         "used": disk.used,
                         "free": disk.free,
-                        "percent": (disk.used / disk.total) * 100,
-                    },
+                        "percent": (disk.used / disk.total) * 100
+                    }
                 }
             except Exception as e:
                 logger.error(f"Error getting system metrics: {e}")
                 return {
                     "cpu_percent": 0,
                     "memory": {"total": 0, "used": 0, "available": 0, "percent": 0},
-                    "disk": {"total": 0, "used": 0, "free": 0, "percent": 0},
+                    "disk": {"total": 0, "used": 0, "free": 0, "percent": 0}
                 }
 
         @self.app.get("/api/metrics/network")
@@ -829,53 +744,48 @@ class RefactoredUnifiedMCPDashboard:
             """Get network activity metrics."""
             try:
                 import psutil
-
+                
                 # Get network I/O stats
                 net_io = psutil.net_io_counters()
                 current_time = time.time()
-
+                
                 # Simple network activity simulation
                 # In a real implementation, this would track historical data
                 points = []
                 for i in range(60):  # 60 points for the last minute
-                    points.append(
-                        {
-                            "timestamp": current_time - (60 - i),
-                            "tx_bps": net_io.bytes_sent / 60,  # Simplified calculation
-                            "rx_bps": net_io.bytes_recv / 60,  # Simplified calculation
-                        }
-                    )
-
+                    points.append({
+                        "timestamp": current_time - (60 - i),
+                        "tx_bps": net_io.bytes_sent / 60,  # Simplified calculation
+                        "rx_bps": net_io.bytes_recv / 60   # Simplified calculation
+                    })
+                
                 return {
                     "points": points,
                     "summary": {
                         "avg_tx_bps": net_io.bytes_sent / 60,
                         "avg_rx_bps": net_io.bytes_recv / 60,
-                        "total_points": len(points),
-                    },
+                        "total_points": len(points)
+                    }
                 }
             except Exception as e:
                 logger.error(f"Error getting network metrics: {e}")
-                return {
-                    "points": [],
-                    "summary": {"avg_tx_bps": 0, "avg_rx_bps": 0, "total_points": 0},
-                }
-
+                return {"points": [], "summary": {"avg_tx_bps": 0, "avg_rx_bps": 0, "total_points": 0}}
+        
         @self.app.get("/api/system/metrics")
         async def api_system_metrics():
             """Get detailed system metrics."""
             return await self._get_system_metrics()
-
+        
         @self.app.get("/api/backends")
         async def api_backends():
             """Get backends data."""
             return await self._get_backends_data()
-
+        
         @self.app.get("/api/buckets")
         async def api_buckets():
             """Get buckets data."""
             return await self._get_buckets_data()
-
+        
         @self.app.post("/api/buckets")
         async def api_create_bucket(request: Request):
             """Create a new bucket."""
@@ -884,19 +794,21 @@ class RefactoredUnifiedMCPDashboard:
                 bucket_name = data.get("name") or data.get("bucket_name")
                 bucket_type = data.get("bucket_type", "general")
                 description = data.get("description", "")
-
+                
                 if not bucket_name:
                     return JSONResponse(
-                        status_code=400, content={"error": "Bucket name is required"}
+                        status_code=400,
+                        content={"error": "Bucket name is required"}
                     )
-
+                
                 # Create bucket using the bucket manager
                 result = await self._create_bucket(bucket_name, bucket_type, description)
                 return JSONResponse(content=result)
             except Exception as e:
                 logger.error(f"Error in create_bucket API: {e}")
                 return JSONResponse(
-                    status_code=500, content={"error": f"Failed to create bucket: {str(e)}"}
+                    status_code=500,
+                    content={"error": f"Failed to create bucket: {str(e)}"}
                 )
 
         @self.app.delete("/api/buckets/{bucket_name}")
@@ -908,7 +820,8 @@ class RefactoredUnifiedMCPDashboard:
             except Exception as e:
                 logger.error(f"Error in delete_bucket API: {e}")
                 return JSONResponse(
-                    status_code=500, content={"error": f"Failed to delete bucket: {str(e)}"}
+                    status_code=500,
+                    content={"error": f"Failed to delete bucket: {str(e)}"}
                 )
 
         @self.app.get("/api/buckets/{bucket_name}")
@@ -920,7 +833,8 @@ class RefactoredUnifiedMCPDashboard:
             except Exception as e:
                 logger.error(f"Error in get_bucket_details API: {e}")
                 return JSONResponse(
-                    status_code=500, content={"error": f"Failed to get bucket details: {str(e)}"}
+                    status_code=500,
+                    content={"error": f"Failed to get bucket details: {str(e)}"}
                 )
 
         @self.app.post("/api/buckets/{bucket_name}/upload")
@@ -932,7 +846,8 @@ class RefactoredUnifiedMCPDashboard:
             except Exception as e:
                 logger.error(f"Error in upload_to_bucket API: {e}")
                 return JSONResponse(
-                    status_code=500, content={"error": f"Failed to upload file: {str(e)}"}
+                    status_code=500,
+                    content={"error": f"Failed to upload file: {str(e)}"}
                 )
 
         @self.app.get("/api/buckets/{bucket_name}/download/{file_path:path}")
@@ -945,90 +860,80 @@ class RefactoredUnifiedMCPDashboard:
             except Exception as e:
                 logger.error(f"Error in download_file API: {e}")
                 raise HTTPException(status_code=500, detail=f"Failed to download file: {str(e)}")
-
+        
         @self.app.get("/api/services")
         async def api_services():
             """Get services status."""
             return await self._get_services_data()
-
+        
         @self.app.get("/api/services/test")
         async def api_services_test():
             """Test services endpoint with simple data."""
             return {
                 "services": [
                     {"name": "IPFS Daemon", "status": "running"},
-                    {"name": "Test Service", "status": "stopped"},
+                    {"name": "Test Service", "status": "stopped"}
                 ]
             }
-
+        
         @self.app.post("/api/services/{service_id}/{action}")
         async def api_service_action(service_id: str, action: str, request: Request):
             """Perform an action on a service."""
             try:
                 if not self.service_manager:
                     raise HTTPException(status_code=500, detail="Service manager not available")
-
+                
                 # Get parameters from request body if provided
                 try:
                     body = await request.json()
                     params = body.get("params", {})
                 except:
                     params = {}
-
-                result = await self.service_manager.perform_service_action(
-                    service_id, action, params
-                )
-
+                
+                result = await self.service_manager.perform_service_action(service_id, action, params)
+                
                 if result.get("success", False):
                     return result
                 else:
-                    raise HTTPException(
-                        status_code=400, detail=result.get("error", "Action failed")
-                    )
-
+                    raise HTTPException(status_code=400, detail=result.get("error", "Action failed"))
+                    
             except HTTPException:
                 raise
             except Exception as e:
                 logger.error(f"Error in service action API: {e}")
                 raise HTTPException(status_code=500, detail=f"Failed to perform action: {str(e)}")
-
+        
         @self.app.post("/api/services/{service_id}/configure")
         async def api_service_configure(service_id: str, request: Request):
             """Configure a service with credentials."""
             try:
                 if not self.service_manager:
                     raise HTTPException(status_code=500, detail="Service manager not available")
-
+                
                 body = await request.json()
                 config_data = body.get("config", {})
-
+                
                 if not config_data:
                     raise HTTPException(status_code=400, detail="Configuration data required")
-
-                result = await self.service_manager.perform_service_action(
-                    service_id, "configure", config_data
-                )
-
+                
+                result = await self.service_manager.perform_service_action(service_id, "configure", config_data)
+                
                 if result.get("success", False):
                     return result
                 else:
-                    raise HTTPException(
-                        status_code=400, detail=result.get("error", "Configuration failed")
-                    )
-
+                    raise HTTPException(status_code=400, detail=result.get("error", "Configuration failed"))
+                    
             except HTTPException:
                 raise
             except Exception as e:
                 logger.error(f"Error in service configuration API: {e}")
-                raise HTTPException(
-                    status_code=500, detail=f"Failed to configure service: {str(e)}"
-                )
-
+                raise HTTPException(status_code=500, detail=f"Failed to configure service: {str(e)}")
+        
         @self.app.get("/api/config")
         async def api_config():
             """Get configuration data."""
             return await self._get_config_data()
-
+        
         @self.app.post("/api/config")
         async def api_update_config(request: Request):
             """Update configuration data."""
@@ -1038,12 +943,12 @@ class RefactoredUnifiedMCPDashboard:
                 return {"success": True, "result": result}
             except Exception as e:
                 return {"success": False, "error": str(e)}
-
+        
         @self.app.get("/api/config/backends")
         async def api_backend_configs():
             """Get all backend configurations."""
             return await self._get_backend_configs()
-
+        
         @self.app.post("/api/config/backends/{backend_name}")
         async def api_update_backend_config(backend_name: str, request: Request):
             """Update a specific backend configuration."""
@@ -1053,7 +958,7 @@ class RefactoredUnifiedMCPDashboard:
                 return {"success": True, "result": result}
             except Exception as e:
                 return {"success": False, "error": str(e)}
-
+        
         @self.app.get("/api/pins")
         async def api_pins():
             """Get all pins."""
@@ -1079,7 +984,7 @@ class RefactoredUnifiedMCPDashboard:
                 return await self._remove_pin(cid)
             except Exception as e:
                 return {"success": False, "error": str(e)}
-
+        
         # Comprehensive backend management endpoints
         @self.app.post("/api/backends/create")
         async def api_create_backend(request: Request):
@@ -1087,10 +992,10 @@ class RefactoredUnifiedMCPDashboard:
             try:
                 backend_data = await request.json()
                 result = await self._create_backend_config(backend_data)
-
+                
                 # Update the cache
                 await self._update_backends_cache()
-
+                
                 return {"success": True, "result": result}
             except Exception as e:
                 logger.error(f"Error creating backend: {e}")
@@ -1100,13 +1005,13 @@ class RefactoredUnifiedMCPDashboard:
         async def api_remove_backend(backend_name: str, request: Request):
             """Remove a backend configuration."""
             try:
-                data = await request.json() if hasattr(request, "body") else {}
-                force = data.get("force", False)
+                data = await request.json() if hasattr(request, 'body') else {}
+                force = data.get('force', False)
                 result = await self._remove_backend_config(backend_name, force)
-
+                
                 # Update the cache
                 await self._update_backends_cache()
-
+                
                 return {"success": True, "result": result}
             except Exception as e:
                 logger.error(f"Error removing backend {backend_name}: {e}")
@@ -1129,37 +1034,13 @@ class RefactoredUnifiedMCPDashboard:
                 return {
                     "success": True,
                     "types": [
-                        {
-                            "name": "s3",
-                            "display": "S3 Compatible",
-                            "description": "Amazon S3 or S3-compatible storage",
-                        },
-                        {
-                            "name": "huggingface",
-                            "display": "HuggingFace Hub",
-                            "description": "HuggingFace model and dataset hub",
-                        },
-                        {
-                            "name": "storacha",
-                            "display": "Storacha",
-                            "description": "Storacha decentralized storage",
-                        },
-                        {
-                            "name": "ipfs",
-                            "display": "IPFS",
-                            "description": "InterPlanetary File System",
-                        },
-                        {
-                            "name": "filecoin",
-                            "display": "Filecoin",
-                            "description": "Filecoin decentralized storage network",
-                        },
-                        {
-                            "name": "gdrive",
-                            "display": "Google Drive",
-                            "description": "Google Drive cloud storage",
-                        },
-                    ],
+                        {"name": "s3", "display": "S3 Compatible", "description": "Amazon S3 or S3-compatible storage"},
+                        {"name": "huggingface", "display": "HuggingFace Hub", "description": "HuggingFace model and dataset hub"},
+                        {"name": "storacha", "display": "Storacha", "description": "Storacha decentralized storage"},
+                        {"name": "ipfs", "display": "IPFS", "description": "InterPlanetary File System"},
+                        {"name": "filecoin", "display": "Filecoin", "description": "Filecoin decentralized storage network"},
+                        {"name": "gdrive", "display": "Google Drive", "description": "Google Drive cloud storage"}
+                    ]
                 }
             except Exception as e:
                 logger.error(f"Error getting backend types: {e}")
@@ -1175,10 +1056,8 @@ class RefactoredUnifiedMCPDashboard:
                     "success": True,
                     "peers": peers_data.get("peers", []),
                     "total_peers": len(peers_data.get("peers", [])),
-                    "connected_peers": len(
-                        [p for p in peers_data.get("peers", []) if p.get("connected")]
-                    ),
-                    "timestamp": datetime.now().isoformat(),
+                    "connected_peers": len([p for p in peers_data.get("peers", []) if p.get("connected")]),
+                    "timestamp": datetime.now().isoformat()
                 }
             except Exception as e:
                 logger.error(f"Error getting peers: {e}")
@@ -1187,7 +1066,7 @@ class RefactoredUnifiedMCPDashboard:
                     "error": str(e),
                     "peers": [],
                     "total_peers": 0,
-                    "connected_peers": 0,
+                    "connected_peers": 0
                 }
 
         @self.app.get("/api/logs")
@@ -1195,10 +1074,18 @@ class RefactoredUnifiedMCPDashboard:
             """Get system logs."""
             try:
                 logs_data = await self._get_system_logs()
-                return {"success": True, "logs": logs_data, "timestamp": datetime.now().isoformat()}
+                return {
+                    "success": True,
+                    "logs": logs_data,
+                    "timestamp": datetime.now().isoformat()
+                }
             except Exception as e:
                 logger.error(f"Error getting logs: {e}")
-                return {"success": False, "error": str(e), "logs": []}
+                return {
+                    "success": False,
+                    "error": str(e),
+                    "logs": []
+                }
 
         @self.app.get("/api/analytics/summary")
         async def api_analytics_summary():
@@ -1208,11 +1095,15 @@ class RefactoredUnifiedMCPDashboard:
                 return {
                     "success": True,
                     "analytics": analytics_data,
-                    "timestamp": datetime.now().isoformat(),
+                    "timestamp": datetime.now().isoformat()
                 }
             except Exception as e:
                 logger.error(f"Error getting analytics: {e}")
-                return {"success": False, "error": str(e), "analytics": {}}
+                return {
+                    "success": False,
+                    "error": str(e),
+                    "analytics": {}
+                }
 
         @self.app.get("/api/config/files")
         async def api_config_files():
@@ -1222,11 +1113,15 @@ class RefactoredUnifiedMCPDashboard:
                 return {
                     "success": True,
                     "files": config_files,
-                    "timestamp": datetime.now().isoformat(),
+                    "timestamp": datetime.now().isoformat()
                 }
             except Exception as e:
                 logger.error(f"Error getting config files: {e}")
-                return {"success": False, "error": str(e), "files": []}
+                return {
+                    "success": False,
+                    "error": str(e),
+                    "files": []
+                }
 
         # Health endpoint
         @self.app.get("/health")
@@ -1237,31 +1132,29 @@ class RefactoredUnifiedMCPDashboard:
                 "timestamp": datetime.now().isoformat(),
                 "version": "4.1.0",
                 "unified_mode": True,
-                "refactored": True,
+                "refactored": True
             }
-
+    
     # All the implementation methods remain the same as the original
     # (I'm including a few key ones for brevity, but the full implementation
     # would include all methods from the original file)
-
+    
     async def _get_system_overview(self):
         """Get system overview with caching."""
         now = time.time()
         if now - self.last_update > self.update_interval or not self.system_metrics_cache:
             await self._update_caches()
-
+        
         return {
             "mcp_server": {"status": "running", "port": self.port},
             "services": len(self.services_cache.get("services", [])),
             "backends": len(self.backends_cache.get("backends", [])),
-            "buckets": sum(
-                len(b.get("buckets", [])) for b in self.backends_cache.get("backends", [])
-            ),
+            "buckets": sum(len(b.get("buckets", [])) for b in self.backends_cache.get("backends", [])),
             "pins": len(self.pins_cache.get("pins", [])),
             "system": self.system_metrics_cache,
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now().isoformat()
         }
-
+    
     async def _get_daemon_status(self):
         """Get IPFS daemon status."""
         try:
@@ -1271,14 +1164,14 @@ class RefactoredUnifiedMCPDashboard:
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
             )
-
+            
             if result.returncode == 0:
                 daemon_info = json.loads(result.stdout.decode())
                 return {
                     "status": "running",
                     "peer_id": daemon_info.get("ID"),
                     "addresses": daemon_info.get("Addresses", []),
-                    "version": "unknown",
+                    "version": "unknown"
                 }
             else:
                 return {"status": "stopped", "error": result.stderr.decode()}
@@ -1294,7 +1187,7 @@ class RefactoredUnifiedMCPDashboard:
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
             )
-
+            
             if result.returncode == 0 and result.stdout.decode().strip():
                 return {"status": "running", "port": port}
             else:
@@ -1308,25 +1201,25 @@ class RefactoredUnifiedMCPDashboard:
             "cpu": {
                 "usage": psutil.cpu_percent(interval=0.1),
                 "cores": psutil.cpu_count(),
-                "load_avg": os.getloadavg() if hasattr(os, "getloadavg") else [0, 0, 0],
+                "load_avg": os.getloadavg() if hasattr(os, 'getloadavg') else [0, 0, 0]
             },
             "memory": {
                 "total": psutil.virtual_memory().total,
                 "used": psutil.virtual_memory().used,
-                "percent": psutil.virtual_memory().percent,
+                "percent": psutil.virtual_memory().percent
             },
             "disk": {
-                "total": psutil.disk_usage("/").total,
-                "used": psutil.disk_usage("/").used,
-                "percent": psutil.disk_usage("/").percent,
+                "total": psutil.disk_usage('/').total,
+                "used": psutil.disk_usage('/').used,
+                "percent": psutil.disk_usage('/').percent
             },
             "network": {
                 "sent": psutil.net_io_counters().bytes_sent,
-                "recv": psutil.net_io_counters().bytes_recv,
+                "recv": psutil.net_io_counters().bytes_recv
             },
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now().isoformat()
         }
-
+    
     async def _update_caches(self):
         """Update all data caches."""
         self.last_update = time.time()
@@ -1335,11 +1228,11 @@ class RefactoredUnifiedMCPDashboard:
             tg.start_soon(self._update_services_cache)
             tg.start_soon(self._update_pins_cache)
             tg.start_soon(self._update_system_metrics_cache)
-
+    
     async def _update_backends_cache(self):
         """Update backends cache."""
         backends_data = []
-
+        
         # Check for configured backends in ~/.ipfs_kit/
         backends_dir = self.data_dir / "backends"
         if backends_dir.exists():
@@ -1353,7 +1246,7 @@ class RefactoredUnifiedMCPDashboard:
                         backends_data.append(backend_config)
                 except Exception as e:
                     logger.warning(f"Could not load backend {backend_file}: {e}")
-
+        
         # If no backends configured, add mock data for demonstration
         if not backends_data:
             backends_data = [
@@ -1364,33 +1257,38 @@ class RefactoredUnifiedMCPDashboard:
                     "health": "healthy",
                     "config": {
                         "api_url": "http://127.0.0.1:5001",
-                        "gateway_url": "http://127.0.0.1:8080",
+                        "gateway_url": "http://127.0.0.1:8080"
                     },
                     "buckets": [],
-                    "last_check": datetime.now().isoformat(),
+                    "last_check": datetime.now().isoformat()
                 },
                 {
-                    "name": "Local Storage",
+                    "name": "Local Storage", 
                     "type": "local",
                     "status": "healthy",
                     "health": "healthy",
-                    "config": {"path": "/tmp/ipfs_kit_storage"},
+                    "config": {
+                        "path": "/tmp/ipfs_kit_storage"
+                    },
                     "buckets": [],
-                    "last_check": datetime.now().isoformat(),
+                    "last_check": datetime.now().isoformat()
                 },
                 {
                     "name": "S3 Storage",
-                    "type": "s3",
+                    "type": "s3", 
                     "status": "configured",
                     "health": "unknown",
-                    "config": {"bucket": "ipfs-kit-storage", "region": "us-east-1"},
+                    "config": {
+                        "bucket": "ipfs-kit-storage",
+                        "region": "us-east-1"
+                    },
                     "buckets": [],
-                    "last_check": datetime.now().isoformat(),
-                },
+                    "last_check": datetime.now().isoformat()
+                }
             ]
-
+        
         self.backends_cache = {"backends": backends_data}
-
+    
     async def _update_services_cache(self):
         """Update services cache using comprehensive service manager."""
         try:
@@ -1400,27 +1298,28 @@ class RefactoredUnifiedMCPDashboard:
                 self.services_cache = services_data
             else:
                 # Fallback to mock services for demonstration
-                services = [
-                    {
-                        "id": "ipfs",
-                        "name": "IPFS Daemon",
-                        "type": "daemon",
-                        "status": "stopped",
-                        "description": "Core IPFS daemon for distributed storage",
-                        "actions": ["start", "configure"],
-                    }
-                ]
-
-                self.services_cache = {"services": services, "summary": {"total": len(services)}}
+                services = [{
+                    "id": "ipfs",
+                    "name": "IPFS Daemon",
+                    "type": "daemon",
+                    "status": "stopped", 
+                    "description": "Core IPFS daemon for distributed storage",
+                    "actions": ["start", "configure"]
+                }]
+                
+                self.services_cache = {
+                    "services": services,
+                    "summary": {"total": len(services)}
+                }
         except Exception as e:
             logger.error(f"Error updating services cache: {e}")
             # Fallback to empty cache on error
             self.services_cache = {"services": [], "summary": {"total": 0}}
-
+    
     async def _update_pins_cache(self):
         """Update pins cache."""
         self.pins_cache = {"pins": []}
-
+    
     async def _update_system_metrics_cache(self):
         """Update system metrics cache."""
         self.system_metrics_cache = await self._get_system_metrics()
@@ -1436,63 +1335,68 @@ class RefactoredUnifiedMCPDashboard:
         """Get buckets data using metadata-first approach."""
         if arguments is None:
             arguments = {}
-
+            
         include_metadata = arguments.get("include_metadata", False)
         backend_filter = arguments.get("backend")
-
+        
         try:
             # Check for bucket data in ~/.ipfs_kit/ directory first
             buckets_file = self.data_dir / "buckets.json"
             buckets_data = []
-
+            
             if buckets_file.exists():
                 logger.info(f"Loading buckets from metadata file: {buckets_file}")
-                with open(buckets_file, "r") as f:
+                with open(buckets_file, 'r') as f:
                     metadata_buckets = json.load(f)
-
+                    
                 if isinstance(metadata_buckets, dict) and "buckets" in metadata_buckets:
                     buckets_data = metadata_buckets["buckets"]
                 elif isinstance(metadata_buckets, list):
                     buckets_data = metadata_buckets
-
+                    
                 logger.info(f"Loaded {len(buckets_data)} buckets from metadata")
-
+            
             # If no metadata buckets or using fallback, create default buckets
             if not buckets_data:
                 logger.info("No metadata buckets found, creating default buckets")
                 buckets_data = await self._create_default_buckets()
-
+                
                 # Save default buckets to metadata file
                 buckets_metadata = {
                     "buckets": buckets_data,
                     "total": len(buckets_data),
-                    "last_updated": datetime.now().isoformat(),
+                    "last_updated": datetime.now().isoformat()
                 }
                 os.makedirs(self.data_dir, exist_ok=True)
-                with open(buckets_file, "w") as f:
+                with open(buckets_file, 'w') as f:
                     json.dump(buckets_metadata, f, indent=2)
-
+                    
             # Filter by backend if specified
             if backend_filter:
-                buckets_data = [
-                    b
-                    for b in buckets_data
-                    if b.get("type") == backend_filter or b.get("backend") == backend_filter
-                ]
-
+                buckets_data = [b for b in buckets_data if b.get("type") == backend_filter or b.get("backend") == backend_filter]
+            
             # Add metadata if requested
             if include_metadata:
                 for bucket in buckets_data:
                     bucket["metadata"] = await self._get_bucket_metadata(bucket["name"])
-
-            result = {"items": buckets_data, "total": len(buckets_data), "source": "metadata-first"}
-
+            
+            result = {
+                "items": buckets_data,
+                "total": len(buckets_data),
+                "source": "metadata-first"
+            }
+            
             logger.info(f"Returning {len(buckets_data)} buckets")
             return result
-
+            
         except Exception as e:
             logger.error(f"Error getting buckets data: {e}")
-            return {"items": [], "total": 0, "error": str(e), "source": "error"}
+            return {
+                "items": [],
+                "total": 0,
+                "error": str(e),
+                "source": "error"
+            }
 
     async def _create_default_buckets(self):
         """Create default bucket configurations."""
@@ -1509,7 +1413,7 @@ class RefactoredUnifiedMCPDashboard:
                 "tier": "hot",
                 "config": {
                     "path": str(self.data_dir / "buckets" / "documents"),
-                    "compression": "none",
+                    "compression": "none"
                 },
                 "policy": {
                     "replication_factor": 1,
@@ -1519,8 +1423,8 @@ class RefactoredUnifiedMCPDashboard:
                     "max_files": 10000,
                     "retention_policy": "keep_forever",
                     "retention_days": 0,
-                    "auto_cleanup": False,
-                },
+                    "auto_cleanup": False
+                }
             },
             {
                 "name": "media",
@@ -1535,7 +1439,7 @@ class RefactoredUnifiedMCPDashboard:
                 "config": {
                     "endpoint": "https://s3.amazonaws.com",
                     "bucket": "ipfs-kit-media",
-                    "region": "us-east-1",
+                    "region": "us-east-1"
                 },
                 "policy": {
                     "replication_factor": 3,
@@ -1545,20 +1449,23 @@ class RefactoredUnifiedMCPDashboard:
                     "max_files": 50000,
                     "retention_policy": "time_based",
                     "retention_days": 365,
-                    "auto_cleanup": True,
-                },
+                    "auto_cleanup": True
+                }
             },
             {
                 "name": "archive",
                 "type": "ipfs_local",
                 "description": "IPFS local node storage for archives",
-                "backend": "ipfs_local",
+                "backend": "ipfs_local", 
                 "size_gb": 1.2,
                 "files": 89,
                 "created": datetime.now().isoformat(),
                 "status": "healthy",
                 "tier": "archive",
-                "config": {"ipfs_api": "http://127.0.0.1:5001", "pin_on_add": True},
+                "config": {
+                    "ipfs_api": "http://127.0.0.1:5001",
+                    "pin_on_add": True
+                },
                 "policy": {
                     "replication_factor": 2,
                     "cache_policy": "none",
@@ -1567,9 +1474,9 @@ class RefactoredUnifiedMCPDashboard:
                     "max_files": 100000,
                     "retention_policy": "keep_forever",
                     "retention_days": 0,
-                    "auto_cleanup": False,
-                },
-            },
+                    "auto_cleanup": False
+                }
+            }
         ]
         return default_buckets
 
@@ -1577,23 +1484,24 @@ class RefactoredUnifiedMCPDashboard:
         """Get detailed information about a specific bucket."""
         if not bucket_name:
             return {"ok": False, "error": "Bucket name is required"}
-
+            
         try:
             buckets_result = await self._get_buckets_data({"include_metadata": True})
             buckets = buckets_result.get("items", [])
-
+            
             bucket = next((b for b in buckets if b["name"] == bucket_name), None)
             if not bucket:
                 return {"ok": False, "error": f"Bucket '{bucket_name}' not found"}
-
+            
             # Add additional details
-            bucket_files = await self._bucket_list_files(
-                {"name": bucket_name, "show_metadata": True}
-            )
+            bucket_files = await self._bucket_list_files({"name": bucket_name, "show_metadata": True})
             bucket["file_details"] = bucket_files.get("result", {}).get("files", [])
-
-            return {"result": bucket, "ok": True}
-
+            
+            return {
+                "result": bucket,
+                "ok": True
+            }
+            
         except Exception as e:
             logger.error(f"Error getting bucket details for {bucket_name}: {e}")
             return {"ok": False, "error": str(e)}
@@ -1603,66 +1511,54 @@ class RefactoredUnifiedMCPDashboard:
         bucket_name = arguments.get("name")
         if not bucket_name:
             return {"ok": False, "error": "Bucket name is required"}
-
+            
         try:
             # Read current buckets
             buckets_file = self.data_dir / "buckets.json"
             buckets_data = []
-
+            
             if buckets_file.exists():
-                with open(buckets_file, "r") as f:
+                with open(buckets_file, 'r') as f:
                     metadata = json.load(f)
                     buckets_data = metadata.get("buckets", [])
-
+            
             # Find the bucket to update
             bucket = next((b for b in buckets_data if b["name"] == bucket_name), None)
             if not bucket:
                 return {"ok": False, "error": f"Bucket '{bucket_name}' not found"}
-
+            
             # Update policy
             if "policy" not in bucket:
                 bucket["policy"] = {}
-
+                
             policy_updates = {
-                "replication_factor": arguments.get(
-                    "replication_factor", bucket["policy"].get("replication_factor", 3)
-                ),
-                "cache_policy": arguments.get(
-                    "cache_policy", bucket["policy"].get("cache_policy", "memory")
-                ),
+                "replication_factor": arguments.get("replication_factor", bucket["policy"].get("replication_factor", 3)),
+                "cache_policy": arguments.get("cache_policy", bucket["policy"].get("cache_policy", "memory")),
                 "cache_size": arguments.get("cache_size", bucket["policy"].get("cache_size", 1024)),
-                "storage_quota": arguments.get(
-                    "storage_quota", bucket["policy"].get("storage_quota", 100)
-                ),
+                "storage_quota": arguments.get("storage_quota", bucket["policy"].get("storage_quota", 100)),
                 "max_files": arguments.get("max_files", bucket["policy"].get("max_files", 10000)),
-                "retention_policy": arguments.get(
-                    "retention_policy", bucket["policy"].get("retention_policy", "keep_forever")
-                ),
-                "retention_days": arguments.get(
-                    "retention_days", bucket["policy"].get("retention_days", 0)
-                ),
-                "auto_cleanup": arguments.get(
-                    "auto_cleanup", bucket["policy"].get("auto_cleanup", False)
-                ),
+                "retention_policy": arguments.get("retention_policy", bucket["policy"].get("retention_policy", "keep_forever")),
+                "retention_days": arguments.get("retention_days", bucket["policy"].get("retention_days", 0)),
+                "auto_cleanup": arguments.get("auto_cleanup", bucket["policy"].get("auto_cleanup", False))
             }
-
+            
             bucket["policy"].update(policy_updates)
             bucket["last_updated"] = datetime.now().isoformat()
-
+            
             # Save updated buckets
             metadata = {
                 "buckets": buckets_data,
                 "total": len(buckets_data),
-                "last_updated": datetime.now().isoformat(),
+                "last_updated": datetime.now().isoformat()
             }
-
+            
             os.makedirs(self.data_dir, exist_ok=True)
-            with open(buckets_file, "w") as f:
+            with open(buckets_file, 'w') as f:
                 json.dump(metadata, f, indent=2)
-
+            
             logger.info(f"Updated policy for bucket {bucket_name}")
             return {"ok": True, "message": "Policy updated successfully"}
-
+            
         except Exception as e:
             logger.error(f"Error updating bucket policy for {bucket_name}: {e}")
             return {"ok": False, "error": str(e)}
@@ -1671,17 +1567,23 @@ class RefactoredUnifiedMCPDashboard:
         """Get current bucket policy settings."""
         if not bucket_name:
             return {"ok": False, "error": "Bucket name is required"}
-
+            
         try:
             bucket_details = await self._get_bucket_details(bucket_name)
             if not bucket_details.get("ok"):
                 return bucket_details
-
+                
             bucket = bucket_details["result"]
             policy = bucket.get("policy", {})
-
-            return {"result": {"bucket": bucket_name, "policy": policy}, "ok": True}
-
+            
+            return {
+                "result": {
+                    "bucket": bucket_name,
+                    "policy": policy
+                },
+                "ok": True
+            }
+            
         except Exception as e:
             logger.error(f"Error getting bucket policy for {bucket_name}: {e}")
             return {"ok": False, "error": str(e)}
@@ -1691,18 +1593,18 @@ class RefactoredUnifiedMCPDashboard:
         bucket_name = arguments.get("name")
         path = arguments.get("path", "/")
         show_metadata = arguments.get("show_metadata", False)
-
+        
         if not bucket_name:
             return {"ok": False, "error": "Bucket name is required"}
-
+            
         try:
             # Get bucket details first
             bucket_details = await self._get_bucket_details(bucket_name)
             if not bucket_details.get("ok"):
                 return bucket_details
-
+                
             bucket = bucket_details["result"]
-
+            
             # Create mock file listing for demonstration
             mock_files = [
                 {
@@ -1712,7 +1614,7 @@ class RefactoredUnifiedMCPDashboard:
                     "size": 1024,
                     "modified": datetime.now().isoformat(),
                     "hash": "QmExample1..." if show_metadata else None,
-                    "replicas": 3 if show_metadata else None,
+                    "replicas": 3 if show_metadata else None
                 },
                 {
                     "name": "subfolder",
@@ -1720,7 +1622,7 @@ class RefactoredUnifiedMCPDashboard:
                     "type": "directory",
                     "size": 0,
                     "modified": datetime.now().isoformat(),
-                    "files": 5 if show_metadata else None,
+                    "files": 5 if show_metadata else None
                 },
                 {
                     "name": "image.jpg",
@@ -1729,20 +1631,20 @@ class RefactoredUnifiedMCPDashboard:
                     "size": 2048576,
                     "modified": datetime.now().isoformat(),
                     "hash": "QmExample2..." if show_metadata else None,
-                    "replicas": 3 if show_metadata else None,
-                },
+                    "replicas": 3 if show_metadata else None
+                }
             ]
-
+            
             return {
                 "result": {
                     "bucket": bucket_name,
                     "path": path,
                     "files": mock_files,
-                    "total": len(mock_files),
+                    "total": len(mock_files)
                 },
-                "ok": True,
+                "ok": True
             }
-
+            
         except Exception as e:
             logger.error(f"Error listing files for bucket {bucket_name}: {e}")
             return {"ok": False, "error": str(e)}
@@ -1754,45 +1656,44 @@ class RefactoredUnifiedMCPDashboard:
         content = arguments.get("content")
         mode = arguments.get("mode", "text")
         apply_policy = arguments.get("apply_policy", True)
-
+        
         if not all([bucket_name, file_path, content]):
             return {"ok": False, "error": "Bucket name, path, and content are required"}
-
+            
         try:
             # Get bucket details
             bucket_details = await self._get_bucket_details(bucket_name)
             if not bucket_details.get("ok"):
                 return bucket_details
-
+                
             # Create bucket directory structure
             bucket_dir = self.data_dir / "buckets" / bucket_name
             os.makedirs(bucket_dir, exist_ok=True)
-
+            
             # Create file path
             full_path = bucket_dir / file_path.lstrip("/")
             os.makedirs(full_path.parent, exist_ok=True)
-
+            
             # Write file content
             if mode == "text":
-                with open(full_path, "w", encoding="utf-8") as f:
+                with open(full_path, 'w', encoding='utf-8') as f:
                     f.write(content)
             else:
                 # For binary mode, content should be base64 encoded
                 import base64
-
                 binary_content = base64.b64decode(content)
-                with open(full_path, "wb") as f:
+                with open(full_path, 'wb') as f:
                     f.write(binary_content)
-
+            
             logger.info(f"Uploaded file {file_path} to bucket {bucket_name}")
-
+            
             return {
                 "ok": True,
                 "message": f"File uploaded successfully to {bucket_name}/{file_path}",
                 "path": file_path,
-                "size": len(content),
+                "size": len(content)
             }
-
+            
         except Exception as e:
             logger.error(f"Error uploading file to bucket {bucket_name}: {e}")
             return {"ok": False, "error": str(e)}
@@ -1802,32 +1703,32 @@ class RefactoredUnifiedMCPDashboard:
         bucket_name = arguments.get("bucket")
         file_path = arguments.get("path")
         remove_replicas = arguments.get("remove_replicas", True)
-
+        
         if not all([bucket_name, file_path]):
             return {"ok": False, "error": "Bucket name and path are required"}
-
+            
         try:
             # Get bucket details
             bucket_details = await self._get_bucket_details(bucket_name)
             if not bucket_details.get("ok"):
                 return bucket_details
-
+                
             # Create file path
             bucket_dir = self.data_dir / "buckets" / bucket_name
             full_path = bucket_dir / file_path.lstrip("/")
-
+            
             if not full_path.exists():
                 return {"ok": False, "error": f"File {file_path} not found in bucket {bucket_name}"}
-
+            
             # Delete the file
             full_path.unlink()
             logger.info(f"Deleted file {file_path} from bucket {bucket_name}")
-
+            
             return {
                 "ok": True,
-                "message": f"File deleted successfully from {bucket_name}/{file_path}",
+                "message": f"File deleted successfully from {bucket_name}/{file_path}"
             }
-
+            
         except Exception as e:
             logger.error(f"Error deleting file from bucket {bucket_name}: {e}")
             return {"ok": False, "error": str(e)}
@@ -1837,41 +1738,41 @@ class RefactoredUnifiedMCPDashboard:
         bucket_name = arguments.get("bucket")
         file_path = arguments.get("path")
         filename = arguments.get("filename")
-
+        
         if not all([bucket_name, file_path]):
             return {"ok": False, "error": "Bucket name and path are required"}
-
+            
         try:
             # Get bucket details
             bucket_details = await self._get_bucket_details(bucket_name)
             if not bucket_details.get("ok"):
                 return bucket_details
-
+                
             # Create file path
             bucket_dir = self.data_dir / "buckets" / bucket_name
             full_path = bucket_dir / file_path.lstrip("/")
-
+            
             if not full_path.exists():
                 return {"ok": False, "error": f"File {file_path} not found in bucket {bucket_name}"}
-
+            
             if not full_path.is_file():
                 return {"ok": False, "error": f"{file_path} is not a file"}
-
+            
             # Generate download URL (would be served by the web server)
             download_url = f"/api/buckets/{bucket_name}/download/{file_path}"
-
+            
             logger.info(f"Generated download URL for {file_path} from bucket {bucket_name}")
-
+            
             return {
                 "ok": True,
                 "result": {
                     "download_url": download_url,
                     "filename": filename or full_path.name,
                     "size": full_path.stat().st_size,
-                    "path": file_path,
-                },
+                    "path": file_path
+                }
             }
-
+            
         except Exception as e:
             logger.error(f"Error generating download for bucket {bucket_name}: {e}")
             return {"ok": False, "error": str(e)}
@@ -1880,35 +1781,35 @@ class RefactoredUnifiedMCPDashboard:
         """Create a folder in a bucket."""
         bucket_name = arguments.get("bucket")
         folder_path = arguments.get("path")
-
+        
         if not all([bucket_name, folder_path]):
             return {"ok": False, "error": "Bucket name and path are required"}
-
+            
         try:
             # Get bucket details
             bucket_details = await self._get_bucket_details(bucket_name)
             if not bucket_details.get("ok"):
                 return bucket_details
-
+                
             # Create folder path
             bucket_dir = self.data_dir / "buckets" / bucket_name
             full_path = bucket_dir / folder_path.lstrip("/")
-
+            
             # Create the folder
             full_path.mkdir(parents=True, exist_ok=True)
-
+            
             # Create a .gitkeep file to ensure the folder is tracked
             gitkeep_file = full_path / ".gitkeep"
             gitkeep_file.write_text("")
-
+            
             logger.info(f"Created folder {folder_path} in bucket {bucket_name}")
-
+            
             return {
                 "ok": True,
                 "message": f"Folder created successfully at {bucket_name}/{folder_path}",
-                "path": folder_path,
+                "path": folder_path
             }
-
+            
         except Exception as e:
             logger.error(f"Error creating folder in bucket {bucket_name}: {e}")
             return {"ok": False, "error": str(e)}
@@ -1917,36 +1818,34 @@ class RefactoredUnifiedMCPDashboard:
         """Force sync bucket replicas across backends."""
         bucket_name = arguments.get("bucket")
         force_sync = arguments.get("force_sync", True)
-
+        
         if not bucket_name:
             return {"ok": False, "error": "Bucket name is required"}
-
+            
         try:
             # Get bucket details
             bucket_details = await self._get_bucket_details(bucket_name)
             if not bucket_details.get("ok"):
                 return bucket_details
-
+                
             bucket = bucket_details["result"]
             policy = bucket.get("policy", {})
             replication_factor = policy.get("replication_factor", 3)
-
+            
             # Simulate sync operation
-            logger.info(
-                f"Syncing replicas for bucket {bucket_name} with replication factor {replication_factor}"
-            )
-
+            logger.info(f"Syncing replicas for bucket {bucket_name} with replication factor {replication_factor}")
+            
             # Update last sync time
             bucket["last_sync"] = datetime.now().isoformat()
-
+            
             return {
                 "ok": True,
                 "message": f"Bucket replicas synced successfully",
                 "bucket": bucket_name,
                 "replicas_synced": replication_factor,
-                "sync_time": bucket["last_sync"],
+                "sync_time": bucket["last_sync"]
             }
-
+            
         except Exception as e:
             logger.error(f"Error syncing bucket replicas for {bucket_name}: {e}")
             return {"ok": False, "error": str(e)}
@@ -1956,44 +1855,42 @@ class RefactoredUnifiedMCPDashboard:
         bucket_name = arguments.get("bucket")
         access_type = arguments.get("access_type", "read_only")
         expiration = arguments.get("expiration", "24h")
-
+        
         if not bucket_name:
             return {"ok": False, "error": "Bucket name is required"}
-
+            
         try:
             # Get bucket details
             bucket_details = await self._get_bucket_details(bucket_name)
             if not bucket_details.get("ok"):
                 return bucket_details
-
+                
             # Generate a unique token
             import hashlib
             import time
-
             token_data = f"{bucket_name}:{access_type}:{expiration}:{time.time()}"
             token = hashlib.sha256(token_data.encode()).hexdigest()[:16]
-
+            
             # Create share link
             base_url = f"http://{self.host}:{self.port}"
             share_link = f"{base_url}/shared/{bucket_name}?token={token}&access={access_type}&exp={expiration}"
-
+            
             # Calculate expiration time
             if expiration != "never":
                 from datetime import timedelta
-
                 exp_mapping = {
                     "1h": timedelta(hours=1),
                     "24h": timedelta(hours=24),
                     "7d": timedelta(days=7),
-                    "30d": timedelta(days=30),
+                    "30d": timedelta(days=30)
                 }
                 exp_time = datetime.now() + exp_mapping.get(expiration, timedelta(hours=24))
                 exp_iso = exp_time.isoformat()
             else:
                 exp_iso = None
-
+            
             logger.info(f"Generated share link for bucket {bucket_name}")
-
+            
             return {
                 "result": {
                     "bucket": bucket_name,
@@ -2001,11 +1898,11 @@ class RefactoredUnifiedMCPDashboard:
                     "access_type": access_type,
                     "expiration": expiration,
                     "expires_at": exp_iso,
-                    "token": token,
+                    "token": token
                 },
-                "ok": True,
+                "ok": True
             }
-
+            
         except Exception as e:
             logger.error(f"Error generating share link for bucket {bucket_name}: {e}")
             return {"ok": False, "error": str(e)}
@@ -2015,18 +1912,18 @@ class RefactoredUnifiedMCPDashboard:
         bucket_name = arguments.get("name")
         bucket_type = arguments.get("bucket_type", "general")
         description = arguments.get("description", "")
-
+        
         if not bucket_name:
             return {"ok": False, "error": "Bucket name is required"}
-
+            
         try:
             # Check if bucket already exists
             buckets_result = await self._get_buckets_data()
             existing_buckets = buckets_result.get("items", [])
-
+            
             if any(b["name"] == bucket_name for b in existing_buckets):
                 return {"ok": False, "error": f"Bucket '{bucket_name}' already exists"}
-
+            
             # Create new bucket configuration
             new_bucket = {
                 "name": bucket_name,
@@ -2040,7 +1937,7 @@ class RefactoredUnifiedMCPDashboard:
                 "tier": "hot",
                 "config": {
                     "path": str(self.data_dir / "buckets" / bucket_name),
-                    "compression": "none",
+                    "compression": "none"
                 },
                 "policy": {
                     "replication_factor": 1,
@@ -2050,37 +1947,37 @@ class RefactoredUnifiedMCPDashboard:
                     "max_files": 10000,
                     "retention_policy": "keep_forever",
                     "retention_days": 0,
-                    "auto_cleanup": False,
-                },
+                    "auto_cleanup": False
+                }
             }
-
+            
             # Add to existing buckets
             existing_buckets.append(new_bucket)
-
+            
             # Save updated buckets
             buckets_metadata = {
                 "buckets": existing_buckets,
                 "total": len(existing_buckets),
-                "last_updated": datetime.now().isoformat(),
+                "last_updated": datetime.now().isoformat()
             }
-
+            
             buckets_file = self.data_dir / "buckets.json"
             os.makedirs(self.data_dir, exist_ok=True)
-            with open(buckets_file, "w") as f:
+            with open(buckets_file, 'w') as f:
                 json.dump(buckets_metadata, f, indent=2)
-
+            
             # Create bucket directory
             bucket_dir = self.data_dir / "buckets" / bucket_name
             os.makedirs(bucket_dir, exist_ok=True)
-
+            
             logger.info(f"Created new bucket: {bucket_name}")
-
+            
             return {
                 "ok": True,
                 "message": f"Bucket '{bucket_name}' created successfully",
-                "bucket": new_bucket,
+                "bucket": new_bucket
             }
-
+            
         except Exception as e:
             logger.error(f"Error creating bucket {bucket_name}: {e}")
             return {"ok": False, "error": str(e)}
@@ -2091,21 +1988,21 @@ class RefactoredUnifiedMCPDashboard:
             bucket_dir = self.data_dir / "buckets" / bucket_name
             if not bucket_dir.exists():
                 return {"files": 0, "size": 0}
-
+                
             total_files = 0
             total_size = 0
-
+            
             for file_path in bucket_dir.rglob("*"):
                 if file_path.is_file():
                     total_files += 1
                     total_size += file_path.stat().st_size
-
+                    
             return {
                 "files": total_files,
                 "size": total_size,
-                "size_gb": round(total_size / (1024**3), 2),
+                "size_gb": round(total_size / (1024**3), 2)
             }
-
+            
         except Exception as e:
             logger.warning(f"Could not get metadata for bucket {bucket_name}: {e}")
             return {"files": 0, "size": 0}
@@ -2122,49 +2019,65 @@ class RefactoredUnifiedMCPDashboard:
             service_id = arguments.get("service")
             action = arguments.get("action")
             params = arguments.get("params", {})
-
+            
             if not service_id or not action:
-                return {"success": False, "error": "Service and action are required"}
-
+                return {
+                    "success": False,
+                    "error": "Service and action are required"
+                }
+            
             if not self.service_manager:
-                return {"success": False, "error": "Service manager not available"}
-
+                return {
+                    "success": False,
+                    "error": "Service manager not available"
+                }
+            
             # Perform the action using service manager
             result = await self.service_manager.perform_service_action(service_id, action, params)
             return result
-
+            
         except Exception as e:
             # Return error without logging to avoid logger scope issues
-            return {"success": False, "error": str(e)}
-
+            return {
+                "success": False,
+                "error": str(e)
+            }
+    
     async def _handle_service_status(self, arguments: Dict[str, Any]):
         """Handle service status request via MCP tool."""
         try:
             service_id = arguments.get("service")
-
+            
             if not service_id:
-                return {"success": False, "error": "Service ID is required"}
-
+                return {
+                    "success": False,
+                    "error": "Service ID is required"
+                }
+            
             if not self.service_manager:
-                return {"success": False, "error": "Service manager not available"}
-
+                return {
+                    "success": False,
+                    "error": "Service manager not available"
+                }
+            
             # Get detailed service status
             service_details = await self.service_manager.get_service_details(service_id)
-
+            
             if not service_details or (service_details.get("success") == False):
                 return {
                     "success": False,
-                    "error": service_details.get(
-                        "error", f"Service {service_id} not found or unavailable"
-                    ),
+                    "error": service_details.get("error", f"Service {service_id} not found or unavailable")
                 }
-
+            
             # Return the service details (now includes saved configuration)
             return service_details
-
+            
         except Exception as e:
             # Return error without logging to avoid logger scope issues
-            return {"success": False, "error": str(e)}
+            return {
+                "success": False,
+                "error": str(e)
+            }
 
     async def _get_pins_data(self):
         """Get pins data."""
@@ -2174,8 +2087,13 @@ class RefactoredUnifiedMCPDashboard:
 
     async def _get_config_data(self):
         """Get configuration data including main config and backends."""
-        config_data = {"config": {"main": {}, "backends": {}}}
-
+        config_data = {
+            "config": {
+                "main": {},
+                "backends": {}
+            }
+        }
+        
         try:
             # Load backends.json if it exists
             backends_result = await self._read_config_file("backends.json")
@@ -2196,32 +2114,32 @@ class RefactoredUnifiedMCPDashboard:
                     else:
                         # Treat the whole content as backends dict
                         config_data["config"]["backends"] = backends_content
-
+            
             # Load main config if it exists
             main_result = await self._read_config_file("config.json")
             if main_result.get("success") and main_result.get("content"):
                 config_data["config"]["main"] = main_result["content"]
-
+                
         except Exception as e:
             logger.error(f"Error loading config data: {e}")
-
+        
         return config_data
 
     async def _read_config_file(self, filename: str):
         """Read configuration file from ~/.ipfs_kit/ directory first, then fallback to ipfs_kit_py backends."""
         if not filename:
             return {"success": False, "error": "Filename is required"}
-
+        
         try:
             # Check metadata directory first (~/.ipfs_kit/)
             metadata_dir = self.data_dir
             metadata_file = metadata_dir / filename
-
+            
             if metadata_file.exists():
                 logger.info(f"Reading config file from metadata directory: {metadata_file}")
-                with open(metadata_file, "r", encoding="utf-8") as f:
+                with open(metadata_file, 'r', encoding='utf-8') as f:
                     content = f.read()
-
+                
                 # Try to parse as JSON for validation
                 try:
                     json_content = json.loads(content)
@@ -2232,9 +2150,7 @@ class RefactoredUnifiedMCPDashboard:
                         "source": "metadata",
                         "path": str(metadata_file),
                         "size": len(content),
-                        "last_modified": datetime.fromtimestamp(
-                            metadata_file.stat().st_mtime
-                        ).isoformat(),
+                        "last_modified": datetime.fromtimestamp(metadata_file.stat().st_mtime).isoformat()
                     }
                 except json.JSONDecodeError:
                     # Return as raw text if not valid JSON
@@ -2246,24 +2162,20 @@ class RefactoredUnifiedMCPDashboard:
                         "path": str(metadata_file),
                         "size": len(content),
                         "type": "text",
-                        "last_modified": datetime.fromtimestamp(
-                            metadata_file.stat().st_mtime
-                        ).isoformat(),
+                        "last_modified": datetime.fromtimestamp(metadata_file.stat().st_mtime).isoformat()
                     }
-
+            
             # Fallback to ipfs_kit_py backends - create default content
-            logger.info(
-                f"Config file not found in metadata directory, creating default: {filename}"
-            )
+            logger.info(f"Config file not found in metadata directory, creating default: {filename}")
             default_content = self._get_default_config_content(filename)
-
+            
             # Ensure metadata directory exists
             metadata_dir.mkdir(parents=True, exist_ok=True)
-
+            
             # Write default content to metadata directory
-            with open(metadata_file, "w", encoding="utf-8") as f:
+            with open(metadata_file, 'w', encoding='utf-8') as f:
                 json.dump(default_content, f, indent=2)
-
+            
             return {
                 "success": True,
                 "filename": filename,
@@ -2271,9 +2183,9 @@ class RefactoredUnifiedMCPDashboard:
                 "source": "default",
                 "path": str(metadata_file),
                 "created": True,
-                "last_modified": datetime.now().isoformat(),
+                "last_modified": datetime.now().isoformat()
             }
-
+            
         except Exception as e:
             logger.error(f"Error reading config file {filename}: {e}")
             return {"success": False, "error": str(e)}
@@ -2282,38 +2194,38 @@ class RefactoredUnifiedMCPDashboard:
         """Write configuration file to ~/.ipfs_kit/ directory with metadata-first approach."""
         if not filename:
             return {"success": False, "error": "Filename is required"}
-
+        
         if content is None:
             return {"success": False, "error": "Content is required"}
-
+        
         try:
             # Always write to metadata directory (~/.ipfs_kit/)
             metadata_dir = self.data_dir
             metadata_dir.mkdir(parents=True, exist_ok=True)
             metadata_file = metadata_dir / filename
-
+            
             logger.info(f"Writing config file to metadata directory: {metadata_file}")
-
+            
             # Write content based on type
             if isinstance(content, (dict, list)):
-                with open(metadata_file, "w", encoding="utf-8") as f:
+                with open(metadata_file, 'w', encoding='utf-8') as f:
                     json.dump(content, f, indent=2)
             else:
-                with open(metadata_file, "w", encoding="utf-8") as f:
+                with open(metadata_file, 'w', encoding='utf-8') as f:
                     f.write(str(content))
-
+            
             # Update replication state if applicable
             await self._update_config_replication_state(filename, metadata_file)
-
+            
             return {
                 "success": True,
                 "filename": filename,
                 "path": str(metadata_file),
                 "size": metadata_file.stat().st_size,
                 "last_modified": datetime.fromtimestamp(metadata_file.stat().st_mtime).isoformat(),
-                "replicated": True,
+                "replicated": True
             }
-
+            
         except Exception as e:
             logger.error(f"Error writing config file {filename}: {e}")
             return {"success": False, "error": str(e)}
@@ -2323,33 +2235,29 @@ class RefactoredUnifiedMCPDashboard:
         try:
             metadata_dir = self.data_dir
             metadata_dir.mkdir(parents=True, exist_ok=True)
-
+            
             config_files = []
             for file_path in metadata_dir.glob("*.json"):
                 try:
                     stat = file_path.stat()
-                    config_files.append(
-                        {
-                            "filename": file_path.name,
-                            "path": str(file_path),
-                            "size": stat.st_size,
-                            "last_modified": datetime.fromtimestamp(stat.st_mtime).isoformat(),
-                            "readable": file_path.exists(),
-                            "writable": os.access(file_path, os.W_OK)
-                            if file_path.exists()
-                            else True,
-                        }
-                    )
+                    config_files.append({
+                        "filename": file_path.name,
+                        "path": str(file_path),
+                        "size": stat.st_size,
+                        "last_modified": datetime.fromtimestamp(stat.st_mtime).isoformat(),
+                        "readable": file_path.exists(),
+                        "writable": os.access(file_path, os.W_OK) if file_path.exists() else True
+                    })
                 except Exception as e:
                     logger.error(f"Error reading config file {file_path}: {e}")
-
+            
             return {
                 "success": True,
                 "files": config_files,
                 "directory": str(metadata_dir),
-                "total": len(config_files),
+                "total": len(config_files)
             }
-
+            
         except Exception as e:
             logger.error(f"Error listing config files: {e}")
             return {"success": False, "error": str(e)}
@@ -2358,20 +2266,20 @@ class RefactoredUnifiedMCPDashboard:
         """Get metadata for a specific configuration file."""
         if not filename:
             return {"success": False, "error": "Filename is required"}
-
+        
         try:
             metadata_dir = self.data_dir
             metadata_file = metadata_dir / filename
-
+            
             if not metadata_file.exists():
                 return {"success": False, "error": f"Config file not found: {filename}"}
-
+            
             stat = metadata_file.stat()
-
+            
             # Try to get content preview
             content_preview = None
             try:
-                with open(metadata_file, "r", encoding="utf-8") as f:
+                with open(metadata_file, 'r', encoding='utf-8') as f:
                     content = f.read()
                     if len(content) > 200:
                         content_preview = content[:200] + "..."
@@ -2379,7 +2287,7 @@ class RefactoredUnifiedMCPDashboard:
                         content_preview = content
             except Exception:
                 content_preview = "Unable to read content"
-
+            
             return {
                 "success": True,
                 "filename": filename,
@@ -2390,9 +2298,9 @@ class RefactoredUnifiedMCPDashboard:
                 "created": datetime.fromtimestamp(stat.st_ctime).isoformat(),
                 "content_preview": content_preview,
                 "readable": os.access(metadata_file, os.R_OK),
-                "writable": os.access(metadata_file, os.W_OK),
+                "writable": os.access(metadata_file, os.W_OK)
             }
-
+            
         except Exception as e:
             logger.error(f"Error getting config metadata for {filename}: {e}")
             return {"success": False, "error": str(e)}
@@ -2405,7 +2313,7 @@ class RefactoredUnifiedMCPDashboard:
                 "total_count": 0,
                 "last_updated": datetime.now().isoformat(),
                 "replication_factor": 1,
-                "cache_policy": "memory",
+                "cache_policy": "memory"
             }
         elif filename == "buckets.json":
             return {
@@ -2413,7 +2321,7 @@ class RefactoredUnifiedMCPDashboard:
                 "total_count": 0,
                 "last_updated": datetime.now().isoformat(),
                 "default_replication_factor": 1,
-                "default_cache_policy": "disk",
+                "default_cache_policy": "disk"
             }
         elif filename == "backends.json":
             return {
@@ -2421,13 +2329,13 @@ class RefactoredUnifiedMCPDashboard:
                 "total_count": 0,
                 "last_updated": datetime.now().isoformat(),
                 "default_backend": "ipfs",
-                "health_check_interval": 30,
+                "health_check_interval": 30
             }
         else:
             return {
                 "data": {},
                 "last_updated": datetime.now().isoformat(),
-                "created_by": "mcp_server",
+                "created_by": "mcp_server"
             }
 
     async def _health_check(self):
@@ -2437,16 +2345,16 @@ class RefactoredUnifiedMCPDashboard:
                 "status": "healthy",
                 "timestamp": datetime.now().isoformat(),
                 "components": {},
-                "summary": {},
+                "summary": {}
             }
-
+            
             # Check MCP server status
             health_status["components"]["mcp_server"] = {
                 "status": "healthy",
                 "message": "MCP server is running",
-                "last_check": datetime.now().isoformat(),
+                "last_check": datetime.now().isoformat()
             }
-
+            
             # Check data directory
             try:
                 metadata_dir = self.data_dir
@@ -2455,69 +2363,66 @@ class RefactoredUnifiedMCPDashboard:
                         "status": "healthy",
                         "path": str(metadata_dir),
                         "writable": os.access(metadata_dir, os.W_OK),
-                        "readable": os.access(metadata_dir, os.R_OK),
+                        "readable": os.access(metadata_dir, os.R_OK)
                     }
                 else:
                     health_status["components"]["data_directory"] = {
                         "status": "warning",
-                        "message": "Data directory does not exist",
+                        "message": "Data directory does not exist"
                     }
             except Exception as e:
-                health_status["components"]["data_directory"] = {"status": "error", "error": str(e)}
-
+                health_status["components"]["data_directory"] = {
+                    "status": "error",
+                    "error": str(e)
+                }
+            
             # Check configuration files
             config_files_status = []
             for filename in ["pins.json", "buckets.json", "backends.json"]:
                 try:
                     result = await self._read_config_file(filename)
                     if result.get("success"):
-                        config_files_status.append(
-                            {
-                                "filename": filename,
-                                "status": "healthy",
-                                "size": result.get("size", 0),
-                            }
-                        )
+                        config_files_status.append({
+                            "filename": filename,
+                            "status": "healthy",
+                            "size": result.get("size", 0)
+                        })
                     else:
-                        config_files_status.append(
-                            {
-                                "filename": filename,
-                                "status": "warning",
-                                "message": result.get("error", "Unknown error"),
-                            }
-                        )
+                        config_files_status.append({
+                            "filename": filename,
+                            "status": "warning",
+                            "message": result.get("error", "Unknown error")
+                        })
                 except Exception as e:
-                    config_files_status.append(
-                        {"filename": filename, "status": "error", "error": str(e)}
-                    )
-
+                    config_files_status.append({
+                        "filename": filename,
+                        "status": "error",
+                        "error": str(e)
+                    })
+            
             health_status["components"]["config_files"] = {
-                "status": "healthy"
-                if all(f["status"] == "healthy" for f in config_files_status)
-                else "warning",
-                "files": config_files_status,
+                "status": "healthy" if all(f["status"] == "healthy" for f in config_files_status) else "warning",
+                "files": config_files_status
             }
-
+            
             # Check system resources
             try:
                 cpu_percent = psutil.cpu_percent(interval=1)
                 memory = psutil.virtual_memory()
-                disk = psutil.disk_usage("/")
-
+                disk = psutil.disk_usage('/')
+                
                 health_status["components"]["system_resources"] = {
-                    "status": "healthy"
-                    if cpu_percent < 80 and memory.percent < 80 and disk.percent < 90
-                    else "warning",
+                    "status": "healthy" if cpu_percent < 80 and memory.percent < 80 and disk.percent < 90 else "warning",
                     "cpu_percent": cpu_percent,
                     "memory_percent": memory.percent,
-                    "disk_percent": disk.percent,
+                    "disk_percent": disk.percent
                 }
             except Exception as e:
                 health_status["components"]["system_resources"] = {
                     "status": "error",
-                    "error": str(e),
+                    "error": str(e)
                 }
-
+            
             # Calculate overall health
             component_statuses = [comp["status"] for comp in health_status["components"].values()]
             if all(status == "healthy" for status in component_statuses):
@@ -2526,23 +2431,23 @@ class RefactoredUnifiedMCPDashboard:
                 health_status["status"] = "unhealthy"
             else:
                 health_status["status"] = "warning"
-
+            
             health_status["summary"] = {
                 "total_components": len(health_status["components"]),
-                "healthy_components": sum(
-                    1 for status in component_statuses if status == "healthy"
-                ),
-                "warning_components": sum(
-                    1 for status in component_statuses if status == "warning"
-                ),
-                "error_components": sum(1 for status in component_statuses if status == "error"),
+                "healthy_components": sum(1 for status in component_statuses if status == "healthy"),
+                "warning_components": sum(1 for status in component_statuses if status == "warning"),
+                "error_components": sum(1 for status in component_statuses if status == "error")
             }
-
+            
             return health_status
-
+            
         except Exception as e:
             logger.error(f"Error performing health check: {e}")
-            return {"status": "error", "timestamp": datetime.now().isoformat(), "error": str(e)}
+            return {
+                "status": "error",
+                "timestamp": datetime.now().isoformat(),
+                "error": str(e)
+            }
 
     async def _update_config_replication_state(self, filename: str, file_path: Path):
         """Update configuration replication state to maintain consistency."""
@@ -2550,12 +2455,12 @@ class RefactoredUnifiedMCPDashboard:
             # This would integrate with bucket replication policies
             # For now, just log the replication update
             logger.info(f"Updated replication state for config file: {filename} at {file_path}")
-
+            
             # Future: Apply bucket-specific replication and cache policies
             # - Check replication factor from bucket configuration
             # - Apply cache policy (none/memory/disk)
             # - Sync with ipfs_kit_py storage backends as needed
-
+            
         except Exception as e:
             logger.error(f"Error updating replication state for {filename}: {e}")
 
@@ -2569,7 +2474,7 @@ class RefactoredUnifiedMCPDashboard:
             backends_result = await self._read_config_file("backends.json")
             if backends_result.get("success") and backends_result.get("content"):
                 backends_content = backends_result["content"]
-
+                
                 # Return the backends structure
                 if isinstance(backends_content, dict):
                     if "backends" in backends_content:
@@ -2577,7 +2482,7 @@ class RefactoredUnifiedMCPDashboard:
                     else:
                         # Treat the whole content as backends
                         return backends_content
-
+                        
             return {}
         except Exception as e:
             logger.error(f"Error loading backend configs: {e}")
@@ -2588,45 +2493,39 @@ class RefactoredUnifiedMCPDashboard:
         try:
             # Read current backends config
             backends_result = await self._read_config_file("backends.json")
-
+            
             if backends_result.get("success"):
                 backends_content = backends_result.get("content", {})
-
+                
                 # Ensure we have a backends structure
                 if "backends" not in backends_content:
                     backends_content = {"backends": {}}
-
+                
                 # Update the specific backend config
                 if isinstance(backends_content["backends"], dict):
                     if backend_name in backends_content["backends"]:
                         # Merge the config data with existing backend
                         backends_content["backends"][backend_name]["config"] = {
                             **backends_content["backends"][backend_name].get("config", {}),
-                            **config_data.get("config", config_data),
+                            **config_data.get("config", config_data)
                         }
                     else:
                         # Create new backend entry
                         backends_content["backends"][backend_name] = {
                             "name": backend_name,
-                            "config": config_data.get("config", config_data),
+                            "config": config_data.get("config", config_data)
                         }
-
+                
                 # Write updated config back
                 write_result = await self._write_config_file("backends.json", backends_content)
-
+                
                 if write_result.get("success"):
                     return {"status": "updated", "backend": backend_name}
                 else:
-                    return {
-                        "status": "error",
-                        "error": write_result.get("error", "Failed to write config"),
-                    }
+                    return {"status": "error", "error": write_result.get("error", "Failed to write config")}
             else:
-                return {
-                    "status": "error",
-                    "error": backends_result.get("error", "Failed to read config"),
-                }
-
+                return {"status": "error", "error": backends_result.get("error", "Failed to read config")}
+                
         except Exception as e:
             logger.error(f"Error updating backend config for {backend_name}: {e}")
             return {"status": "error", "error": str(e)}
@@ -2680,28 +2579,26 @@ class RefactoredUnifiedMCPDashboard:
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
             )
-
+            
             if result.returncode == 0:
-                peer_lines = result.stdout.decode().strip().split("\n")
+                peer_lines = result.stdout.decode().strip().split('\n')
                 peers = []
                 for i, line in enumerate(peer_lines[:12]):  # Limit to 12 peers
                     if line.strip():
                         # Extract address and create peer object
                         peer_addr = line.strip()
-                        peers.append(
-                            {
-                                "id": f"peer_{i + 1}",
-                                "address": peer_addr,
-                                "connected": True,
-                                "latency": f"{50 + (i * 10)}ms",  # Mock latency
-                                "direction": "outbound" if i % 2 == 0 else "inbound",
-                            }
-                        )
-
+                        peers.append({
+                            "id": f"peer_{i+1}",
+                            "address": peer_addr,
+                            "connected": True,
+                            "latency": f"{50 + (i * 10)}ms",  # Mock latency
+                            "direction": "outbound" if i % 2 == 0 else "inbound"
+                        })
+                
                 return {
                     "peers": peers,
                     "total": len(peers),
-                    "connected": len([p for p in peers if p.get("connected")]),
+                    "connected": len([p for p in peers if p.get("connected")])
                 }
             else:
                 # Return mock data if IPFS not available
@@ -2714,20 +2611,18 @@ class RefactoredUnifiedMCPDashboard:
         """Get mock peer data when IPFS is not available."""
         mock_peers = []
         for i in range(5):
-            mock_peers.append(
-                {
-                    "id": f"peer_{i + 1}",
-                    "address": f"/ip4/192.168.{i + 1}.{i + 10}/tcp/4001/p2p/QmHash{i + 1}...",
-                    "connected": True,
-                    "latency": f"{60 + (i * 15)}ms",
-                    "direction": "outbound" if i % 2 == 0 else "inbound",
-                }
-            )
-
+            mock_peers.append({
+                "id": f"peer_{i+1}",
+                "address": f"/ip4/192.168.{i+1}.{i+10}/tcp/4001/p2p/QmHash{i+1}...",
+                "connected": True,
+                "latency": f"{60 + (i * 15)}ms",
+                "direction": "outbound" if i % 2 == 0 else "inbound"
+            })
+        
         return {
             "peers": mock_peers,
             "total": len(mock_peers),
-            "connected": len([p for p in mock_peers if p.get("connected")]),
+            "connected": len([p for p in mock_peers if p.get("connected")])
         }
 
     async def _get_system_logs(self):
@@ -2735,37 +2630,35 @@ class RefactoredUnifiedMCPDashboard:
         try:
             # Try to get recent logs from journal or system log
             logs = []
-
+            
             # Mock log entries for demonstration
             current_time = datetime.now()
             for i in range(10):
-                time_offset = timedelta(minutes=i * 5)
+                time_offset = timedelta(minutes=i*5)
                 log_time = current_time - time_offset
-
+                
                 log_levels = ["INFO", "DEBUG", "WARN", "ERROR"]
                 components = ["ipfs-kit", "mcp-server", "bucket-manager", "backend-monitor"]
                 messages = [
                     "System startup completed successfully",
                     "Backend health check passed",
-                    "Bucket operation completed",
+                    "Bucket operation completed", 
                     "MCP tool called successfully",
                     "Configuration updated",
                     "Network activity detected",
                     "Cache cleanup performed",
-                    "Service heartbeat received",
+                    "Service heartbeat received"
                 ]
-
-                logs.append(
-                    {
-                        "timestamp": log_time.isoformat(),
-                        "level": log_levels[i % len(log_levels)],
-                        "component": components[i % len(components)],
-                        "message": messages[i % len(messages)],
-                    }
-                )
-
+                
+                logs.append({
+                    "timestamp": log_time.isoformat(),
+                    "level": log_levels[i % len(log_levels)],
+                    "component": components[i % len(components)],
+                    "message": messages[i % len(messages)]
+                })
+            
             return logs
-
+            
         except Exception as e:
             logger.error(f"Error getting system logs: {e}")
             return []
@@ -2774,18 +2667,26 @@ class RefactoredUnifiedMCPDashboard:
         """Get analytics summary."""
         try:
             return {
-                "requests": {"total": 1542, "today": 89, "success_rate": 97.8},
-                "storage": {"total_files": 2341, "total_size": "15.7GB", "growth_rate": "+2.3%"},
+                "requests": {
+                    "total": 1542,
+                    "today": 89,
+                    "success_rate": 97.8
+                },
+                "storage": {
+                    "total_files": 2341,
+                    "total_size": "15.7GB",
+                    "growth_rate": "+2.3%"
+                },
                 "performance": {
                     "avg_response_time": "245ms",
                     "cache_hit_rate": "84.5%",
-                    "uptime": "99.2%",
+                    "uptime": "99.2%"
                 },
                 "top_operations": [
                     {"operation": "file_upload", "count": 234},
                     {"operation": "bucket_list", "count": 187},
-                    {"operation": "pin_add", "count": 156},
-                ],
+                    {"operation": "pin_add", "count": 156}
+                ]
             }
         except Exception as e:
             logger.error(f"Error getting analytics: {e}")
@@ -2795,32 +2696,30 @@ class RefactoredUnifiedMCPDashboard:
         """Get configuration files."""
         try:
             config_files = []
-
+            
             # Check for common config files
             config_paths = [
                 "~/.ipfs_kit/config.json",
                 "~/.ipfs/config",
-                "/etc/ipfs-kit/config.yaml",
+                "/etc/ipfs-kit/config.yaml"
             ]
-
+            
             for config_path in config_paths:
                 expanded_path = os.path.expanduser(config_path)
                 if os.path.exists(expanded_path):
                     try:
                         stat = os.stat(expanded_path)
-                        config_files.append(
-                            {
-                                "name": os.path.basename(expanded_path),
-                                "path": config_path,
-                                "size": stat.st_size,
-                                "modified": datetime.fromtimestamp(stat.st_mtime).isoformat(),
-                                "readable": os.access(expanded_path, os.R_OK),
-                                "writable": os.access(expanded_path, os.W_OK),
-                            }
-                        )
+                        config_files.append({
+                            "name": os.path.basename(expanded_path),
+                            "path": config_path,
+                            "size": stat.st_size,
+                            "modified": datetime.fromtimestamp(stat.st_mtime).isoformat(),
+                            "readable": os.access(expanded_path, os.R_OK),
+                            "writable": os.access(expanded_path, os.W_OK)
+                        })
                     except Exception as e:
                         logger.error(f"Error reading config file {config_path}: {e}")
-
+            
             # Add mock config files if none found
             if not config_files:
                 config_files = [
@@ -2830,20 +2729,20 @@ class RefactoredUnifiedMCPDashboard:
                         "size": 2048,
                         "modified": datetime.now().isoformat(),
                         "readable": True,
-                        "writable": True,
+                        "writable": True
                     },
                     {
                         "name": "backends.yaml",
-                        "path": "~/.ipfs_kit/backends.yaml",
+                        "path": "~/.ipfs_kit/backends.yaml", 
                         "size": 1024,
                         "modified": datetime.now().isoformat(),
                         "readable": True,
-                        "writable": True,
-                    },
+                        "writable": True
+                    }
                 ]
-
+            
             return config_files
-
+            
         except Exception as e:
             logger.error(f"Error getting config files: {e}")
             return []
@@ -2854,16 +2753,17 @@ class RefactoredUnifiedMCPDashboard:
             self.app,
             host=self.host,
             port=self.port,
-            log_level="info" if not self.debug else "debug",
+            log_level="info" if not self.debug else "debug"
         )
 
 
 def main():
     """Main entry point for the refactored unified MCP dashboard."""
     logging.basicConfig(
-        level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+        level=logging.INFO,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     )
-
+    
     dashboard = RefactoredUnifiedMCPDashboard()
     dashboard.run()
 

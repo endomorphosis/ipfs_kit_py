@@ -279,7 +279,6 @@ Lines of Test Code:     ~5,500 lines
 ```python
 import asyncio
 
-
 @pytest.mark.asyncio
 async def test_something():
     await asyncio.sleep(1)
@@ -288,7 +287,6 @@ async def test_something():
 **After (anyio):**
 ```python
 import anyio
-
 
 @pytest.mark.anyio
 async def test_something():
@@ -515,11 +513,14 @@ gateway = S3Gateway(ipfs_api=api, port=9000)
 gateway.run()
 
 # Bucket Export/Import
-from ipfs_kit_py.bucket_metadata_transfer import BucketMetadataExporter, BucketMetadataImporter
+from ipfs_kit_py.bucket_metadata_transfer import (
+    BucketMetadataExporter,
+    BucketMetadataImporter
+)
 
 exporter = BucketMetadataExporter(ipfs_client=ipfs)
 result = await exporter.export_bucket_metadata(bucket)
-cid = result["metadata_cid"]  # Share this!
+cid = result['metadata_cid']  # Share this!
 
 importer = BucketMetadataImporter(ipfs_client=ipfs)
 await importer.import_bucket_metadata(cid, "new-bucket")

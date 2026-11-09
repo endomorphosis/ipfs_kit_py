@@ -215,9 +215,7 @@ def build_parser(*, prog: str = "ipfs-kit-iroh") -> argparse.ArgumentParser:
     recover.add_argument("--history-limit", type=int)
     recover_mode = recover.add_mutually_exclusive_group()
     recover_mode.add_argument("--apply", action="store_true")
-    recover_mode.add_argument(
-        "--dry-run", action="store_true", help="audit without repairing (default)"
-    )
+    recover_mode.add_argument("--dry-run", action="store_true", help="audit without repairing (default)")
     _add_instance(recover)
     _add_confirmation(recover)
 
@@ -244,9 +242,7 @@ def build_parser(*, prog: str = "ipfs-kit-iroh") -> argparse.ArgumentParser:
     _add_dry_run(export_blob)
     _add_confirmation(export_blob)
 
-    ticket = _command_parser(
-        commands, "ticket", "import a bearer ticket without putting it in argv"
-    )
+    ticket = _command_parser(commands, "ticket", "import a bearer ticket without putting it in argv")
     ticket_commands = _subcommands(ticket)
     import_ticket = _command_parser(ticket_commands, "import", "import and verify a read ticket")
     import_ticket.add_argument("expected_hash")
@@ -287,9 +283,7 @@ def build_parser(*, prog: str = "ipfs-kit-iroh") -> argparse.ArgumentParser:
     run_sync.add_argument(
         "--conflict-policy", choices=tuple(item.value for item in ConflictPolicy), default="fail"
     )
-    run_sync.add_argument(
-        "--continue-on-error", action=argparse.BooleanOptionalAction, default=True
-    )
+    run_sync.add_argument("--continue-on-error", action=argparse.BooleanOptionalAction, default=True)
     _add_instance(run_sync)
     _add_dry_run(run_sync)
     _add_confirmation(run_sync)
@@ -311,9 +305,7 @@ def build_parser(*, prog: str = "ipfs-kit-iroh") -> argparse.ArgumentParser:
         _add_gc_policy(run_gc)
         gc_mode = run_gc.add_mutually_exclusive_group()
         gc_mode.add_argument("--apply", action="store_true", help="release eligible blobs")
-        gc_mode.add_argument(
-            "--dry-run", action="store_true", help="plan without releasing (default)"
-        )
+        gc_mode.add_argument("--dry-run", action="store_true", help="plan without releasing (default)")
         _add_confirmation(run_gc)
     resume_gc = _command_parser(gc_commands, "resume", "resume an interrupted live GC run")
     resume_gc.add_argument("run_id")
@@ -462,9 +454,7 @@ def _confirm(args: argparse.Namespace, context: CLIContext) -> None:
     if getattr(args, "yes", False) or getattr(args, "confirm", None) == phrase:
         return
     if getattr(args, "confirm", None) is not None:
-        raise CLIError(
-            "confirmation_mismatch", "confirmation phrase did not match", EXIT_CONFIRMATION
-        )
+        raise CLIError("confirmation_mismatch", "confirmation phrase did not match", EXIT_CONFIRMATION)
     if context.stdin.isatty():
         context.stderr.write(f"Type {phrase!r} to continue: ")
         context.stderr.flush()
@@ -546,8 +536,7 @@ def _sync_adapter(
     args: argparse.Namespace,
     config: IrohServiceConfig,
     context: CLIContext,
-    *,
-    needs_ipfs: bool,
+    *, needs_ipfs: bool,
 ) -> tuple[Any, Any]:
     client = _client(config, context)
     iroh = _IrohSyncBridge(IrohBlobStore(client), config.layout.staging_dir)
@@ -608,9 +597,7 @@ async def execute(args: argparse.Namespace, context: CLIContext) -> Any:
         if action == "list":
             value = _checked_manager_result(manager.list_backends())
             if args.name:
-                values = [
-                    item for item in value.get("backends", []) if item.get("name") == args.name
-                ]
+                values = [item for item in value.get("backends", []) if item.get("name") == args.name]
                 return {"backends": values, "total": len(values)}
             return value
         if action == "show":
@@ -627,26 +614,20 @@ async def execute(args: argparse.Namespace, context: CLIContext) -> Any:
             document.setdefault("type", "iroh")
             if action == "create":
                 if document.get("name") not in (None, args.name):
-                    raise CLIError(
-                        "invalid_config", "backend name does not match document", EXIT_INVALID
-                    )
+                    raise CLIError("invalid_config", "backend name does not match document", EXIT_INVALID)
                 document["name"] = args.name
             normalized = manager.validate_backend_config(document)
             if action == "validate" or args.dry_run:
-                return {
-                    "valid": True,
-                    "dry_run": action == "create",
-                    "backend": redact_backend_config(normalized),
-                }
+                return {"valid": True, "dry_run": action == "create", "backend": redact_backend_config(normalized)}
             config = dict(normalized)
             name = config.pop("name")
             backend_type = config.pop("type")
-            return _checked_manager_result(
-                manager.create_backend(name, backend_type, config=config)
-            )
+            return _checked_manager_result(manager.create_backend(name, backend_type, config=config))
         if args.dry_run:
             existing = _checked_manager_result(manager.show_backend(args.name))
-            return _dry_run_result(args, {"action": "remove", "dry_run": True, "backend": existing})
+            return _dry_run_result(
+                args, {"action": "remove", "dry_run": True, "backend": existing}
+            )
         _confirm(args, context)
         return _checked_manager_result(manager.remove_backend(args.name))
 
@@ -660,11 +641,7 @@ async def execute(args: argparse.Namespace, context: CLIContext) -> Any:
                     manifest = DirectoryManifest.create(
                         args.namespace_id, args.writer_id, 0, (), public_read=args.public_read
                     )
-                    return {
-                        "dry_run": True,
-                        "manifest": manifest.to_dict(),
-                        "manifest_hash": manifest.manifest_hash,
-                    }
+                    return {"dry_run": True, "manifest": manifest.to_dict(), "manifest_hash": manifest.manifest_hash}
                 return await store.create_namespace(
                     args.namespace_id,
                     args.writer_id,
@@ -693,11 +670,7 @@ async def execute(args: argparse.Namespace, context: CLIContext) -> Any:
                 if args.dry_run:
                     # Validate the source without emitting or sending its contents.
                     _ticket(args, context)
-                    return {
-                        "action": "ticket.import",
-                        "dry_run": True,
-                        "expected_hash": args.expected_hash,
-                    }
+                    return {"action": "ticket.import", "dry_run": True, "expected_hash": args.expected_hash}
                 value = _ticket(args, context)
                 try:
                     return await store.import_ticket(value, expected_hash=args.expected_hash)
@@ -708,20 +681,14 @@ async def execute(args: argparse.Namespace, context: CLIContext) -> Any:
             if action == "add":
                 source = Path(args.source)
                 if source.is_symlink() or not source.is_file():
-                    raise CLIError(
-                        "invalid_input", "blob source must be a regular file", EXIT_INVALID
-                    )
+                    raise CLIError("invalid_input", "blob source must be a regular file", EXIT_INVALID)
                 if args.dry_run:
                     return {"action": "blob.add", "dry_run": True, "size": source.stat().st_size}
-                return await store.ingest(
-                    source, expected_hash=args.expected_hash, timeout=args.timeout
-                )
+                return await store.ingest(source, expected_hash=args.expected_hash, timeout=args.timeout)
             if action == "fetch":
                 if args.dry_run:
                     return {"action": "blob.fetch", "dry_run": True, "blob_hash": args.blob_hash}
-                return await store.fetch(
-                    args.blob_hash, provider=args.provider, timeout=args.timeout
-                )
+                return await store.fetch(args.blob_hash, provider=args.provider, timeout=args.timeout)
             destination = Path(args.destination)
             if args.dry_run:
                 result = {
@@ -745,9 +712,7 @@ async def execute(args: argparse.Namespace, context: CLIContext) -> Any:
         vfs = _vfs(args, context)
         if action == "list":
             value = vfs.list_mounts()
-            value["mounts"] = [
-                item for item in value.get("mounts", []) if item.get("backend") == "iroh"
-            ]
+            value["mounts"] = [item for item in value.get("mounts", []) if item.get("backend") == "iroh"]
             value["count"] = len(value["mounts"])
             return value
         if action == "add":
@@ -771,9 +736,7 @@ async def execute(args: argparse.Namespace, context: CLIContext) -> Any:
                 )
             if args.dry_run:
                 if args.backend_name:
-                    config = _checked_manager_result(
-                        _backend_manager(args, context).show_backend(args.backend_name)
-                    )
+                    config = _checked_manager_result(_backend_manager(args, context).show_backend(args.backend_name))
                     if config.get("type") != "iroh":
                         raise CLIError("invalid_backend", "named backend is not Iroh", EXIT_INVALID)
                 else:
@@ -823,9 +786,7 @@ async def execute(args: argparse.Namespace, context: CLIContext) -> Any:
             items_value = document["items"]
         else:
             raise CLIError("invalid_sync", "sync request must contain an items array", EXIT_INVALID)
-        items = [
-            SyncItem(**dict(item)) if isinstance(item, Mapping) else item for item in items_value
-        ]
+        items = [SyncItem(**dict(item)) if isinstance(item, Mapping) else item for item in items_value]
         destructive = args.conflict_policy == ConflictPolicy.SOURCE_WINS.value or any(
             item.deleted
             or (
@@ -893,30 +854,16 @@ def _error(exc: BaseException) -> tuple[int, dict[str, Any]]:
     if isinstance(exc, CLIError):
         return exc.exit_code, {"code": exc.code, "message": exc.public_message}
     if isinstance(exc, (IrohPermissionDeniedError, PermissionError)):
-        return EXIT_PERMISSION, {
-            "code": "permission_denied",
-            "message": "operation is not permitted",
-        }
+        return EXIT_PERMISSION, {"code": "permission_denied", "message": "operation is not permitted"}
     if isinstance(exc, (IrohIntegrityError,)):
-        return EXIT_INTEGRITY, {
-            "code": "integrity_error",
-            "message": "integrity verification failed",
-        }
+        return EXIT_INTEGRITY, {"code": "integrity_error", "message": "integrity verification failed"}
     if isinstance(exc, (IrohUnavailableError, ConnectionError, TimeoutError)):
-        return EXIT_UNAVAILABLE, {
-            "code": "unavailable",
-            "message": "required service is unavailable",
-        }
+        return EXIT_UNAVAILABLE, {"code": "unavailable", "message": "required service is unavailable"}
     if isinstance(exc, (IrohConflictError,)):
-        return EXIT_CONFLICT, {
-            "code": "conflict",
-            "message": "operation conflicts with current state",
-        }
+        return EXIT_CONFLICT, {"code": "conflict", "message": "operation conflicts with current state"}
     if isinstance(exc, (IrohNotFoundError, FileNotFoundError, KeyError)):
         return EXIT_NOT_FOUND, {"code": "not_found", "message": "requested resource was not found"}
-    if isinstance(
-        exc, (IrohInvalidConfigError, BackendConfigError, SyncError, ValueError, TypeError)
-    ):
+    if isinstance(exc, (IrohInvalidConfigError, BackendConfigError, SyncError, ValueError, TypeError)):
         code = getattr(exc, "code", "invalid_input")
         return EXIT_INVALID, {"code": code, "message": "input validation failed"}
     if isinstance(exc, IrohError):
@@ -979,10 +926,7 @@ def main(argv: Sequence[str] | None = None, *, context: CLIContext | None = None
         _emit(context.stdout, document, compact=args.compact)
         return EXIT_SUCCESS
     except KeyboardInterrupt:
-        document = {
-            "ok": False,
-            "error": {"code": "interrupted", "message": "operation interrupted"},
-        }
+        document = {"ok": False, "error": {"code": "interrupted", "message": "operation interrupted"}}
         _emit(context.stderr, document, compact=True)
         return EXIT_INTERRUPTED
     except SystemExit:

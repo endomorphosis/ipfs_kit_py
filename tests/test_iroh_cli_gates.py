@@ -27,7 +27,9 @@ def test_diagnostics_run_supports_json_and_prometheus_without_a_service(tmp_path
     parser = diagnostics_cli.build_parser()
     common = ["--instance", "ci", "--state-root", str(tmp_path), "--no-persist"]
     document = json.loads(
-        asyncio.run(diagnostics_cli.run(parser.parse_args(common), observability_factory=_Observer))
+        asyncio.run(
+            diagnostics_cli.run(parser.parse_args(common), observability_factory=_Observer)
+        )
     )
     assert document == {"instance": "ci", "persist": False, "ready": False}
     metrics = asyncio.run(
@@ -59,7 +61,9 @@ def test_diagnostics_main_writes_output_and_redacts_failures(monkeypatch, capsys
     assert "diagnostics failed" in captured.err
 
 
-def test_manifest_cli_migrates_and_reports_only_the_destination(tmp_path: Path, capsys) -> None:
+def test_manifest_cli_migrates_and_reports_only_the_destination(
+    tmp_path: Path, capsys
+) -> None:
     source = tmp_path / "manifest.json"
     source.write_text(
         json.dumps(
@@ -93,12 +97,9 @@ def test_manifest_recovery_cli_preserves_dry_run_default(monkeypatch, capsys) ->
 
     client = object()
     monkeypatch.setattr(manifest_cli, "recover_namespace", recover)
-    assert (
-        manifest_cli.main(
-            ["recover", "a" * 64, "--history-limit", "7"], client_factory=lambda: client
-        )
-        == 0
-    )
+    assert manifest_cli.main(
+        ["recover", "a" * 64, "--history-limit", "7"], client_factory=lambda: client
+    ) == 0
     assert calls == [(client, "a" * 64, True, 7)]
     assert json.loads(capsys.readouterr().out) == {"status": "valid", "repaired": False}
 

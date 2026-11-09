@@ -1,19 +1,16 @@
-# \!/usr/bin/env python3
+#\!/usr/bin/env python3
 
 import re
 import sys
 
-
 def fix_handle_add_request():
     file_path = "ipfs_kit_py/mcp/controllers/ipfs_controller_anyio.py"
 
-    with open(file_path, "r") as f:
+    with open(file_path, 'r') as f:
         content = f.read()
 
     # Find the handle_add_request method
-    pattern = re.compile(
-        r"async def handle_add_request\(self, request: Request\).*?(?=async def|$)", re.DOTALL
-    )
+    pattern = re.compile(r'async def handle_add_request\(self, request: Request\).*?(?=async def|$)', re.DOTALL)
     match = pattern.search(content)
 
     if not match:
@@ -144,24 +141,20 @@ def fix_handle_add_request():
     # Replace the method
     updated_content = content.replace(old_method, new_method)
 
-    with open(file_path, "w") as f:
+    with open(file_path, 'w') as f:
         f.write(updated_content)
 
     print("Successfully updated handle_add_request method")
     return True
 
-
 def fix_add_file():
     file_path = "ipfs_kit_py/mcp/controllers/ipfs_controller_anyio.py"
 
-    with open(file_path, "r") as f:
+    with open(file_path, 'r') as f:
         content = f.read()
 
     # Find the add_file method
-    pattern = re.compile(
-        r"async def add_file\(self, file: UploadFile = File\(\.\.\.\)\).*?(?=async def|$)",
-        re.DOTALL,
-    )
+    pattern = re.compile(r'async def add_file\(self, file: UploadFile = File\(\.\.\.\)\).*?(?=async def|$)', re.DOTALL)
     match = pattern.search(content)
 
     if not match:
@@ -218,12 +211,11 @@ def fix_add_file():
     # Replace the method
     updated_content = content.replace(old_method, new_method)
 
-    with open(file_path, "w") as f:
+    with open(file_path, 'w') as f:
         f.write(updated_content)
 
     print("Successfully updated add_file method")
     return True
-
 
 if __name__ == "__main__":
     success1 = fix_handle_add_request()

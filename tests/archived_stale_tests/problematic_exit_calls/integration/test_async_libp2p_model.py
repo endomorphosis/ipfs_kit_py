@@ -17,16 +17,13 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Enable warnings for coroutines
-warnings.filterwarnings(
-    "always", category=RuntimeWarning, message="coroutine '.*' was never awaited"
-)
-
+warnings.filterwarnings("always", category=RuntimeWarning, message="coroutine '.*' was never awaited")
 
 async def test_async_methods():
     """Test all async methods in LibP2PModel."""
     logger.info("Creating LibP2PModel instance...")
     model = LibP2PModel()
-
+    
     # Tests to run
     async_tests = [
         # Basic availability check
@@ -53,16 +50,15 @@ async def test_async_methods():
         # Reset operation
         test_reset(model),
     ]
-
+    
     # Run all tests
     logger.info("Running async tests...")
     results = await anyio.gather(*async_tests)
-
+    
     # Print summary
     success = all(results)
     logger.info(f"All tests completed. {'All tests passed!' if success else 'Some tests failed.'}")
     return success
-
 
 async def test_is_available(model):
     """Test is_available async method."""
@@ -75,7 +71,6 @@ async def test_is_available(model):
         logger.error(f"  is_available error: {e}")
         return False
 
-
 async def test_get_health(model):
     """Test get_health async method."""
     logger.info("Testing get_health()...")
@@ -86,7 +81,6 @@ async def test_get_health(model):
     except Exception as e:
         logger.error(f"  get_health error: {e}")
         return False
-
 
 async def test_peer_info(model):
     """Test peer_info async method."""
@@ -99,7 +93,6 @@ async def test_peer_info(model):
         logger.error(f"  peer_info error: {e}")
         return False
 
-
 async def test_discover_peers(model):
     """Test discover_peers async method."""
     logger.info("Testing discover_peers()...")
@@ -111,7 +104,6 @@ async def test_discover_peers(model):
         logger.error(f"  discover_peers error: {e}")
         return False
 
-
 async def test_get_connected_peers(model):
     """Test get_connected_peers async method."""
     logger.info("Testing get_connected_peers()...")
@@ -122,7 +114,6 @@ async def test_get_connected_peers(model):
     except Exception as e:
         logger.error(f"  get_connected_peers error: {e}")
         return False
-
 
 async def test_find_content(model):
     """Test find_content async method."""
@@ -137,7 +128,6 @@ async def test_find_content(model):
         logger.error(f"  find_content error: {e}")
         return False
 
-
 async def test_retrieve_content(model):
     """Test retrieve_content async method."""
     logger.info("Testing retrieve_content()...")
@@ -151,7 +141,6 @@ async def test_retrieve_content(model):
         logger.error(f"  retrieve_content error: {e}")
         return False
 
-
 async def test_get_content(model):
     """Test get_content async method."""
     logger.info("Testing get_content()...")
@@ -164,7 +153,6 @@ async def test_get_content(model):
     except Exception as e:
         logger.error(f"  get_content error: {e}")
         return False
-
 
 async def test_announce_content(model):
     """Test announce_content async method."""
@@ -180,7 +168,6 @@ async def test_announce_content(model):
         logger.error(f"  announce_content error: {e}")
         return False
 
-
 async def test_start_stop(model):
     """Test start and stop async methods."""
     logger.info("Testing start() and stop()...")
@@ -188,16 +175,15 @@ async def test_start_stop(model):
         # Test start
         start_result = await model.start()
         logger.info(f"  start success: {start_result.get('success', False)}")
-
+        
         # Test stop
         stop_result = await model.stop()
         logger.info(f"  stop success: {stop_result.get('success', False)}")
-
+        
         return True
     except Exception as e:
         logger.error(f"  start/stop error: {e}")
         return False
-
 
 async def test_dht_operations(model):
     """Test DHT operation async methods."""
@@ -207,21 +193,20 @@ async def test_dht_operations(model):
         peer_id = "QmdvaAqT2NxeGLrxGYvKypsAVLt5iJHTuv72uP1JdkTy7d"
         find_peer_result = await model.dht_find_peer(peer_id, timeout=5)
         logger.info(f"  dht_find_peer success: {find_peer_result.get('success', False)}")
-
+        
         # Test dht_provide
         test_cid = "QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG"
         provide_result = await model.dht_provide(test_cid)
         logger.info(f"  dht_provide success: {provide_result.get('success', False)}")
-
+        
         # Test dht_find_providers
         find_providers_result = await model.dht_find_providers(test_cid, timeout=5, limit=10)
         logger.info(f"  dht_find_providers success: {find_providers_result.get('success', False)}")
-
+        
         return True
     except Exception as e:
         logger.error(f"  DHT operations error: {e}")
         return False
-
 
 async def test_pubsub_operations(model):
     """Test PubSub operation async methods."""
@@ -229,46 +214,43 @@ async def test_pubsub_operations(model):
     try:
         test_topic = "test-topic"
         test_message = "Hello, world!"
-
+        
         # Test pubsub_subscribe
         subscribe_result = await model.pubsub_subscribe(test_topic)
         logger.info(f"  pubsub_subscribe success: {subscribe_result.get('success', False)}")
-
+        
         # Test pubsub_publish
         publish_result = await model.pubsub_publish(test_topic, test_message)
         logger.info(f"  pubsub_publish success: {publish_result.get('success', False)}")
-
+        
         # Test pubsub_get_topics
         get_topics_result = await model.pubsub_get_topics()
         logger.info(f"  pubsub_get_topics success: {get_topics_result.get('success', False)}")
-
+        
         # Test pubsub_get_peers
         get_peers_result = await model.pubsub_get_peers(test_topic)
         logger.info(f"  pubsub_get_peers success: {get_peers_result.get('success', False)}")
-
+        
         # Test publish_message (convenience method)
         publish_message_result = await model.publish_message(test_topic, test_message)
         logger.info(f"  publish_message success: {publish_message_result.get('success', False)}")
-
+        
         # Test subscribe_topic (convenience method)
         subscribe_topic_result = await model.subscribe_topic(test_topic)
         logger.info(f"  subscribe_topic success: {subscribe_topic_result.get('success', False)}")
-
+        
         # Test unsubscribe_topic (convenience method)
         unsubscribe_topic_result = await model.unsubscribe_topic(test_topic)
-        logger.info(
-            f"  unsubscribe_topic success: {unsubscribe_topic_result.get('success', False)}"
-        )
-
+        logger.info(f"  unsubscribe_topic success: {unsubscribe_topic_result.get('success', False)}")
+        
         # Test pubsub_unsubscribe
         unsubscribe_result = await model.pubsub_unsubscribe(test_topic)
         logger.info(f"  pubsub_unsubscribe success: {unsubscribe_result.get('success', False)}")
-
+        
         return True
     except Exception as e:
         logger.error(f"  PubSub operations error: {e}")
         return False
-
 
 async def test_message_handlers(model):
     """Test message handler management async methods."""
@@ -277,30 +259,30 @@ async def test_message_handlers(model):
         test_handler_id = "test-handler"
         test_protocol_id = "/test/protocol/1.0.0"
         test_description = "Test protocol handler"
-
+        
         # Test register_message_handler
         register_result = await model.register_message_handler(
-            handler_id=test_handler_id, protocol_id=test_protocol_id, description=test_description
+            handler_id=test_handler_id,
+            protocol_id=test_protocol_id,
+            description=test_description
         )
         logger.info(f"  register_message_handler success: {register_result.get('success', False)}")
-
+        
         # Test list_message_handlers
         list_result = await model.list_message_handlers()
         logger.info(f"  list_message_handlers success: {list_result.get('success', False)}")
-
+        
         # Test unregister_message_handler
         unregister_result = await model.unregister_message_handler(
-            handler_id=test_handler_id, protocol_id=test_protocol_id
+            handler_id=test_handler_id,
+            protocol_id=test_protocol_id
         )
-        logger.info(
-            f"  unregister_message_handler success: {unregister_result.get('success', False)}"
-        )
-
+        logger.info(f"  unregister_message_handler success: {unregister_result.get('success', False)}")
+        
         return True
     except Exception as e:
         logger.error(f"  Message handler management error: {e}")
         return False
-
 
 async def test_reset(model):
     """Test reset async method."""
@@ -312,7 +294,6 @@ async def test_reset(model):
     except Exception as e:
         logger.error(f"  reset error: {e}")
         return False
-
 
 if __name__ == "__main__":
     try:

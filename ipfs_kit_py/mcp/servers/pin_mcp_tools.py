@@ -21,17 +21,20 @@ PIN_MCP_TOOLS = [
             "properties": {
                 "cid_or_file": {
                     "type": "string",
-                    "description": "Content ID (CID) to pin or local file path to add and pin",
+                    "description": "Content ID (CID) to pin or local file path to add and pin"
                 },
-                "name": {"type": "string", "description": "Optional name for the pin"},
+                "name": {
+                    "type": "string",
+                    "description": "Optional name for the pin"
+                },
                 "recursive": {
                     "type": "boolean",
                     "description": "Whether to pin recursively (default: true)",
-                    "default": True,
-                },
+                    "default": True
+                }
             },
-            "required": ["cid_or_file"],
-        },
+            "required": ["cid_or_file"]
+        }
     },
     {
         "name": "pin_list",
@@ -43,18 +46,18 @@ PIN_MCP_TOOLS = [
                     "type": "string",
                     "enum": ["direct", "recursive", "indirect", "all"],
                     "description": "Filter pins by type",
-                    "default": "all",
+                    "default": "all"
                 },
                 "limit": {
                     "type": "integer",
                     "description": "Maximum number of pins to return",
                     "default": 100,
                     "minimum": 1,
-                    "maximum": 10000,
-                },
+                    "maximum": 10000
+                }
             },
-            "required": [],
-        },
+            "required": []
+        }
     },
     {
         "name": "pin_remove",
@@ -62,15 +65,18 @@ PIN_MCP_TOOLS = [
         "inputSchema": {
             "type": "object",
             "properties": {
-                "cid": {"type": "string", "description": "Content ID (CID) to unpin"},
+                "cid": {
+                    "type": "string",
+                    "description": "Content ID (CID) to unpin"
+                },
                 "recursive": {
                     "type": "boolean",
                     "description": "Whether to unpin recursively",
-                    "default": True,
-                },
+                    "default": True
+                }
             },
-            "required": ["cid"],
-        },
+            "required": ["cid"]
+        }
     },
     {
         "name": "pin_get_info",
@@ -80,11 +86,11 @@ PIN_MCP_TOOLS = [
             "properties": {
                 "cid": {
                     "type": "string",
-                    "description": "Content ID (CID) to get information about",
+                    "description": "Content ID (CID) to get information about"
                 }
             },
-            "required": ["cid"],
-        },
+            "required": ["cid"]
+        }
     },
     {
         "name": "pin_list_pending",
@@ -97,20 +103,25 @@ PIN_MCP_TOOLS = [
                     "description": "Maximum number of operations to return",
                     "default": 50,
                     "minimum": 1,
-                    "maximum": 1000,
+                    "maximum": 1000
                 }
             },
-            "required": [],
-        },
+            "required": []
+        }
     },
     {
         "name": "pin_verify",
         "description": "Verify that a pin exists and is valid",
         "inputSchema": {
             "type": "object",
-            "properties": {"cid": {"type": "string", "description": "Content ID (CID) to verify"}},
-            "required": ["cid"],
-        },
+            "properties": {
+                "cid": {
+                    "type": "string",
+                    "description": "Content ID (CID) to verify"
+                }
+            },
+            "required": ["cid"]
+        }
     },
     {
         "name": "pin_update",
@@ -118,22 +129,32 @@ PIN_MCP_TOOLS = [
         "inputSchema": {
             "type": "object",
             "properties": {
-                "old_cid": {"type": "string", "description": "Current CID to update from"},
-                "new_cid": {"type": "string", "description": "New CID to update to"},
+                "old_cid": {
+                    "type": "string",
+                    "description": "Current CID to update from"
+                },
+                "new_cid": {
+                    "type": "string",
+                    "description": "New CID to update to"
+                },
                 "unpin_old": {
                     "type": "boolean",
                     "description": "Whether to unpin the old CID",
-                    "default": True,
-                },
+                    "default": True
+                }
             },
-            "required": ["old_cid", "new_cid"],
-        },
+            "required": ["old_cid", "new_cid"]
+        }
     },
     {
         "name": "pin_get_statistics",
         "description": "Get pin statistics and summary",
-        "inputSchema": {"type": "object", "properties": {}, "required": []},
-    },
+        "inputSchema": {
+            "type": "object",
+            "properties": {},
+            "required": []
+        }
+    }
 ]
 
 
@@ -141,17 +162,20 @@ async def handle_pin_add(arguments: Dict[str, Any]) -> Dict[str, Any]:
     """Handle pin_add MCP tool call."""
     try:
         from pathlib import Path
-
+        
         cid_or_file = arguments.get("cid_or_file")
         name = arguments.get("name")
         recursive = arguments.get("recursive", True)
-
+        
         if not cid_or_file:
-            return {"success": False, "error": "cid_or_file is required"}
-
+            return {
+                "success": False,
+                "error": "cid_or_file is required"
+            }
+        
         # Check if it's a file
         is_file = Path(cid_or_file).exists()
-
+        
         # TODO: Integrate with actual pin manager
         # For now, return not implemented error
         return {
@@ -160,11 +184,14 @@ async def handle_pin_add(arguments: Dict[str, Any]) -> Dict[str, Any]:
             "is_file": is_file,
             "cid_or_file": cid_or_file,
             "name": name,
-            "recursive": recursive,
+            "recursive": recursive
         }
     except Exception as e:
         logger.error(f"Error adding pin: {e}", exc_info=True)
-        return {"success": False, "error": str(e)}
+        return {
+            "success": False,
+            "error": str(e)
+        }
 
 
 async def handle_pin_list(arguments: Dict[str, Any]) -> Dict[str, Any]:
@@ -172,90 +199,114 @@ async def handle_pin_list(arguments: Dict[str, Any]) -> Dict[str, Any]:
     try:
         pin_type = arguments.get("pin_type", "all")
         limit = arguments.get("limit", 100)
-
+        
         # TODO: Integrate with actual pin manager
         return {
             "success": False,
             "error": "Pin list not yet implemented in MCP layer. Use CLI: ipfs-kit pin ls",
             "type_filter": pin_type,
-            "limit": limit,
+            "limit": limit
         }
     except Exception as e:
         logger.error(f"Error listing pins: {e}", exc_info=True)
-        return {"success": False, "error": str(e)}
+        return {
+            "success": False,
+            "error": str(e)
+        }
 
 
 async def handle_pin_remove(arguments: Dict[str, Any]) -> Dict[str, Any]:
     """Handle pin_remove MCP tool call."""
     try:
         cid = arguments.get("cid")
-
+        
         if not cid:
-            return {"success": False, "error": "cid is required"}
-
+            return {
+                "success": False,
+                "error": "cid is required"
+            }
+        
         # TODO: Integrate with actual pin manager
         return {
             "success": False,
             "error": "Pin remove not yet implemented in MCP layer. Use CLI: ipfs-kit pin rm",
-            "cid": cid,
+            "cid": cid
         }
     except Exception as e:
         logger.error(f"Error removing pin: {e}", exc_info=True)
-        return {"success": False, "error": str(e)}
+        return {
+            "success": False,
+            "error": str(e)
+        }
 
 
 async def handle_pin_get_info(arguments: Dict[str, Any]) -> Dict[str, Any]:
     """Handle pin_get_info MCP tool call."""
     try:
         cid = arguments.get("cid")
-
+        
         if not cid:
-            return {"success": False, "error": "cid is required"}
-
+            return {
+                "success": False,
+                "error": "cid is required"
+            }
+        
         # TODO: Integrate with actual pin manager
         return {
             "success": False,
             "error": "Pin get_info not yet implemented in MCP layer. Use CLI: ipfs-kit pin info",
-            "cid": cid,
+            "cid": cid
         }
     except Exception as e:
         logger.error(f"Error getting pin info: {e}", exc_info=True)
-        return {"success": False, "error": str(e)}
+        return {
+            "success": False,
+            "error": str(e)
+        }
 
 
 async def handle_pin_list_pending(arguments: Dict[str, Any]) -> Dict[str, Any]:
     """Handle pin_list_pending MCP tool call."""
     try:
         limit = arguments.get("limit", 50)
-
+        
         # TODO: Integrate with actual pin manager
         return {
             "success": False,
             "error": "Pin list_pending not yet implemented in MCP layer. Use CLI to check pending operations",
-            "limit": limit,
+            "limit": limit
         }
     except Exception as e:
         logger.error(f"Error listing pending operations: {e}", exc_info=True)
-        return {"success": False, "error": str(e)}
+        return {
+            "success": False,
+            "error": str(e)
+        }
 
 
 async def handle_pin_verify(arguments: Dict[str, Any]) -> Dict[str, Any]:
     """Handle pin_verify MCP tool call."""
     try:
         cid = arguments.get("cid")
-
+        
         if not cid:
-            return {"success": False, "error": "cid is required"}
-
+            return {
+                "success": False,
+                "error": "cid is required"
+            }
+        
         # TODO: Integrate with actual pin manager
         return {
             "success": False,
             "error": "Pin verify not yet implemented in MCP layer. Use CLI to verify pins",
-            "cid": cid,
+            "cid": cid
         }
     except Exception as e:
         logger.error(f"Error verifying pin: {e}", exc_info=True)
-        return {"success": False, "error": str(e)}
+        return {
+            "success": False,
+            "error": str(e)
+        }
 
 
 async def handle_pin_update(arguments: Dict[str, Any]) -> Dict[str, Any]:
@@ -263,20 +314,26 @@ async def handle_pin_update(arguments: Dict[str, Any]) -> Dict[str, Any]:
     try:
         old_cid = arguments.get("old_cid")
         new_cid = arguments.get("new_cid")
-
+        
         if not old_cid or not new_cid:
-            return {"success": False, "error": "old_cid and new_cid are required"}
-
+            return {
+                "success": False,
+                "error": "old_cid and new_cid are required"
+            }
+        
         # TODO: Integrate with actual pin manager
         return {
             "success": False,
             "error": "Pin update not yet implemented in MCP layer. Use CLI for pin updates",
             "old_cid": old_cid,
-            "new_cid": new_cid,
+            "new_cid": new_cid
         }
     except Exception as e:
         logger.error(f"Error updating pin: {e}", exc_info=True)
-        return {"success": False, "error": str(e)}
+        return {
+            "success": False,
+            "error": str(e)
+        }
 
 
 async def handle_pin_get_statistics(arguments: Dict[str, Any]) -> Dict[str, Any]:
@@ -285,11 +342,14 @@ async def handle_pin_get_statistics(arguments: Dict[str, Any]) -> Dict[str, Any]
         # TODO: Integrate with actual pin manager
         return {
             "success": False,
-            "error": "Pin get_statistics not yet implemented in MCP layer. Use CLI for statistics",
+            "error": "Pin get_statistics not yet implemented in MCP layer. Use CLI for statistics"
         }
     except Exception as e:
         logger.error(f"Error getting statistics: {e}", exc_info=True)
-        return {"success": False, "error": str(e)}
+        return {
+            "success": False,
+            "error": str(e)
+        }
 
 
 # Handler mapping for MCP server

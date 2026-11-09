@@ -10,7 +10,6 @@ from ipfs_kit_py.ipfs_kit import ipfs_kit
 # Non-test class (renamed to avoid pytest collection)
 class IPFSKitTester:
     """Helper class for testing IPFS Kit functionality"""
-
     def __init__(self, resources=None, metadata=None):
         self.resources = resources or {}
         self.metadata = metadata or {}

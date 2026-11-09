@@ -21,10 +21,9 @@ from pydantic import BaseModel, ConfigDict, Field, validator, root_validator
 class Permission(str, enum.Enum):
     """
     Available permission scopes in the MCP system.
-
+    
     Permissions follow a resource:action pattern.
     """
-
     # READ permissions
     READ_BASIC = "read:basic"
     READ_IPFS = "read:ipfs"
@@ -34,17 +33,17 @@ class Permission(str, enum.Enum):
     READ_LASSIE = "read:lassie"
     READ_HUGGINGFACE = "read:huggingface"
     READ_ADMIN = "read:admin"
-
+    
     # WRITE permissions
     WRITE_BASIC = "write:basic"
     WRITE_IPFS = "write:ipfs"
     WRITE_FILECOIN = "write:filecoin"
     WRITE_STORACHA = "write:storacha"
     WRITE_S3 = "write:s3"
-    WRITE_LASSIE = "write:lassie"
+    WRITE_LASSIE = "write:lassie" 
     WRITE_HUGGINGFACE = "write:huggingface"
     WRITE_ADMIN = "write:admin"
-
+    
     # ADMIN permissions
     ADMIN_USERS = "admin:users"
     ADMIN_ROLES = "admin:roles"
@@ -55,15 +54,14 @@ class Permission(str, enum.Enum):
 class Role(str, enum.Enum):
     """
     User roles in the MCP system.
-
+    
     Each role includes a set of permissions.
     """
-
     ANONYMOUS = "anonymous"  # Unauthenticated users
-    USER = "user"  # Basic authenticated users
+    USER = "user"            # Basic authenticated users
     DEVELOPER = "developer"  # Developers with advanced permissions
-    ADMIN = "admin"  # System administrators
-    SYSTEM = "system"  # For system services/automation
+    ADMIN = "admin"          # System administrators
+    SYSTEM = "system"        # For system services/automation
 
 
 # Define permissions for each role
@@ -71,6 +69,7 @@ ROLE_PERMISSIONS = {
     Role.ANONYMOUS: [
         Permission.READ_BASIC,
     ],
+    
     Role.USER: [
         Permission.READ_BASIC,
         Permission.READ_IPFS,
@@ -82,6 +81,7 @@ ROLE_PERMISSIONS = {
         Permission.WRITE_BASIC,
         Permission.WRITE_IPFS,
     ],
+    
     Role.DEVELOPER: [
         Permission.READ_BASIC,
         Permission.READ_IPFS,
@@ -99,6 +99,7 @@ ROLE_PERMISSIONS = {
         Permission.WRITE_LASSIE,
         Permission.WRITE_HUGGINGFACE,
     ],
+    
     Role.ADMIN: [
         Permission.READ_BASIC,
         Permission.READ_IPFS,
@@ -120,10 +121,11 @@ ROLE_PERMISSIONS = {
         Permission.ADMIN_ROLES,
         Permission.ADMIN_AUDIT,
     ],
+    
     Role.SYSTEM: [
         # System role has all permissions
         *list(Permission),
-    ],
+    ]
 }
 
 
@@ -151,37 +153,33 @@ BACKEND_PERMISSIONS = {
 def has_backend_permission(role: Role, backend: str, write_access: bool = False) -> bool:
     """
     Check if a role has permission to access a specific backend.
-
+    
     Args:
         role: User role
         backend: Storage backend name
         write_access: Whether write access is required
-
+    
     Returns:
         True if the role has permission to access the backend
     """
     # Admin and system roles have access to all backends
     if role in (Role.ADMIN, Role.SYSTEM):
         return True
-
+    
     # Get permissions for this backend
     backend_perms = BACKEND_PERMISSIONS.get(backend.lower(), [])
     if not backend_perms:
         return False
-
+    
     # Check for required permission (read or write)
-    required_perm = (
-        backend_perms[1] if write_access and len(backend_perms) > 1 else backend_perms[0]
-    )
+    required_perm = backend_perms[1] if write_access and len(backend_perms) > 1 else backend_perms[0]
     return has_permission(role, required_perm)
 
 
 # Pydantic models for auth
 
-
 class UserBase(BaseModel):
     """Base model for user data."""
-
     username: str
     email: Optional[str] = None
     role: Role = Role.USER
@@ -190,21 +188,19 @@ class UserBase(BaseModel):
 
 class UserCreate(UserBase):
     """Model for creating a new user."""
-
     password: str
-
-    @validator("password")
+    
+    @validator('password')
     def password_strength(cls, v):
         """Validate password strength."""
         if len(v) < 8:
-            raise ValueError("Password must be at least 8 characters")
+            raise ValueError('Password must be at least 8 characters')
         # Add more password strength rules as needed
         return v
 
 
 class UserUpdate(BaseModel):
     """Model for updating a user."""
-
     username: Optional[str] = None
     email: Optional[str] = None
     password: Optional[str] = None
@@ -215,7 +211,6 @@ class UserUpdate(BaseModel):
 
 class User(UserBase):
     """Complete user model."""
-
     id: str
     created_at: datetime
     updated_at: datetime
@@ -227,7 +222,6 @@ class User(UserBase):
 
 class TokenData(BaseModel):
     """Data contained in authentication tokens."""
-
     user_id: str
     username: str
     role: Role
@@ -237,7 +231,6 @@ class TokenData(BaseModel):
 
 class TokenResponse(BaseModel):
     """Response model for token generation."""
-
     access_token: str
     token_type: str
     expires_in: int
@@ -246,7 +239,6 @@ class TokenResponse(BaseModel):
 
 class APIKeyBase(BaseModel):
     """Base model for API keys."""
-
     name: str
     permissions: List[Permission] = []
     expires_at: Optional[datetime] = None
@@ -254,13 +246,11 @@ class APIKeyBase(BaseModel):
 
 class APIKeyCreate(APIKeyBase):
     """Model for creating a new API key."""
-
     user_id: str
-
-
+    
+    
 class APIKey(APIKeyBase):
     """Complete API key model."""
-
     id: str
     key: str  # The actual API key value (hashed in storage)
     user_id: str
@@ -275,7 +265,6 @@ class APIKey(APIKeyBase):
 
 class Session(BaseModel):
     """Session model for user authentication."""
-
     id: str = Field(default_factory=lambda: secrets.token_hex(16))
     user_id: str
     expires_at: float
@@ -290,37 +279,33 @@ class Session(BaseModel):
 
 class LoginRequest(BaseModel):
     """Request model for user login."""
-
     username: str
     password: str
 
 
 class RegisterRequest(BaseModel):
     """Request model for user registration."""
-
     username: str
     email: str
     password: str
     full_name: Optional[str] = None
 
-    @validator("password")
+    @validator('password')
     def password_strength(cls, v):
         """Validate password strength."""
         if len(v) < 8:
-            raise ValueError("Password must be at least 8 characters")
+            raise ValueError('Password must be at least 8 characters')
         # Add more password strength rules as needed
         return v
 
 
 class RefreshTokenRequest(BaseModel):
     """Request model for refreshing an access token."""
-
     refresh_token: str
 
 
 class APIKeyResponse(BaseModel):
     """Response model for API key creation."""
-
     id: str
     name: str
     key: str  # Only returned once when created
@@ -334,7 +319,6 @@ class APIKeyResponse(BaseModel):
 
 class OAuthProvider(str, enum.Enum):
     """Supported OAuth providers."""
-
     GITHUB = "github"
     GOOGLE = "google"
     FACEBOOK = "facebook"
@@ -345,21 +329,19 @@ class OAuthProvider(str, enum.Enum):
 class BackendPermission(BaseModel):
     """
     Backend-specific permission model.
-
+    
     Controls access to specific storage backends for users or API keys.
     """
-
     backend_id: str
     read_access: bool = True
     write_access: bool = False
     extra_permissions: Dict[str, bool] = {}
-
+    
     model_config = ConfigDict(from_attributes=True)
 
 
 class PermissionModel(BaseModel):
     """Permission model for storing permission data."""
-
     id: str = Field(default_factory=lambda: secrets.token_hex(16))
     name: str
     description: str
@@ -373,7 +355,6 @@ class PermissionModel(BaseModel):
 
 class RoleModel(BaseModel):
     """Role model for storing role data."""
-
     id: str = Field(default_factory=lambda: secrets.token_hex(16))
     name: str
     description: str
@@ -386,7 +367,6 @@ class RoleModel(BaseModel):
 
 class OAuthConnection(BaseModel):
     """OAuth connection model."""
-
     id: str
     user_id: str
     provider: OAuthProvider

@@ -20,27 +20,35 @@ TOOL_SCHEMAS = [
         "parameters": {
             "type": "object",
             "properties": {
-                "directory": {"type": "string", "description": "Directory to list files from"},
+                "directory": {
+                    "type": "string",
+                    "description": "Directory to list files from"
+                },
                 "recursive": {
                     "type": "boolean",
-                    "description": "Whether to list files recursively",
+                    "description": "Whether to list files recursively"
                 },
                 "include_hidden": {
                     "type": "boolean",
-                    "description": "Whether to include hidden files",
-                },
+                    "description": "Whether to include hidden files"
+                }
             },
-            "required": [],
-        },
+            "required": []
+        }
     },
     {
         "name": "read_file",
         "description": "Read a file's contents",
         "parameters": {
             "type": "object",
-            "properties": {"path": {"type": "string", "description": "Path to the file to read"}},
-            "required": ["path"],
-        },
+            "properties": {
+                "path": {
+                    "type": "string",
+                    "description": "Path to the file to read"
+                }
+            },
+            "required": ["path"]
+        }
     },
     {
         "name": "write_file",
@@ -48,11 +56,17 @@ TOOL_SCHEMAS = [
         "parameters": {
             "type": "object",
             "properties": {
-                "path": {"type": "string", "description": "Path to the file to write"},
-                "content": {"type": "string", "description": "Content to write to the file"},
+                "path": {
+                    "type": "string",
+                    "description": "Path to the file to write"
+                },
+                "content": {
+                    "type": "string",
+                    "description": "Content to write to the file"
+                }
             },
-            "required": ["path", "content"],
-        },
+            "required": ["path", "content"]
+        }
     },
     {
         "name": "ipfs_add",
@@ -60,12 +74,21 @@ TOOL_SCHEMAS = [
         "parameters": {
             "type": "object",
             "properties": {
-                "content": {"type": "string", "description": "Content to add to IPFS"},
-                "filename": {"type": "string", "description": "Name of the file in IPFS"},
-                "pin": {"type": "boolean", "description": "Whether to pin the content"},
+                "content": {
+                    "type": "string",
+                    "description": "Content to add to IPFS"
+                },
+                "filename": {
+                    "type": "string",
+                    "description": "Name of the file in IPFS"
+                },
+                "pin": {
+                    "type": "boolean",
+                    "description": "Whether to pin the content"
+                }
             },
-            "required": ["content"],
-        },
+            "required": ["content"]
+        }
     },
     {
         "name": "ipfs_cat",
@@ -73,10 +96,13 @@ TOOL_SCHEMAS = [
         "parameters": {
             "type": "object",
             "properties": {
-                "cid": {"type": "string", "description": "CID of the content to retrieve"}
+                "cid": {
+                    "type": "string",
+                    "description": "CID of the content to retrieve"
+                }
             },
-            "required": ["cid"],
-        },
+            "required": ["cid"]
+        }
     },
     {
         "name": "ipfs_pin",
@@ -84,11 +110,17 @@ TOOL_SCHEMAS = [
         "parameters": {
             "type": "object",
             "properties": {
-                "cid": {"type": "string", "description": "CID of the content to pin"},
-                "recursive": {"type": "boolean", "description": "Whether to pin recursively"},
+                "cid": {
+                    "type": "string",
+                    "description": "CID of the content to pin"
+                },
+                "recursive": {
+                    "type": "boolean",
+                    "description": "Whether to pin recursively"
+                }
             },
-            "required": ["cid"],
-        },
+            "required": ["cid"]
+        }
     },
     {
         "name": "ipfs_unpin",
@@ -96,11 +128,17 @@ TOOL_SCHEMAS = [
         "parameters": {
             "type": "object",
             "properties": {
-                "cid": {"type": "string", "description": "CID of the content to unpin"},
-                "recursive": {"type": "boolean", "description": "Whether to unpin recursively"},
+                "cid": {
+                    "type": "string",
+                    "description": "CID of the content to unpin"
+                },
+                "recursive": {
+                    "type": "boolean",
+                    "description": "Whether to unpin recursively"
+                }
             },
-            "required": ["cid"],
-        },
+            "required": ["cid"]
+        }
     },
     {
         "name": "ipfs_list_pins",
@@ -110,16 +148,20 @@ TOOL_SCHEMAS = [
             "properties": {
                 "type": {
                     "type": "string",
-                    "description": "Type of pins to list (all, direct, recursive, indirect)",
+                    "description": "Type of pins to list (all, direct, recursive, indirect)"
                 }
             },
-            "required": [],
-        },
+            "required": []
+        }
     },
     {
         "name": "ipfs_version",
         "description": "Get IPFS version information",
-        "parameters": {"type": "object", "properties": {}, "required": []},
+        "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+        }
     },
     {
         "name": "ipfs_files_ls",
@@ -127,10 +169,13 @@ TOOL_SCHEMAS = [
         "parameters": {
             "type": "object",
             "properties": {
-                "path": {"type": "string", "description": "Path in the MFS to list files from"}
+                "path": {
+                    "type": "string",
+                    "description": "Path in the MFS to list files from"
+                }
             },
-            "required": [],
-        },
+            "required": []
+        }
     },
     {
         "name": "ipfs_files_mkdir",
@@ -140,15 +185,15 @@ TOOL_SCHEMAS = [
             "properties": {
                 "path": {
                     "type": "string",
-                    "description": "Path in the MFS to create the directory",
+                    "description": "Path in the MFS to create the directory"
                 },
                 "parents": {
                     "type": "boolean",
-                    "description": "Whether to create parent directories if they don't exist",
-                },
+                    "description": "Whether to create parent directories if they don't exist"
+                }
             },
-            "required": ["path"],
-        },
+            "required": ["path"]
+        }
     },
     {
         "name": "ipfs_files_write",
@@ -156,19 +201,25 @@ TOOL_SCHEMAS = [
         "parameters": {
             "type": "object",
             "properties": {
-                "path": {"type": "string", "description": "Path in the MFS to write to"},
-                "content": {"type": "string", "description": "Content to write to the file"},
+                "path": {
+                    "type": "string",
+                    "description": "Path in the MFS to write to"
+                },
+                "content": {
+                    "type": "string",
+                    "description": "Content to write to the file"
+                },
                 "create": {
                     "type": "boolean",
-                    "description": "Whether to create the file if it doesn't exist",
+                    "description": "Whether to create the file if it doesn't exist"
                 },
                 "truncate": {
                     "type": "boolean",
-                    "description": "Whether to truncate the file if it exists",
-                },
+                    "description": "Whether to truncate the file if it exists"
+                }
             },
-            "required": ["path", "content"],
-        },
+            "required": ["path", "content"]
+        }
     },
     {
         "name": "ipfs_files_read",
@@ -176,19 +227,21 @@ TOOL_SCHEMAS = [
         "parameters": {
             "type": "object",
             "properties": {
-                "path": {"type": "string", "description": "Path in the MFS to read from"}
+                "path": {
+                    "type": "string",
+                    "description": "Path in the MFS to read from"
+                }
             },
-            "required": ["path"],
-        },
-    },
+            "required": ["path"]
+        }
+    }
 ]
-
 
 def update_mcp_server_with_sse(server_path):
     """Update the MCP server with complete tool schemas."""
     try:
         # Read the server file
-        with open(server_path, "r") as f:
+        with open(server_path, 'r') as f:
             content = f.read()
 
         # Find the initialize endpoint
@@ -200,15 +253,12 @@ def update_mcp_server_with_sse(server_path):
             return False
 
         # Build the new initialize endpoint
-        new_initialize_endpoint = (
-            '''@app.get("/initialize")
+        new_initialize_endpoint = '''@app.get("/initialize")
 async def initialize():
     """Initialize endpoint for MCP protocol."""
     return {
         "capabilities": {
-            "tools": '''
-            + json.dumps(TOOL_SCHEMAS, indent=4)
-            + """,
+            "tools": ''' + json.dumps(TOOL_SCHEMAS, indent=4) + ''',
             "resources": [
                 "ipfs://info",
                 "ipfs://stats",
@@ -222,14 +272,13 @@ async def initialize():
             "version": "1.0.0",
             "implementationName": "ipfs-kit-py-proxy"
         }
-    }"""
-        )
+    }'''
 
         # Replace the initialize endpoint
         new_content = content.replace(initialize_match.group(0), new_initialize_endpoint)
 
         # Write the updated file
-        with open(server_path, "w") as f:
+        with open(server_path, 'w') as f:
             f.write(new_content)
 
         print(f"✅ Updated initialize endpoint in {server_path}")
@@ -238,7 +287,6 @@ async def initialize():
     except Exception as e:
         print(f"❌ Error updating MCP server: {e}")
         return False
-
 
 if __name__ == "__main__":
     # The MCP server to update

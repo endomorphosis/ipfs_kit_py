@@ -194,30 +194,30 @@ def create_content_id(content):
 def get_backend_module(backend: str):
     """Get the backend module for a specific backend."""
     try:
-        if backend == "ipfs":  # Removed comma
+        if backend == "ipfs": # Removed comma
             # We'll handle IPFS operations directly
             return None
-        elif backend == "local":  # Removed comma
+        elif backend == "local": # Removed comma
             # We'll handle local operations directly
             return None
-        elif backend == "huggingface":  # Removed comma
-            from .huggingface import huggingface_operations  # Relative import
+        elif backend == "huggingface": # Removed comma
+            from .huggingface import huggingface_operations # Relative import
 
             return huggingface_operations
-        elif backend == "s3":  # Removed comma
-            from .s3 import s3_operations  # Relative import
+        elif backend == "s3": # Removed comma
+            from .s3 import s3_operations # Relative import
 
             return s3_operations
-        elif backend == "filecoin":  # Removed comma
-            from .filecoin import filecoin_operations  # Relative import
+        elif backend == "filecoin": # Removed comma
+            from .filecoin import filecoin_operations # Relative import
 
             return filecoin_operations
-        elif backend == "storacha":  # Removed comma
-            from .storacha import storacha_operations  # Relative import
+        elif backend == "storacha": # Removed comma
+            from .storacha import storacha_operations # Relative import
 
             return storacha_operations
-        elif backend == "lassie":  # Removed comma
-            from .lassie import lassie_operations  # Relative import
+        elif backend == "lassie": # Removed comma
+            from .lassie import lassie_operations # Relative import
 
             return lassie_operations
     except ImportError as e:
@@ -297,12 +297,12 @@ def filter_content_by_query(query: ContentQuery):
 
 
 # Core operations
-async def store_content_in_backend(content, content_name, content_type, backend, cid=None):
+async def store_content_in_backend(content, content_name, content_type, backend, cid = None):
     """Store content in a specific backend and return backend-specific CID."""
     try:
         backend_module = get_backend_module(backend)
 
-        if backend == "ipfs":  # Removed comma
+        if backend == "ipfs": # Removed comma
             # Use subprocess to call ipfs add
             import subprocess
             import tempfile
@@ -325,7 +325,7 @@ async def store_content_in_backend(content, content_name, content_type, backend,
             backend_cid = result.stdout.strip()
             return backend_cid
 
-        elif backend == "local":  # Removed comma
+        elif backend == "local": # Removed comma
             # Store in a local file repository
             import tempfile
 
@@ -366,7 +366,7 @@ async def retrieve_content_from_backend(cid, backend):
 
         backend_module = get_backend_module(backend)
 
-        if backend == "ipfs":  # Removed comma
+        if backend == "ipfs": # Removed comma
             # Use subprocess to call ipfs cat
             import subprocess
 
@@ -377,7 +377,7 @@ async def retrieve_content_from_backend(cid, backend):
 
             return result.stdout
 
-        elif backend == "local":  # Removed comma
+        elif backend == "local": # Removed comma
             # Retrieve from local file repository
 
             local_storage_dir = os.path.join(UDM_DIR, "local_storage")
@@ -419,7 +419,7 @@ async def store_content(content, request: StoreRequest):
         # If no specific backend requested, use the routing extension if available
         if not target_backend:
             try:
-                from .routing import (  # Relative import
+                from .routing import ( # Relative import
                     ContentAttributes,
                     RoutingRequest,
                     make_routing_decision,
@@ -499,7 +499,7 @@ async def store_content(content, request: StoreRequest):
         return {"success": False, "error": str(e)}
 
 
-async def retrieve_content(cid, preferred_backend=None):
+async def retrieve_content(cid, preferred_backend = None):
     """Retrieve content using the unified data management system."""
     try:
         # Check if content exists in our registry

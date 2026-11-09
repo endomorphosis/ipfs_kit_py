@@ -47,7 +47,7 @@ print("   • No heavy operations")
 print("\n📊 BENEFITS:")
 print("=" * 40)
 print("✅ Separation of concerns - daemon handles heavy work")
-print("✅ Scalability - multiple clients can connect to one daemon")
+print("✅ Scalability - multiple clients can connect to one daemon")  
 print("✅ Reliability - daemon runs independently")
 print("✅ Resource efficiency - clients are lightweight")
 print("✅ Easy maintenance - centralized backend management")
@@ -121,7 +121,7 @@ print("  ❌ Mixed responsibilities")
 
 print("\nAfter: Daemon + lightweight clients")
 print("  ✅ Dedicated daemon for heavy work")
-print("  ✅ Multiple lightweight clients")
+print("  ✅ Multiple lightweight clients")  
 print("  ✅ Better resource management")
 print("  ✅ Cleaner architecture")
 print("  ✅ Easier to maintain and debug")
@@ -136,40 +136,38 @@ print("2. Test the CLI: python mcp/ipfs_kit/daemon/launcher.py cli status")
 print("3. Check the dashboard: http://127.0.0.1:8888")
 print("4. Explore the API: http://127.0.0.1:9999/health")
 
-
 async def demo_client_operations():
     """Demonstrate client operations (if daemon is running)."""
     try:
         from ipfs_kit_py.mcp.ipfs_kit.daemon.daemon_client import IPFSKitDaemonClient
-
+        
         print("\n🔍 TESTING DAEMON CONNECTION:")
         print("-" * 40)
-
+        
         client = IPFSKitDaemonClient()
-
+        
         # Test daemon connection
         daemon_running = await client.is_daemon_running()
         if daemon_running:
             print("✅ Daemon is running and responsive")
-
+            
             # Get status
             status = await client.get_daemon_status()
             print(f"📊 Uptime: {status.get('uptime_seconds', 0):.0f} seconds")
-
-            # Get health
+            
+            # Get health  
             health = await client.get_health()
-            system_healthy = health.get("system_healthy", False)
+            system_healthy = health.get('system_healthy', False)
             print(f"🏥 System healthy: {system_healthy}")
-
+            
         else:
             print("❌ Daemon is not running")
             print("   Start it with: python mcp/ipfs_kit/daemon/launcher.py daemon")
-
+            
     except ImportError as e:
         print(f"⚠️ Cannot test client (import error): {e}")
     except Exception as e:
         print(f"⚠️ Cannot test client: {e}")
-
 
 if __name__ == "__main__":
     # Run the client test
@@ -177,5 +175,5 @@ if __name__ == "__main__":
         anyio.run(demo_client_operations)
     except Exception as e:
         print(f"Demo client test failed: {e}")
-
+        
     print("\n🚀 Demonstration complete! Try the new architecture.")

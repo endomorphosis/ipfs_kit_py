@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 class IPFSModel(BaseStorageModel):
     """
     IPFS storage model for MCP server.
-
+    
     This class implements the storage model interface for IPFS,
     providing a standardized way to interact with IPFS storage.
     """
@@ -50,18 +50,18 @@ class IPFSModel(BaseStorageModel):
             cache_manager=cache_manager,
             credential_manager=credential_manager,
         )
-
+        
         # Store IPFS backend
         self.ipfs_backend = ipfs_backend
         self.kit = ipfs_backend  # Alias for compatibility with base class
-
+        
         # Set the backend name specifically for IPFS
         self.backend_name = "IPFS"
-
+        
         # Store debug and configuration settings
         self.debug_mode = debug_mode
         self.log_level = log_level
-
+        
         # Extract configuration if provided
         if config is not None:
             self.debug_mode = config.get("debug", self.debug_mode)
@@ -69,7 +69,7 @@ class IPFSModel(BaseStorageModel):
             self.isolation_mode = config.get("isolation", True)
         else:
             self.isolation_mode = True
-
+        
         logger.info("IPFS Model initialized")
 
     def _get_backend_name(self) -> str:
@@ -81,7 +81,11 @@ class IPFSModel(BaseStorageModel):
         """
         return "IPFS"
 
-    async def add_content(self, content: Union[bytes, str, BinaryIO], **kwargs) -> Dict[str, Any]:
+    async def add_content(
+        self, 
+        content: Union[bytes, str, BinaryIO],
+        **kwargs
+    ) -> Dict[str, Any]:
         """
         Add content to IPFS.
 
@@ -97,20 +101,20 @@ class IPFSModel(BaseStorageModel):
         """
         result = self._create_result_template("add_content")
         start_time = time.time()
-
+        
         try:
             # Process optional parameters
             pin = kwargs.get("pin", True)
             filename = kwargs.get("filename")
             metadata = kwargs.get("metadata", {})
-
+            
             # Calculate content size for stats
             content_size = None
             if isinstance(content, bytes):
                 content_size = len(content)
             elif isinstance(content, str):
-                content_size = len(content.encode("utf-8"))
-            elif hasattr(content, "seek") and hasattr(content, "tell"):
+                content_size = len(content.encode('utf-8'))
+            elif hasattr(content, 'seek') and hasattr(content, 'tell'):
                 # For file-like objects, get size if possible
                 try:
                     current_pos = content.tell()
@@ -119,22 +123,25 @@ class IPFSModel(BaseStorageModel):
                     content.seek(current_pos)  # Restore position
                 except (AttributeError, IOError):
                     content_size = None
-
+            
             # Add content to IPFS through the backend
             options = {
                 "pin": pin,
                 "filename": filename,
                 "metadata": metadata,
             }
-
+            
             container = kwargs.get("container")
             path = kwargs.get("path")
-
+            
             # Store the content
             backend_result = self.ipfs_backend.store(
-                data=content, container=container, path=path, options=options
+                data=content,
+                container=container,
+                path=path,
+                options=options
             )
-
+            
             # Process result
             if backend_result.get("success", False):
                 result["success"] = True
@@ -142,7 +149,7 @@ class IPFSModel(BaseStorageModel):
                 result["size"] = content_size
                 result["pinned"] = pin
                 result["backend_details"] = backend_result.get("details", {})
-
+                
                 # Add metadata if provided
                 if metadata:
                     # Update the metadata on IPFS
@@ -150,25 +157,29 @@ class IPFSModel(BaseStorageModel):
                         identifier=result["cid"],
                         metadata=metadata,
                         container=container,
-                        options=options,
+                        options=options
                     )
                     result["metadata_updated"] = metadata_result.get("success", False)
                     result["metadata"] = metadata
             else:
                 # Copy error information from backend result
                 result["success"] = False
-                result["error"] = backend_result.get(
-                    "error", "Unknown error adding content to IPFS"
-                )
+                result["error"] = backend_result.get("error", "Unknown error adding content to IPFS")
                 result["error_type"] = backend_result.get("error_type", "IPFSError")
                 result["backend_details"] = backend_result.get("details", {})
-
+            
         except Exception as e:
             return await self._handle_exception_async(e, result, "add_content")
+        
+        return await self._handle_operation_result_async(
+            result, "upload", start_time, content_size
+        )
 
-        return await self._handle_operation_result_async(result, "upload", start_time, content_size)
-
-    async def get_content(self, content_id: str, **kwargs) -> Dict[str, Any]:
+    async def get_content(
+        self, 
+        content_id: str,
+        **kwargs
+    ) -> Dict[str, Any]:
         """
         Retrieve content from IPFS.
 
@@ -183,7 +194,7 @@ class IPFSModel(BaseStorageModel):
         """
         result = self._create_result_template("get_content")
         start_time = time.time()
-
+        
         try:
             # Check cache first
             cached_content = await self._cache_get_async(content_id)
@@ -194,67 +205,64 @@ class IPFSModel(BaseStorageModel):
                 result["cached"] = True
                 logger.debug(f"Retrieved {content_id} from cache")
                 return await self._handle_operation_result_async(
-                    result,
-                    "download",
-                    start_time,
-                    len(cached_content) if isinstance(cached_content, bytes) else 0,
+                    result, "download", start_time, len(cached_content) if isinstance(cached_content, bytes) else 0
                 )
-
+            
             # Retrieve from IPFS
             container = kwargs.get("container")
             options = {
                 "timeout": kwargs.get("timeout", 30),
                 "encoding": kwargs.get("encoding"),
             }
-
+            
             # Get the content
             backend_result = self.ipfs_backend.retrieve(
-                identifier=content_id, container=container, options=options
+                identifier=content_id,
+                container=container,
+                options=options
             )
-
+            
             # Process result
             if backend_result.get("success", False):
                 content_data = backend_result.get("data")
                 content_size = len(content_data) if isinstance(content_data, bytes) else 0
-
+                
                 result["success"] = True
                 result["content"] = content_data
                 result["cid"] = content_id
                 result["size"] = content_size
                 result["backend_details"] = backend_result.get("details", {})
-
+                
                 # Cache the content for future use
                 cache_ttl = kwargs.get("cache_ttl", 3600)  # Default 1 hour
                 if cache_ttl > 0 and content_size > 0:
-                    await self._cache_put_async(
-                        content_id,
-                        content_data,
-                        {
-                            "cid": content_id,
-                            "timestamp": time.time(),
-                            "size": content_size,
-                        },
-                    )
+                    await self._cache_put_async(content_id, content_data, {
+                        "cid": content_id,
+                        "timestamp": time.time(),
+                        "size": content_size,
+                    })
                     result["cached"] = True
-
+                
                 return await self._handle_operation_result_async(
                     result, "download", start_time, content_size
                 )
             else:
                 # Copy error information from backend result
                 result["success"] = False
-                result["error"] = backend_result.get(
-                    "error", "Unknown error retrieving content from IPFS"
-                )
+                result["error"] = backend_result.get("error", "Unknown error retrieving content from IPFS")
                 result["error_type"] = backend_result.get("error_type", "IPFSError")
                 result["backend_details"] = backend_result.get("details", {})
-
+            
         except Exception as e:
             return await self._handle_exception_async(e, result, "get_content")
-
+        
         return await self._handle_operation_result_async(result, "download", start_time)
 
-    async def delete_content(self, content_id: str, **kwargs) -> Dict[str, Any]:
+    async def delete_content(
+        self, 
+        content_id: str,
+        **kwargs
+    ) -> Dict[str, Any]:
         """
         Delete (unpin) content from IPFS.
 
@@ -272,7 +280,7 @@ class IPFSModel(BaseStorageModel):
         """
         result = self._create_result_template("delete_content")
         start_time = time.time()
-
+        
         try:
             # Process options
             container = kwargs.get("container")
@@ -280,34 +288,34 @@ class IPFSModel(BaseStorageModel):
                 "recursive": kwargs.get("recursive", True),
                 "force": kwargs.get("force", False),
             }
-
+            
             # Delete/unpin the content
             backend_result = self.ipfs_backend.delete(
-                identifier=content_id, container=container, options=options
+                identifier=content_id,
+                container=container,
+                options=options
             )
-
+            
             # Process result
             if backend_result.get("success", False):
                 result["success"] = True
                 result["cid"] = content_id
                 result["unpinned"] = True
                 result["backend_details"] = backend_result.get("details", {})
-
+                
                 # Remove from cache if present
                 if self.cache_manager:
                     await self._cache_put_async(content_id, None)
             else:
                 # Copy error information from backend result
                 result["success"] = False
-                result["error"] = backend_result.get(
-                    "error", "Unknown error unpinning content from IPFS"
-                )
+                result["error"] = backend_result.get("error", "Unknown error unpinning content from IPFS")
                 result["error_type"] = backend_result.get("error_type", "IPFSError")
                 result["backend_details"] = backend_result.get("details", {})
-
+            
         except Exception as e:
             return await self._handle_exception_async(e, result, "delete_content")
-
+        
         return await self._handle_operation_result_async(result, "delete", start_time)
 
     async def list_content(self, **kwargs) -> Dict[str, Any]:
@@ -326,7 +334,7 @@ class IPFSModel(BaseStorageModel):
         """
         result = self._create_result_template("list_content")
         start_time = time.time()
-
+        
         try:
             # Process options
             container = kwargs.get("container")
@@ -336,16 +344,18 @@ class IPFSModel(BaseStorageModel):
                 "limit": kwargs.get("limit"),
                 "offset": kwargs.get("offset"),
             }
-
+            
             # List the content
             backend_result = self.ipfs_backend.list(
-                container=container, prefix=prefix, options=options
+                container=container,
+                prefix=prefix,
+                options=options
             )
-
+            
             # Process result
             if backend_result.get("success", False):
                 items = backend_result.get("items", [])
-
+                
                 result["success"] = True
                 result["items"] = items
                 result["count"] = len(items)
@@ -353,15 +363,13 @@ class IPFSModel(BaseStorageModel):
             else:
                 # Copy error information from backend result
                 result["success"] = False
-                result["error"] = backend_result.get(
-                    "error", "Unknown error listing content from IPFS"
-                )
+                result["error"] = backend_result.get("error", "Unknown error listing content from IPFS")
                 result["error_type"] = backend_result.get("error_type", "IPFSError")
                 result["backend_details"] = backend_result.get("details", {})
-
+            
         except Exception as e:
             return await self._handle_exception_async(e, result, "list_content")
-
+        
         return await self._handle_operation_result_async(result, "list", start_time)
 
     async def get_metadata(self, content_id: str, **kwargs) -> Dict[str, Any]:
@@ -377,20 +385,22 @@ class IPFSModel(BaseStorageModel):
         """
         result = self._create_result_template("get_metadata")
         start_time = time.time()
-
+        
         try:
             # Retrieve metadata from backend
             container = kwargs.get("container")
             options = kwargs.get("options", {})
-
+            
             backend_result = self.ipfs_backend.get_metadata(
-                identifier=content_id, container=container, options=options
+                identifier=content_id,
+                container=container,
+                options=options
             )
-
+            
             # Process result
             if backend_result.get("success", False):
                 metadata = backend_result.get("metadata", {})
-
+                
                 result["success"] = True
                 result["cid"] = content_id
                 result["metadata"] = metadata
@@ -398,20 +408,16 @@ class IPFSModel(BaseStorageModel):
             else:
                 # Copy error information from backend result
                 result["success"] = False
-                result["error"] = backend_result.get(
-                    "error", "Unknown error getting metadata from IPFS"
-                )
+                result["error"] = backend_result.get("error", "Unknown error getting metadata from IPFS")
                 result["error_type"] = backend_result.get("error_type", "IPFSError")
                 result["backend_details"] = backend_result.get("details", {})
-
+            
         except Exception as e:
             return await self._handle_exception_async(e, result, "get_metadata")
-
+        
         return await self._handle_operation_result_async(result, "metadata", start_time)
 
-    async def update_metadata(
-        self, content_id: str, metadata: Dict[str, Any], **kwargs
-    ) -> Dict[str, Any]:
+    async def update_metadata(self, content_id: str, metadata: Dict[str, Any], **kwargs) -> Dict[str, Any]:
         """
         Update metadata for content in IPFS.
 
@@ -425,16 +431,19 @@ class IPFSModel(BaseStorageModel):
         """
         result = self._create_result_template("update_metadata")
         start_time = time.time()
-
+        
         try:
             # Update metadata in backend
             container = kwargs.get("container")
             options = kwargs.get("options", {})
-
+            
             backend_result = self.ipfs_backend.update_metadata(
-                identifier=content_id, metadata=metadata, container=container, options=options
+                identifier=content_id,
+                metadata=metadata,
+                container=container,
+                options=options
             )
-
+            
             # Process result
             if backend_result.get("success", False):
                 result["success"] = True
@@ -444,15 +453,13 @@ class IPFSModel(BaseStorageModel):
             else:
                 # Copy error information from backend result
                 result["success"] = False
-                result["error"] = backend_result.get(
-                    "error", "Unknown error updating metadata in IPFS"
-                )
+                result["error"] = backend_result.get("error", "Unknown error updating metadata in IPFS")
                 result["error_type"] = backend_result.get("error_type", "IPFSError")
                 result["backend_details"] = backend_result.get("details", {})
-
+            
         except Exception as e:
             return await self._handle_exception_async(e, result, "update_metadata")
-
+        
         return await self._handle_operation_result_async(result, "metadata", start_time)
 
     async def pin_content(self, content_id: str, **kwargs) -> Dict[str, Any]:
@@ -469,22 +476,22 @@ class IPFSModel(BaseStorageModel):
         """
         result = self._create_result_template("pin_content")
         start_time = time.time()
-
+        
         try:
             # Process options
             container = kwargs.get("container")
             options = {
                 "recursive": kwargs.get("recursive", True),
             }
-
+            
             # Call our own add_content with pin=True
             # We use the backend directly since we already have it
             backend_result = self.ipfs_backend.store(
                 data=content_id,  # Just pass the CID, backend should handle it as a pin
                 container=container,
-                options={**options, "pin_only": True},
+                options={**options, "pin_only": True}
             )
-
+            
             # Process result
             if backend_result.get("success", False):
                 result["success"] = True
@@ -494,15 +501,13 @@ class IPFSModel(BaseStorageModel):
             else:
                 # Copy error information from backend result
                 result["success"] = False
-                result["error"] = backend_result.get(
-                    "error", "Unknown error pinning content in IPFS"
-                )
+                result["error"] = backend_result.get("error", "Unknown error pinning content in IPFS")
                 result["error_type"] = backend_result.get("error_type", "IPFSError")
                 result["backend_details"] = backend_result.get("details", {})
-
+            
         except Exception as e:
             return await self._handle_exception_async(e, result, "pin_content")
-
+        
         return await self._handle_operation_result_async(result, "pin", start_time)
 
     # Create synchronous versions of async methods using the helper decorator

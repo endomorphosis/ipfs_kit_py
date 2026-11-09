@@ -10,7 +10,7 @@ urls_to_try = [
     "http://localhost:9999/api/v0/mcp",
     "http://localhost:9999",
     "http://localhost:9999/api/v0",
-    "http://localhost:9999/mcp",
+    "http://localhost:9999/mcp"
 ]
 
 # Try health endpoint
@@ -25,16 +25,14 @@ for base_url in urls_to_try:
             print(f"Found working health endpoint at: {health_url}")
             print(f"Response: {response.text}")
             print("\nNow testing IPFS cat endpoint...")
-
+            
             # Try the test CID
             test_cid = "QmTest123"
             cat_url = f"{base_url}/ipfs/cat/{test_cid}"
             print(f"Trying: {cat_url}")
             response = requests.get(cat_url)
             print(f"Status: {response.status_code}")
-            print(
-                f"Response: {response.text[:100] if response.status_code == 200 else response.text}"
-            )
+            print(f"Response: {response.text[:100] if response.status_code == 200 else response.text}")
     except Exception as e:
         print(f"Error: {e}")
 

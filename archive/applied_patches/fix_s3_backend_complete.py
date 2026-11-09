@@ -35,7 +35,6 @@ DEFAULT_CHUNK_SIZE = 8 * 1024 * 1024  # 8MB
 
 class S3ConnectionPool:
     """Manages a pool of S3 clients for improved performance."""
-
     def __init__(self, config: Dict[str, Any], max_clients: int = 5):
         """
         Initialize the connection pool.
@@ -99,7 +98,6 @@ class S3ConnectionPool:
 
 class S3Backend(BackendStorage):
     """S3 backend implementation for Amazon S3 and compatible services with enhanced features."""
-
     def __init__(self, resources: Dict[str, Any], metadata: Dict[str, Any]):
         """Initialize S3 backend with advanced features."""
         super().__init__(StorageBackendType.S3, resources, metadata)
@@ -119,8 +117,7 @@ class S3Backend(BackendStorage):
         # Extract configuration from resources/metadata
         self.aws_access_key = resources.get("aws_access_key") or os.environ.get("AWS_ACCESS_KEY_ID")
         self.aws_secret_key = resources.get("aws_secret_key") or os.environ.get(
-            "AWS_SECRET_ACCESS_KEY"
-        )
+            "AWS_SECRET_ACCESS_KEY")
         self.region = resources.get("region") or os.environ.get("AWS_REGION", "us-east-1")
         self.endpoint_url = resources.get("endpoint_url") or os.environ.get("S3_ENDPOINT_URL")
         self.default_bucket = resources.get("bucket") or os.environ.get("S3_DEFAULT_BUCKET")
@@ -128,8 +125,7 @@ class S3Backend(BackendStorage):
         # Performance and reliability configuration
         self.max_threads = int(resources.get("max_threads", DEFAULT_MAX_THREADS))
         self.connection_timeout = int(
-            resources.get("connection_timeout", DEFAULT_CONNECTION_TIMEOUT)
-        )
+            resources.get("connection_timeout", DEFAULT_CONNECTION_TIMEOUT))
         self.read_timeout = int(resources.get("read_timeout", DEFAULT_READ_TIMEOUT))
         self.max_retries = int(resources.get("max_retries", 3))
         self.chunk_size = int(resources.get("chunk_size", DEFAULT_CHUNK_SIZE))
@@ -145,7 +141,7 @@ class S3Backend(BackendStorage):
 
         # Initialize local cache for frequently accessed data
         self._init_local_cache()
-
+        
     def get_name(self) -> str:
         """Get the name of this backend implementation."""
         return "s3"
@@ -166,8 +162,7 @@ class S3Backend(BackendStorage):
 
         # Cache size limit in bytes
         self.cache_size_limit = int(
-            self.resources.get("cache_size_limit", 1024 * 1024 * 100)
-        )  # Default: 100MB
+            self.resources.get("cache_size_limit", 1024 * 1024 * 100))  # Default: 100MB
 
         # Track cache usage
         self.cache_usage = 0
@@ -213,7 +208,7 @@ class S3Backend(BackendStorage):
 
         # Check if we still have space
         if self.cache_usage + len(data) > self.cache_size_limit:
-            return None  # Cannot cache if still over limit
+            return None # Cannot cache if still over limit
 
         cache_metadata = {
             "cached_at": time.time(),
@@ -261,8 +256,7 @@ class S3Backend(BackendStorage):
                         os.remove(tmp_path)
                 except OSError as cleanup_error:
                     logger.warning(
-                        f"Error removing temporary cache file {tmp_path}: {str(cleanup_error)}"
-                    )
+                        f"Error removing temporary cache file {tmp_path}: {str(cleanup_error)}")
 
             if data_committed:
                 for final_path in (cache_path, meta_path):
@@ -271,8 +265,7 @@ class S3Backend(BackendStorage):
                             os.remove(final_path)
                     except OSError as cleanup_error:
                         logger.warning(
-                            f"Error removing incomplete cache file {final_path}: {str(cleanup_error)}"
-                        )
+                            f"Error removing incomplete cache file {final_path}: {str(cleanup_error)}")
                 if previous_size:
                     self.cache_usage = max(0, self.cache_usage - previous_size)
 
@@ -310,9 +303,7 @@ class S3Backend(BackendStorage):
 
             # Remove oldest files until we're under the limit
             freed_space = 0
-            target_free = max(
-                self.cache_size_limit // 2, self.chunk_size * 2
-            )  # Target freeing up 50% or at least 2 chunks
+            target_free = max(self.cache_size_limit // 2, self.chunk_size * 2) # Target freeing up 50% or at least 2 chunks
 
             for file_path, meta_path, _, size in cache_files:
                 # Stop if we've freed enough space
@@ -343,8 +334,7 @@ class S3Backend(BackendStorage):
             connect_timeout=self.connection_timeout,
             read_timeout=self.read_timeout,
             retries={"max_attempts": self.max_retries},
-            max_pool_connections=self.max_threads,
-        )
+            max_pool_connections=self.max_threads,)
 
         # Configure client parameters
         client_kwargs = {"region_name": self.region, "config": boto_config}
@@ -383,21 +373,19 @@ class S3Backend(BackendStorage):
         if path:
             return path
         return f"mcp-s3-{uuid.uuid4()}"
-
+        
     # Implement required abstract method
-    def add_content(
-        self, content: Union[str, bytes, BinaryIO], metadata: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+    def add_content(self, content: Union[str, bytes, BinaryIO], metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
         Add content to S3 storage.
-
+        
         This method implements the abstract method from BackendStorage.
         It serves as a bridge to the store() method with appropriate parameter mapping.
-
+        
         Args:
             content: Content to add (can be a path, bytes, or file-like object)
             metadata: Optional metadata to associate with the content
-
+            
         Returns:
             Dict with operation result including content ID
         """
@@ -405,7 +393,7 @@ class S3Backend(BackendStorage):
         options = {}
         if metadata:
             options["metadata"] = metadata
-
+            
         # Call the existing store method with mapped parameters
         return self.store(content, options=options)
 
@@ -413,30 +401,30 @@ class S3Backend(BackendStorage):
     def get_content(self, content_id: str) -> Dict[str, Any]:
         """
         Retrieve content from S3 storage.
-
+        
         This method implements the abstract method from BackendStorage.
         It serves as a bridge to the retrieve() method.
-
+        
         Args:
             content_id: ID of the content to retrieve
-
+            
         Returns:
             Dict with operation result including content data
         """
         # Call the existing retrieve method
         return self.retrieve(content_id)
-
+        
     # Implement required abstract method
     def remove_content(self, content_id: str) -> Dict[str, Any]:
         """
         Remove content from S3 storage.
-
+        
         This method implements the abstract method from BackendStorage.
         It serves as a bridge to the delete() method.
-
+        
         Args:
             content_id: ID of the content to remove
-
+            
         Returns:
             Dict with operation result
         """
@@ -448,8 +436,7 @@ class S3Backend(BackendStorage):
         data: Union[bytes, BinaryIO, str],
         container: Optional[str] = None,
         path: Optional[str] = None,
-        options: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
+        options: Optional[Dict[str, Any]] = None,) -> Dict[str, Any]:
         """Store data in S3 with enhanced performance."""
         options = options or {}
         bucket = self._resolve_bucket(container)
@@ -488,8 +475,7 @@ class S3Backend(BackendStorage):
                 # Upload file-like object
                 with self.connection_pool as client:
                     client.upload_fileobj(
-                        data, bucket, object_key, ExtraArgs={"Metadata": metadata}
-                    )
+                        data, bucket, object_key, ExtraArgs={"Metadata": metadata})
 
             # Store object details in cache
             self._metadata_cache[f"{bucket}:{object_key}"] = {
@@ -521,8 +507,12 @@ class S3Backend(BackendStorage):
             return {"success": False, "error": str(e), "backend": self.get_name()}
 
     def _multipart_upload(
-        self, data: bytes, bucket: str, key: str, metadata: Dict[str, Any], options: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self,
+        data: bytes,
+        bucket: str,
+        key: str,
+        metadata: Dict[str, Any],
+        options: Dict[str, Any]) -> Dict[str, Any]:
         """Perform a multipart upload for large data."""
         try:
             # Start multipart upload
@@ -544,8 +534,7 @@ class S3Backend(BackendStorage):
                         Key=key,
                         PartNumber=part_number,
                         UploadId=upload_id,
-                        Body=chunk,
-                    )
+                        Body=chunk,)
 
                 # Add part information
                 parts.append({"PartNumber": part_number, "ETag": response["ETag"]})
@@ -558,8 +547,7 @@ class S3Backend(BackendStorage):
                     Bucket=bucket,
                     Key=key,
                     UploadId=upload_id,
-                    MultipartUpload={"Parts": parts},
-                )
+                    MultipartUpload={"Parts": parts},)
 
             return {
                 "success": True,
@@ -590,8 +578,7 @@ class S3Backend(BackendStorage):
         self,
         identifier: str,
         container: Optional[str] = None,
-        options: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
+        options: Optional[Dict[str, Any]] = None,) -> Dict[str, Any]:
         """Retrieve data from S3 with caching capabilities."""
         options = options or {}
         bucket = self._resolve_bucket(container)
@@ -694,8 +681,7 @@ class S3Backend(BackendStorage):
         self,
         identifier: str,
         container: Optional[str] = None,
-        options: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
+        options: Optional[Dict[str, Any]] = None,) -> Dict[str, Any]:
         """Delete object from S3."""
         options = options or {}
         bucket = self._resolve_bucket(container)
@@ -753,8 +739,7 @@ class S3Backend(BackendStorage):
         self,
         container: Optional[str] = None,
         prefix: Optional[str] = None,
-        options: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
+        options: Optional[Dict[str, Any]] = None,) -> Dict[str, Any]:
         """List objects in S3 bucket with enhanced performance."""
         options = options or {}
         bucket = self._resolve_bucket(container)
@@ -786,14 +771,12 @@ class S3Backend(BackendStorage):
                     {
                         "identifier": obj.get("Key"),
                         "size": obj.get("Size"),
-                        "last_modified": obj.get("LastModified").isoformat()
-                        if obj.get("LastModified")
-                        else None,
+                        "last_modified": 
+                            obj.get("LastModified").isoformat() if obj.get("LastModified") else None,
                         "etag": obj.get("ETag"),
                         "backend": self.get_name(),
                         "container": bucket,
-                    }
-                )
+                    })
 
             result = {
                 "success": True,
@@ -837,8 +820,7 @@ class S3Backend(BackendStorage):
         self,
         identifier: str,
         container: Optional[str] = None,
-        options: Optional[Dict[str, Any]] = None,
-    ) -> bool:
+        options: Optional[Dict[str, Any]] = None,) -> bool:
         """Check if object exists in S3 with cache support."""
         options = options or {}
         bucket = self._resolve_bucket(container)
@@ -870,8 +852,7 @@ class S3Backend(BackendStorage):
         self,
         identifier: str,
         container: Optional[str] = None,
-        options: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
+        options: Optional[Dict[str, Any]] = None,) -> Dict[str, Any]:
         """Get metadata for S3 object with cache support."""
         options = options or {}
         bucket = self._resolve_bucket(container)
@@ -898,8 +879,7 @@ class S3Backend(BackendStorage):
                     OverflowError,
                 ) as cache_error:
                     logger.warning(
-                        f"Error reading S3 metadata cache {meta_path}: {str(cache_error)}"
-                    )
+                        f"Error reading S3 metadata cache {meta_path}: {str(cache_error)}")
                 else:
                     return {
                         "success": True,
@@ -928,9 +908,10 @@ class S3Backend(BackendStorage):
                 "metadata": {
                     "size": response.get("ContentLength", 0),
                     "content_type": response.get("ContentType"),
-                    "last_modified": response.get("LastModified").isoformat()
-                    if response.get("LastModified")
-                    else None,
+                    "last_modified": 
+                        response.get("LastModified").isoformat()
+                        if response.get("LastModified")
+                        else None,
                     "etag": response.get("ETag"),
                     "storage_class": response.get("StorageClass"),
                     "backend": self.get_name(),
@@ -977,8 +958,7 @@ class S3Backend(BackendStorage):
         identifier: str,
         metadata: Dict[str, Any],
         container: Optional[str] = None,
-        options: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
+        options: Optional[Dict[str, Any]] = None,) -> Dict[str, Any]:
         """
         Update metadata for S3 object.
 
@@ -1020,8 +1000,7 @@ class S3Backend(BackendStorage):
                     Bucket=bucket,
                     Key=identifier,
                     Metadata=new_metadata,
-                    MetadataDirective="REPLACE",
-                )
+                    MetadataDirective="REPLACE",)
 
             # Update cache
             cache_key = f"{bucket}:{identifier}"
@@ -1079,8 +1058,7 @@ class S3Backend(BackendStorage):
         target_container: Optional[str] = None,
         target_path: Optional[str] = None,
         source_container: Optional[str] = None,
-        options: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
+        options: Optional[Dict[str, Any]] = None,) -> Dict[str, Any]:
         """
         Migrate content from S3 to another storage backend.
 
@@ -1125,8 +1103,7 @@ class S3Backend(BackendStorage):
                 "migrated_at": str(int(time.time())),
                 "source_identifier": source_identifier,
                 "source_container": source_bucket,
-            }
-        )
+            })
 
         # Store in target backend
         storage_options = {"metadata": {**metadata, **migration_metadata}}
@@ -1136,7 +1113,8 @@ class S3Backend(BackendStorage):
             storage_options.update(options["storage_options"])
 
         # Store in target backend
-        store_result = target_backend.add_content(data, metadata={**metadata, **migration_metadata})
+        store_result = target_backend.add_content(
+            data, metadata={**metadata, **migration_metadata})
 
         if not store_result.get("success", False):
             return {
@@ -1205,7 +1183,7 @@ class S3Backend(BackendStorage):
             "details": {
                 "source_details": retrieve_result.get("details", {}),
                 "target_details": store_result.get("details", {}),
-            },
+            }
         }
 
         # Add verification results if performed
@@ -1215,8 +1193,7 @@ class S3Backend(BackendStorage):
             if not verification_result.get("success", False):
                 result["success"] = False
                 result["error"] = (
-                    f"Migration verification failed: {verification_result.get('error', 'Unknown error')}"
-                )
+                    f"Migration verification failed: {verification_result.get('error', 'Unknown error')}")
 
         return result
 
@@ -1273,8 +1250,7 @@ class S3Backend(BackendStorage):
                 "migrated_at": str(int(time.time())),
                 "source_identifier": source_identifier,
                 "source_container": source_container,
-            }
-        )
+            })
 
         # Store in S3
         storage_options = {"metadata": {**metadata, **migration_metadata}}
@@ -1285,8 +1261,7 @@ class S3Backend(BackendStorage):
 
         # Store in S3
         store_result = self.store(
-            data, container=target_bucket, path=target_path, options=storage_options
-        )
+            data, container=target_bucket, path=target_path, options=storage_options)
 
         if not store_result.get("success", False):
             return {
@@ -1313,8 +1288,7 @@ class S3Backend(BackendStorage):
             target_retrieve = self.retrieve(
                 target_identifier,
                 container=target_bucket,
-                options=options.get("verification_options", {}),
-            )
+                options=options.get("verification_options", {}),)
 
             if not target_retrieve.get("success", False):
                 verification_result = {
@@ -1359,7 +1333,7 @@ class S3Backend(BackendStorage):
             "details": {
                 "source_details": retrieve_result.get("details", {}),
                 "target_details": store_result.get("details", {}),
-            },
+            }
         }
 
         # Add verification results if performed
@@ -1369,8 +1343,7 @@ class S3Backend(BackendStorage):
             if not verification_result.get("success", False):
                 result["success"] = False
                 result["error"] = (
-                    f"Migration verification failed: {verification_result.get('error', 'Unknown error')}"
-                )
+                    f"Migration verification failed: {verification_result.get('error', 'Unknown error')}")
 
         return result
 

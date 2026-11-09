@@ -18,9 +18,8 @@ try:
     from ipfs_kit_py.libp2p.universal_connectivity import (
         UniversalConnectivityManager,
         ConnectivityConfig,
-        DEFAULT_BOOTSTRAP_PEERS,
+        DEFAULT_BOOTSTRAP_PEERS
     )
-
     print("  ✅ All modules imported successfully")
 except Exception as e:
     print(f"  ❌ Import failed: {e}")
@@ -34,7 +33,7 @@ try:
         enable_pubsub_discovery=True,
         enable_autonat=True,
         enable_relay_client=True,
-        enable_dcutr=True,
+        enable_dcutr=True
     )
     print(f"  ✅ Config created")
     print(f"     - mDNS: {config.enable_mdns}")
@@ -62,19 +61,19 @@ except Exception as e:
 print("\nTest 4: Verifying class structure...")
 try:
     # Check key methods exist
-    assert hasattr(UniversalConnectivityManager, "start")
-    assert hasattr(UniversalConnectivityManager, "stop")
-    assert hasattr(UniversalConnectivityManager, "dial_peer")
-    assert hasattr(UniversalConnectivityManager, "get_metrics")
-
-    assert hasattr(CircuitRelayClient, "make_reservation")
-    assert hasattr(CircuitRelayClient, "dial_through_relay")
-
-    assert hasattr(DCUtR, "attempt_hole_punch")
-
-    assert hasattr(PubsubPeerDiscovery, "start")
-    assert hasattr(MDNSService, "start")
-
+    assert hasattr(UniversalConnectivityManager, 'start')
+    assert hasattr(UniversalConnectivityManager, 'stop')
+    assert hasattr(UniversalConnectivityManager, 'dial_peer')
+    assert hasattr(UniversalConnectivityManager, 'get_metrics')
+    
+    assert hasattr(CircuitRelayClient, 'make_reservation')
+    assert hasattr(CircuitRelayClient, 'dial_through_relay')
+    
+    assert hasattr(DCUtR, 'attempt_hole_punch')
+    
+    assert hasattr(PubsubPeerDiscovery, 'start')
+    assert hasattr(MDNSService, 'start')
+    
     print("  ✅ All required methods present")
 except Exception as e:
     print(f"  ❌ Structure check failed: {e}")
@@ -83,12 +82,11 @@ except Exception as e:
 # Test 5: Documentation check
 print("\nTest 5: Checking documentation files...")
 import os
-
 try:
     doc_file = "ipfs_kit_py/libp2p/UNIVERSAL_CONNECTIVITY.md"
     example_file = "examples/universal_connectivity_example.py"
     summary_file = "UNIVERSAL_CONNECTIVITY_SUMMARY.md"
-
+    
     for file in [doc_file, example_file, summary_file]:
         if os.path.exists(file):
             size = os.path.getsize(file)

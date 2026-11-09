@@ -111,7 +111,7 @@ visualizer = AuditVisualizer(audit_logger)
 timeline_data = visualizer.generate_timeline_data(events)
 
 # Generate heat map
-heatmap = visualizer.generate_heatmap_data(events, granularity="hourly")
+heatmap = visualizer.generate_heatmap_data(events, granularity='hourly')
 
 # Generate compliance dashboard
 dashboard = visualizer.generate_compliance_dashboard(compliance_score)
@@ -194,16 +194,21 @@ Multi-tier caching, batch processing, and real-time performance monitoring.
 from ipfs_kit_py.cache_manager import CacheManager
 
 # Initialize
-cache = CacheManager(memory_policy="lru", memory_size=1000, disk_size_mb=100, enable_disk=True)
+cache = CacheManager(
+    memory_policy='lru',
+    memory_size=1000,
+    disk_size_mb=100,
+    enable_disk=True
+)
 
 # Set with TTL
-cache.set("user:123", user_data, ttl=3600)
+cache.set('user:123', user_data, ttl=3600)
 
 # Get (checks memory then disk)
-data = cache.get("user:123")
+data = cache.get('user:123')
 
 # Invalidate pattern
-cache.invalidate_pattern("user:*")
+cache.invalidate_pattern('user:*')
 
 # Get statistics
 stats = cache.get_statistics()
@@ -239,11 +244,9 @@ processor.add_operation(func2, kwarg=value)
 result = processor.execute_batch(parallel=True)
 print(f"Success rate: {result.success_rate()}%")
 
-
 # With progress callback
 def progress(current, total, operation):
     print(f"Progress: {current}/{total}")
-
 
 result = processor.execute_with_callback(progress)
 ```
@@ -269,15 +272,18 @@ from ipfs_kit_py.performance_monitor import PerformanceMonitor
 monitor = PerformanceMonitor()
 
 # Track operation
-op_id = monitor.start_operation("data_processing")
+op_id = monitor.start_operation('data_processing')
 # ... do work ...
 monitor.end_operation(op_id, success=True)
 
 # Get metrics
-metrics = monitor.get_metrics("data_processing", timeframe="1h")
+metrics = monitor.get_metrics('data_processing', timeframe='1h')
 
 # Detect bottlenecks
-bottlenecks = monitor.detect_bottlenecks(cpu_threshold=80.0, memory_threshold=80.0)
+bottlenecks = monitor.detect_bottlenecks(
+    cpu_threshold=80.0,
+    memory_threshold=80.0
+)
 ```
 
 ### MCP Tools (13 tools)
@@ -358,12 +364,15 @@ manager = WidgetManager()
 
 # Create status widget
 config = WidgetConfig(
-    widget_id="status1", widget_type="status", title="System Status", refresh_interval=30
+    widget_id='status1',
+    widget_type='status',
+    title='System Status',
+    refresh_interval=30
 )
 widget = manager.create_widget(config, status_provider=get_status)
 
 # Get widget data
-data = manager.get_widget_data("status1")
+data = manager.get_widget_data('status1')
 
 # Get all widgets
 all_data = manager.get_all_widget_data()
@@ -390,8 +399,12 @@ from ipfs_kit_py.dashboard_charts import ChartGenerator, ChartConfig
 generator = ChartGenerator()
 
 # Generate line chart
-config = ChartConfig(chart_id="cpu_chart", chart_type="line", title="CPU Usage")
-data = {"server1": [(t1, 25.0), (t2, 30.0)]}
+config = ChartConfig(
+    chart_id='cpu_chart',
+    chart_type='line',
+    title='CPU Usage'
+)
+data = {'server1': [(t1, 25.0), (t2, 30.0)]}
 chart = generator.generate_line_chart(config, data)
 
 # Export to JSON
@@ -418,11 +431,11 @@ from ipfs_kit_py.config_wizards import WizardManager
 manager = WizardManager()
 
 # Run backend setup wizard
-wizard = manager.create_wizard("backend_setup")
+wizard = manager.create_wizard('backend_setup')
 config = wizard.run()
 
 # Or with template
-wizard.load_template("s3_production")
+wizard.load_template('s3_production')
 config = wizard.run()
 ```
 
@@ -531,12 +544,10 @@ Analyzed controller usage patterns and created consolidation strategy.
 ```python
 # Old (non-anyio)
 from ipfs_kit_py.mcp.controllers.storage.s3_controller import S3Controller
-
 controller = S3Controller()
 
 # New (anyio)
 from ipfs_kit_py.mcp.controllers.storage.s3_controller_anyio import S3ControllerAnyio
-
 controller = S3ControllerAnyio()
 ```
 
@@ -654,19 +665,16 @@ ipfs-kit dashboard --help
 ```python
 # Phase 8: Audit Analytics
 from ipfs_kit_py.audit_analytics import AuditAnalytics
-
 analytics = AuditAnalytics(audit_logger)
 patterns = analytics.analyze_patterns(timedelta(hours=24))
 
 # Phase 9: Performance Optimization
 from ipfs_kit_py.cache_manager import CacheManager
-
 cache = CacheManager()
-cache.set("key", "value", ttl=3600)
+cache.set('key', 'value', ttl=3600)
 
 # Phase 10: Dashboard Enhancements
 from ipfs_kit_py.dashboard_widgets import WidgetManager
-
 manager = WidgetManager()
 widget = manager.create_widget(config, data_provider=get_data)
 ```

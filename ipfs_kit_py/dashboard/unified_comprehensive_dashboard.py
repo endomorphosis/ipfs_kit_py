@@ -97,7 +97,7 @@ class UnifiedComprehensiveDashboard:
             return {
                 "name": name,
                 "description": f"{name} tool",
-                "input_schema": {"type": "object", "properties": {}},
+                "input_schema": {"type": "object", "properties": {}} ,
             }
 
         tools = {
@@ -150,7 +150,10 @@ class UnifiedComprehensiveDashboard:
             path = Path(arguments.get("path", self.data_dir))
             if not path.exists():
                 return {"error": "Path not found"}
-            files = [{"name": entry.name, "is_dir": entry.is_dir()} for entry in path.iterdir()]
+            files = [
+                {"name": entry.name, "is_dir": entry.is_dir()}
+                for entry in path.iterdir()
+            ]
             return {"files": files}
 
         return {"success": True}

@@ -16,13 +16,7 @@ from ipfs_kit_py.mcp_server.mcplusplus.event_dag import EventDAGStore
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-PROFILE_G_VECTORS = (
-    REPO_ROOT.parent.parent
-    / "Mcp-Plus-Plus"
-    / "conformance"
-    / "vectors"
-    / "profile_g_artifacts_valid.json"
-)
+PROFILE_G_VECTORS = REPO_ROOT.parent.parent / "Mcp-Plus-Plus" / "conformance" / "vectors" / "profile_g_artifacts_valid.json"
 
 
 class MemoryHelia:
@@ -44,9 +38,7 @@ def cases() -> dict[str, dict[str, Any]]:
     return {case["kind"]: case for case in document["cases"]}
 
 
-def test_all_profile_g_artifacts_persist_with_canonical_vector_cids(
-    tmp_path: Path, cases: dict[str, Any]
-) -> None:
+def test_all_profile_g_artifacts_persist_with_canonical_vector_cids(tmp_path: Path, cases: dict[str, Any]) -> None:
     helia = MemoryHelia()
     with DurableCoordinationStore(tmp_path / "store", backend=helia) as store:
         for kind, case in cases.items():
@@ -60,9 +52,7 @@ def test_all_profile_g_artifacts_persist_with_canonical_vector_cids(
         assert store.status()["artifact_retention"] == "permanent"
 
 
-def test_restart_and_index_recovery_from_immutable_blocks(
-    tmp_path: Path, cases: dict[str, Any]
-) -> None:
+def test_restart_and_index_recovery_from_immutable_blocks(tmp_path: Path, cases: dict[str, Any]) -> None:
     root = tmp_path / "store"
     claim_case = cases["TaskClaim"]
     claim_cid = cid_for_artifact(claim_case["payload"])
@@ -73,9 +63,7 @@ def test_restart_and_index_recovery_from_immutable_blocks(
     with DurableCoordinationStore(root) as store:
         store.put_profile_g("TaskClaim", claim_case["payload"])
         resolution_result = store.put_profile_g("ClaimResolution", resolution)
-        lease = store.active_lease(
-            claim_case["payload"]["task_cid"], at_ms=resolution["created_at_ms"]
-        )
+        lease = store.active_lease(claim_case["payload"]["task_cid"], at_ms=resolution["created_at_ms"])
         assert lease is not None
         assert lease["claim_cid"] == claim_cid
         assert lease["claimant_did"] == claim_case["payload"]["claimant_did"]
@@ -90,17 +78,12 @@ def test_restart_and_index_recovery_from_immutable_blocks(
         assert recovered.get(claim_cid) == claim_case["payload"]
         assert recovered.get(resolution_result["cid"]) == resolution
         assert recovered.claims(claim_case["payload"]["task_cid"])[0]["state"] == "accepted"
-        assert (
-            recovered.active_lease(
-                claim_case["payload"]["task_cid"], at_ms=resolution["created_at_ms"]
-            )["resolution_cid"]
-            == resolution_result["cid"]
-        )
+        assert recovered.active_lease(
+            claim_case["payload"]["task_cid"], at_ms=resolution["created_at_ms"]
+        )["resolution_cid"] == resolution_result["cid"]
 
 
-def test_backend_retrieval_repairs_a_missing_local_block(
-    tmp_path: Path, cases: dict[str, Any]
-) -> None:
+def test_backend_retrieval_repairs_a_missing_local_block(tmp_path: Path, cases: dict[str, Any]) -> None:
     helia = MemoryHelia()
     with DurableCoordinationStore(tmp_path / "store", backend=helia) as store:
         result = store.put_profile_g("Goal", cases["Goal"]["payload"])
@@ -110,9 +93,7 @@ def test_backend_retrieval_repairs_a_missing_local_block(
         assert store.has(result["cid"]) is True
 
 
-def test_claim_lease_and_health_indexes_apply_fencing_and_expiry(
-    tmp_path: Path, cases: dict[str, Any]
-) -> None:
+def test_claim_lease_and_health_indexes_apply_fencing_and_expiry(tmp_path: Path, cases: dict[str, Any]) -> None:
     now = cases["ClaimResolution"]["payload"]["created_at_ms"]
     root = tmp_path / "store"
     claim = cases["TaskClaim"]["payload"]
@@ -143,13 +124,8 @@ def test_claim_lease_and_health_indexes_apply_fencing_and_expiry(
         lease = store.active_lease(claim["task_cid"], at_ms=now)
         assert lease["fencing_token"] == resolution["fencing_token"]
         assert lease["resolution_cid"] == resolution_result["cid"]
-        assert (
-            store.daemon_health("did:web:worker-a.example", at_ms=now)[0]["health_cid"]
-            == health_result["cid"]
-        )
-        assert (
-            store.active_lease(claim["task_cid"], at_ms=resolution["lease_expires_at_ms"]) is None
-        )
+        assert store.daemon_health("did:web:worker-a.example", at_ms=now)[0]["health_cid"] == health_result["cid"]
+        assert store.active_lease(claim["task_cid"], at_ms=resolution["lease_expires_at_ms"]) is None
         assert store.daemon_health(at_ms=health["expires_at_ms"]) == []
 
 
@@ -175,24 +151,8 @@ def test_retention_archives_indexes_without_deleting_artifacts_or_profile_f_link
         assert store.get(report["archive_cid"])["policy"]["artifact_blocks"] == "retain-forever"
 
         dag = EventDAGStore(str(tmp_path / "event-dag"), hot_event_max=1, epoch_size=1)
-        dag.append(
-            {
-                "event_cid": "event-1",
-                "event_type": "task_claimed",
-                "parents": [],
-                "timestamp": "1",
-                "payload": {"claim_cid": claim_cid},
-            }
-        )
-        dag.append(
-            {
-                "event_cid": "event-2",
-                "event_type": "task_expired",
-                "parents": ["event-1"],
-                "timestamp": "2",
-                "payload": {"resolution_cid": resolution_result["cid"]},
-            }
-        )
+        dag.append({"event_cid": "event-1", "event_type": "task_claimed", "parents": [], "timestamp": "1", "payload": {"claim_cid": claim_cid}})
+        dag.append({"event_cid": "event-2", "event_type": "task_expired", "parents": ["event-1"], "timestamp": "2", "payload": {"resolution_cid": resolution_result["cid"]}})
         assert dag.archives()["archives"]
 
         # Profile F compaction only changes traversal tiers. Every referenced
@@ -215,24 +175,18 @@ def test_retention_archives_indexes_without_deleting_artifacts_or_profile_f_link
         assert recovered.get(claim_cid) == claim
 
 
-def test_expected_cid_and_recovery_fail_closed_on_corruption(
-    tmp_path: Path, cases: dict[str, Any]
-) -> None:
+def test_expected_cid_and_recovery_fail_closed_on_corruption(tmp_path: Path, cases: dict[str, Any]) -> None:
     root = tmp_path / "store"
     with DurableCoordinationStore(root) as store:
         with pytest.raises(ArtifactIntegrityError, match="does not match expected"):
-            store.put_profile_g(
-                "Goal", cases["Goal"]["payload"], expected_cid=cases["TaskSpec"]["expected_cid"]
-            )
+            store.put_profile_g("Goal", cases["Goal"]["payload"], expected_cid=cases["TaskSpec"]["expected_cid"])
         result = store.put_profile_g("Goal", cases["Goal"]["payload"])
         store._block_path(result["cid"]).write_bytes(b"{}")
         with pytest.raises(ArtifactIntegrityError, match="corrupt blocks"):
             store.recover()
 
 
-def test_corrupt_derived_database_is_preserved_and_rebuilt(
-    tmp_path: Path, cases: dict[str, Any]
-) -> None:
+def test_corrupt_derived_database_is_preserved_and_rebuilt(tmp_path: Path, cases: dict[str, Any]) -> None:
     root = tmp_path / "store"
     with DurableCoordinationStore(root) as store:
         result = store.put_profile_g("Goal", cases["Goal"]["payload"])

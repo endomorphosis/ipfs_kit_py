@@ -13,11 +13,8 @@ import importlib.util
 from typing import Dict, List, Any
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
-
 
 def import_module_from_file(file_path, module_name=None):
     """Import a module from a file path"""
@@ -25,7 +22,7 @@ def import_module_from_file(file_path, module_name=None):
         raise ImportError(f"File not found: {file_path}")
 
     if module_name is None:
-        module_name = os.path.basename(file_path).split(".")[0]
+        module_name = os.path.basename(file_path).split('.')[0]
 
     spec = importlib.util.spec_from_file_location(module_name, file_path)
     if spec is None:
@@ -37,7 +34,6 @@ def import_module_from_file(file_path, module_name=None):
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
-
 
 def load_tools_into_mcp():
     """Load tools into the MCP server"""
@@ -62,14 +58,14 @@ def load_tools_into_mcp():
         direct_mcp = import_module_from_file("direct_mcp_server.py")
 
         # Check if the register_tools function exists
-        if not hasattr(direct_mcp, "register_tools"):
+        if not hasattr(direct_mcp, 'register_tools'):
             logger.error("register_tools function not found in direct_mcp_server.py")
 
             # Create a simple function to register tools
             logger.info("Creating a simple function to register tools")
 
             # Check if the server has a tools registry
-            if hasattr(direct_mcp, "tools"):
+            if hasattr(direct_mcp, 'tools'):
                 logger.info("Found tools registry in direct_mcp_server.py")
 
                 # Add the tools to the registry
@@ -95,7 +91,6 @@ def load_tools_into_mcp():
         logger.error(f"Error loading tools into MCP: {e}")
         return False
 
-
 def main():
     """Main function"""
     logger.info("Loading enhanced tools into MCP server...")
@@ -108,7 +103,6 @@ def main():
     else:
         logger.error("\n❌ Failed to load enhanced tools into MCP server")
         return 1
-
 
 if __name__ == "__main__":
     sys.exit(main())

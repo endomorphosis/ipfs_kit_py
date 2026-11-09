@@ -97,11 +97,10 @@ The user reported that the pin list command was doing heavy imports when attempt
 ```python
 # Step 1: Quick daemon availability (no heavy imports)
 import requests
-
-response = requests.get("http://localhost:8774/health", timeout=1)
+response = requests.get('http://localhost:8774/health', timeout=1)
 
 # Step 2: Check Arrow IPC capability
-response = requests.get("http://localhost:8774/pin-index-arrow", timeout=2)
+response = requests.get('http://localhost:8774/pin-index-arrow', timeout=2)
 
 # Step 3: Only if daemon available, load heavy VFS manager
 if daemon_available:
@@ -112,15 +111,15 @@ if daemon_available:
 ### Process Cleanup Pattern
 ```python
 # Find daemon processes
-ps_result = subprocess.run(["ps", "aux"], capture_output=True, text=True)
-for line in ps_result.stdout.split("\n"):
-    if "python" in line and "ipfs_kit_daemon.py" in line:
+ps_result = subprocess.run(['ps', 'aux'], capture_output=True, text=True)
+for line in ps_result.stdout.split('\n'):
+    if 'python' in line and 'ipfs_kit_daemon.py' in line:
         pid = extract_pid(line)
-
+        
         # Graceful termination
         os.kill(pid, signal.SIGTERM)
         time.sleep(0.5)
-
+        
         # Force kill if still running
         try:
             os.kill(pid, 0)  # Check if exists

@@ -11,7 +11,6 @@ import urllib.request
 # This integration test exercises the packaged CLI entry point end-to-end.
 # It intentionally uses subprocess to mimic real user invocation rather than importing internals.
 
-
 def _free_port() -> int:
     s = socket.socket()
     s.bind(("127.0.0.1", 0))
@@ -25,12 +24,9 @@ def test_cli_deprecations_lists_overview(tmp_path: Path):
     env = os.environ.copy()
     # Start server in background (not foreground) so the deprecations command can run while it's up
     # We rely on CLI background mode launching another foreground child; this test just needs health to become ready.
-    proc = subprocess.Popen(
-        [sys.executable, "-m", "ipfs_kit_py.cli", "mcp", "start", "--port", str(port)],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        text=True,
-    )
+    proc = subprocess.Popen([
+        sys.executable, "-m", "ipfs_kit_py.cli", "mcp", "start", "--port", str(port)
+    ], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
 
     # Wait for readiness via /api/system/deprecations or /healthz fallback
     deadline = time.time() + 20
@@ -49,24 +45,10 @@ def test_cli_deprecations_lists_overview(tmp_path: Path):
     assert ready, "Server did not become ready in time"
 
     # Run CLI deprecations command (JSON output for easy parsing)
-    result = subprocess.run(
-        [
-            sys.executable,
-            "-m",
-            "ipfs_kit_py.cli",
-            "mcp",
-            "deprecations",
-            "--port",
-            str(port),
-            "--json",
-        ],
-        capture_output=True,
-        text=True,
-        timeout=15,
-    )
-    assert result.returncode == 0, (
-        f"CLI exited {result.returncode}: {result.stderr or result.stdout}"
-    )
+    result = subprocess.run([
+        sys.executable, "-m", "ipfs_kit_py.cli", "mcp", "deprecations", "--port", str(port), "--json"
+    ], capture_output=True, text=True, timeout=15)
+    assert result.returncode == 0, f"CLI exited {result.returncode}: {result.stderr or result.stdout}"
 
     # Parse JSON
     try:
@@ -83,12 +65,9 @@ def test_cli_deprecations_lists_overview(tmp_path: Path):
     assert mig.get("metrics") == "/api/metrics/system"
 
     # Stop server via CLI
-    stop_res = subprocess.run(
-        [sys.executable, "-m", "ipfs_kit_py.cli", "mcp", "stop", "--port", str(port)],
-        capture_output=True,
-        text=True,
-        timeout=15,
-    )
+    stop_res = subprocess.run([
+        sys.executable, "-m", "ipfs_kit_py.cli", "mcp", "stop", "--port", str(port)
+    ], capture_output=True, text=True, timeout=15)
     # Non-zero exit is not fatal if server already exited, but we log it for diagnosis
     if stop_res.returncode != 0:  # pragma: no cover
         print("Stop command stderr:", stop_res.stderr)

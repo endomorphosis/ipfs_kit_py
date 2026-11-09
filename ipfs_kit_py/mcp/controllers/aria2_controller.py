@@ -23,13 +23,13 @@ logger = logging.getLogger(__name__)
 # Pydantic models for request validation
 class URIListModel(BaseModel):
     """
-    import sys
-    import os
-    # Add the parent directory to sys.path to allow importing mcp_error_handling
-    sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
-    import mcp_error_handling
+import sys
+import os
+# Add the parent directory to sys.path to allow importing mcp_error_handling
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
+import mcp_error_handling
 
-    Model for URI list for downloads."""
+Model for URI list for downloads."""
 
     uris: Union[List[str], str] = Field(..., description="URI or list of URIs to download")
     filename: Optional[str] = Field(None, description="Optional filename for the download")
@@ -301,10 +301,11 @@ class Aria2Controller:
         result = self.aria2_model.get_version()
         if not result.get("success", False):
             mcp_error_handling.raise_http_exception(
-                code="EXTENSION_NOT_AVAILABLE",
-                message_override=f"Aria2 not available: {
-                    result.get('error', endpoint='/api/v0/aria2', doc_category='api')
-                }",
+        code="EXTENSION_NOT_AVAILABLE",
+        message_override=f"Aria2 not available: {result.get('error',
+        endpoint="/api/v0/aria2",
+        doc_category="api"
+    )}",
             )
         return result
 
@@ -323,10 +324,11 @@ class Aria2Controller:
         )
         if not result.get("success", False):
             mcp_error_handling.raise_http_exception(
-                code="INVALID_REQUEST",
-                message_override=f"Failed to add download: {
-                    result.get('error', endpoint='/api/v0/aria2', doc_category='api')
-                }",
+        code="INVALID_REQUEST",
+        message_override=f"Failed to add download: {result.get('error',
+        endpoint="/api/v0/aria2",
+        doc_category="api"
+    )}",
             )
         return result
 
@@ -357,29 +359,31 @@ class Aria2Controller:
 
             if not result.get("success", False):
                 mcp_error_handling.raise_http_exception(
-                    code="INVALID_REQUEST",
-                    message_override=f"Failed to add torrent: {
-                        result.get('error', endpoint='/api/v0/aria2', doc_category='api')
-                    }",
+        code="INVALID_REQUEST",
+        message_override=f"Failed to add torrent: {result.get('error',
+        endpoint="/api/v0/aria2",
+        doc_category="api"
+    )}",
                 )
 
             return result
 
         except json.JSONDecodeError:
             mcp_error_handling.raise_http_exception(
-                code="INVALID_REQUEST",
-                message_override="Invalid options format. Must be valid JSON.",
-                endpoint="/api/v0/aria2",
-                doc_category="api",
-            )
+        code="INVALID_REQUEST",
+        message_override="Invalid options format. Must be valid JSON."
+            ,
+        endpoint="/api/v0/aria2",
+        doc_category="api"
+    )
         except Exception as e:
             logger.error(f"Error in add_torrent: {e}")
             mcp_error_handling.raise_http_exception(
-                code="INTERNAL_ERROR",
-                message_override=f"Error processing torrent: {
-                    str(e, endpoint='/api/v0/aria2', doc_category='api')
-                }",
-            )
+        code="INTERNAL_ERROR",
+        message_override=f"Error processing torrent: {str(e,
+        endpoint="/api/v0/aria2",
+        doc_category="api"
+    )}")
 
     async def add_metalink(self, metalink_file: UploadFile = File(...), options: str = Form(None)):
         """
@@ -410,29 +414,31 @@ class Aria2Controller:
 
             if not result.get("success", False):
                 mcp_error_handling.raise_http_exception(
-                    code="INVALID_REQUEST",
-                    message_override=f"Failed to add metalink: {
-                        result.get('error', endpoint='/api/v0/aria2', doc_category='api')
-                    }",
+        code="INVALID_REQUEST",
+        message_override=f"Failed to add metalink: {result.get('error',
+        endpoint="/api/v0/aria2",
+        doc_category="api"
+    )}",
                 )
 
             return result
 
         except json.JSONDecodeError:
             mcp_error_handling.raise_http_exception(
-                code="INVALID_REQUEST",
-                message_override="Invalid options format. Must be valid JSON.",
-                endpoint="/api/v0/aria2",
-                doc_category="api",
-            )
+        code="INVALID_REQUEST",
+        message_override="Invalid options format. Must be valid JSON."
+            ,
+        endpoint="/api/v0/aria2",
+        doc_category="api"
+    )
         except Exception as e:
             logger.error(f"Error in add_metalink: {e}")
             mcp_error_handling.raise_http_exception(
-                code="INTERNAL_ERROR",
-                message_override=f"Error processing metalink: {
-                    str(e, endpoint='/api/v0/aria2', doc_category='api')
-                }",
-            )
+        code="INTERNAL_ERROR",
+        message_override=f"Error processing metalink: {str(e,
+        endpoint="/api/v0/aria2",
+        doc_category="api"
+    )}")
 
     async def create_metalink(self, files_data: MetalinkFileModel):
         """
@@ -450,10 +456,11 @@ class Aria2Controller:
 
             if not result.get("success", False):
                 mcp_error_handling.raise_http_exception(
-                    code="INVALID_REQUEST",
-                    message_override=f"Failed to create metalink: {
-                        result.get('error', endpoint='/api/v0/aria2', doc_category='api')
-                    }",
+        code="INVALID_REQUEST",
+        message_override=f"Failed to create metalink: {result.get('error',
+        endpoint="/api/v0/aria2",
+        doc_category="api"
+    )}",
                 )
 
             # Return metalink content
@@ -466,11 +473,11 @@ class Aria2Controller:
         except Exception as e:
             logger.error(f"Error in create_metalink: {e}")
             mcp_error_handling.raise_http_exception(
-                code="INTERNAL_ERROR",
-                message_override=f"Error creating metalink: {
-                    str(e, endpoint='/api/v0/aria2', doc_category='api')
-                }",
-            )
+        code="INTERNAL_ERROR",
+        message_override=f"Error creating metalink: {str(e,
+        endpoint="/api/v0/aria2",
+        doc_category="api"
+    )}")
 
     async def remove_download(self, download: DownloadIDModel):
         """
@@ -485,10 +492,11 @@ class Aria2Controller:
         result = self.aria2_model.remove_download(gid=download.gid, force=download.force)
         if not result.get("success", False):
             mcp_error_handling.raise_http_exception(
-                code="INVALID_REQUEST",
-                message_override=f"Failed to remove download: {
-                    result.get('error', endpoint='/api/v0/aria2', doc_category='api')
-                }",
+        code="INVALID_REQUEST",
+        message_override=f"Failed to remove download: {result.get('error',
+        endpoint="/api/v0/aria2",
+        doc_category="api"
+    )}",
             )
         return result
 
@@ -505,10 +513,11 @@ class Aria2Controller:
         result = self.aria2_model.pause_download(gid=download.gid, force=download.force)
         if not result.get("success", False):
             mcp_error_handling.raise_http_exception(
-                code="INVALID_REQUEST",
-                message_override=f"Failed to pause download: {
-                    result.get('error', endpoint='/api/v0/aria2', doc_category='api')
-                }",
+        code="INVALID_REQUEST",
+        message_override=f"Failed to pause download: {result.get('error',
+        endpoint="/api/v0/aria2",
+        doc_category="api"
+    )}",
             )
         return result
 
@@ -525,10 +534,11 @@ class Aria2Controller:
         result = self.aria2_model.resume_download(gid=download.gid)
         if not result.get("success", False):
             mcp_error_handling.raise_http_exception(
-                code="INVALID_REQUEST",
-                message_override=f"Failed to resume download: {
-                    result.get('error', endpoint='/api/v0/aria2', doc_category='api')
-                }",
+        code="INVALID_REQUEST",
+        message_override=f"Failed to resume download: {result.get('error',
+        endpoint="/api/v0/aria2",
+        doc_category="api"
+    )}",
             )
         return result
 
@@ -545,10 +555,11 @@ class Aria2Controller:
         result = self.aria2_model.get_status(gid=gid)
         if not result.get("success", False):
             mcp_error_handling.raise_http_exception(
-                code="CONTENT_NOT_FOUND",
-                message_override=f"Download not found: {
-                    result.get('error', endpoint='/api/v0/aria2', doc_category='api')
-                }",
+        code="CONTENT_NOT_FOUND",
+        message_override=f"Download not found: {result.get('error',
+        endpoint="/api/v0/aria2",
+        doc_category="api"
+    )}",
             )
         return result
 
@@ -562,10 +573,11 @@ class Aria2Controller:
         result = self.aria2_model.list_downloads()
         if not result.get("success", False):
             mcp_error_handling.raise_http_exception(
-                code="SERVICE_UNAVAILABLE",
-                message_override=f"Failed to list downloads: {
-                    result.get('error', endpoint='/api/v0/aria2', doc_category='api')
-                }",
+        code="SERVICE_UNAVAILABLE",
+        message_override=f"Failed to list downloads: {result.get('error',
+        endpoint="/api/v0/aria2",
+        doc_category="api"
+    )}",
             )
         return result
 
@@ -579,10 +591,11 @@ class Aria2Controller:
         result = self.aria2_model.purge_downloads()
         if not result.get("success", False):
             mcp_error_handling.raise_http_exception(
-                code="INVALID_REQUEST",
-                message_override=f"Failed to purge downloads: {
-                    result.get('error', endpoint='/api/v0/aria2', doc_category='api')
-                }",
+        code="INVALID_REQUEST",
+        message_override=f"Failed to purge downloads: {result.get('error',
+        endpoint="/api/v0/aria2",
+        doc_category="api"
+    )}",
             )
         return result
 
@@ -596,10 +609,11 @@ class Aria2Controller:
         result = self.aria2_model.get_global_status()
         if not result.get("success", False):
             mcp_error_handling.raise_http_exception(
-                code="SERVICE_UNAVAILABLE",
-                message_override=f"Failed to get global status: {
-                    result.get('error', endpoint='/api/v0/aria2', doc_category='api')
-                }",
+        code="SERVICE_UNAVAILABLE",
+        message_override=f"Failed to get global status: {result.get('error',
+        endpoint="/api/v0/aria2",
+        doc_category="api"
+    )}",
             )
         return result
 
@@ -619,10 +633,11 @@ class Aria2Controller:
         result = self.aria2_model.start_daemon(options=daemon_options)
         if not result.get("success", False):
             mcp_error_handling.raise_http_exception(
-                code="DAEMON_ERROR",
-                message_override=f"Failed to start daemon: {
-                    result.get('error', endpoint='/api/v0/aria2', doc_category='api')
-                }",
+        code="DAEMON_ERROR",
+        message_override=f"Failed to start daemon: {result.get('error',
+        endpoint="/api/v0/aria2",
+        doc_category="api"
+    )}",
             )
         return result
 
@@ -636,9 +651,10 @@ class Aria2Controller:
         result = self.aria2_model.stop_daemon()
         if not result.get("success", False):
             mcp_error_handling.raise_http_exception(
-                code="DAEMON_ERROR",
-                message_override=f"Failed to stop daemon: {
-                    result.get('error', endpoint='/api/v0/aria2', doc_category='api')
-                }",
+        code="DAEMON_ERROR",
+        message_override=f"Failed to stop daemon: {result.get('error',
+        endpoint="/api/v0/aria2",
+        doc_category="api"
+    )}",
             )
         return result

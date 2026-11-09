@@ -51,7 +51,7 @@ api = extend_high_level_api(api)
 result = api.wal_telemetry(
     enabled=True,
     aggregation_interval=60,  # Aggregate metrics every 60 seconds
-    max_history_entries=100,  # Keep 100 historical entries
+    max_history_entries=100   # Keep 100 historical entries
 )
 print(f"Telemetry initialization: {result['success']}")
 ```
@@ -62,16 +62,16 @@ print(f"Telemetry initialization: {result['success']}")
 # Initialize Prometheus integration
 prometheus_result = api.wal_prometheus(
     enabled=True,
-    prefix="wal",  # Prefix for metric names
-    start_server=False,  # Don't start a standalone server
+    prefix="wal",           # Prefix for metric names
+    start_server=False      # Don't start a standalone server
 )
 print(f"Prometheus initialization: {prometheus_result['success']}")
 
 # If you want a standalone metrics server:
 prometheus_result = api.wal_prometheus(
     enabled=True,
-    port=9090,  # Port for the metrics server
-    start_server=True,  # Start a standalone server
+    port=9090,            # Port for the metrics server
+    start_server=True     # Start a standalone server
 )
 print(f"Prometheus server running at: {prometheus_result['server']['url']}")
 ```
@@ -86,8 +86,8 @@ tracing_result = api.wal_tracing(
     enabled=True,
     service_name="my-ipfs-service",
     exporter_type=TracingExporterType.CONSOLE,  # Options: CONSOLE, OTLP, JAEGER, ZIPKIN
-    sampling_ratio=1.0,  # Sample all traces
-    auto_instrument=True,  # Automatically instrument operations
+    sampling_ratio=1.0,                         # Sample all traces
+    auto_instrument=True                        # Automatically instrument operations
 )
 print(f"Tracing initialization: {tracing_result['success']}")
 
@@ -97,7 +97,10 @@ tracing_result = api.wal_tracing(
     service_name="my-ipfs-service",
     exporter_type=TracingExporterType.JAEGER,
     exporter_endpoint="http://localhost:14268/api/traces",
-    resource_attributes={"deployment.environment": "production", "service.version": "1.0.0"},
+    resource_attributes={
+        "deployment.environment": "production",
+        "service.version": "1.0.0"
+    }
 )
 ```
 
@@ -106,20 +109,30 @@ tracing_result = api.wal_tracing(
 ```python
 # Create a span for an operation
 span_result = api.wal_create_span(
-    operation_type="add", backend="ipfs", attributes={"file_size": 1024, "path": "/tmp/example.txt"}
+    operation_type="add",
+    backend="ipfs",
+    attributes={
+        "file_size": 1024,
+        "path": "/tmp/example.txt"
+    }
 )
 
 # Get the span context
 if span_result["success"]:
     context = span_result["span_context"]
-
+    
     # Use the span context to create child spans...
-
+    
     # Update the span with results
     api._wal_telemetry_extension.tracer.update_span(
-        context, success=True, attributes={"duration_ms": 150, "cid": "QmExample..."}
+        context, 
+        success=True,
+        attributes={
+            "duration_ms": 150,
+            "cid": "QmExample..."
+        }
     )
-
+    
     # End the span
     api._wal_telemetry_extension.tracer.end_span(context)
 ```
@@ -132,11 +145,11 @@ metrics = api.wal_get_metrics()
 
 # Get metrics with filtering
 metrics = api.wal_get_metrics(
-    include_history=True,  # Include historical metrics
-    operation_type="add",  # Filter by operation type
-    backend_type="ipfs",  # Filter by backend type
-    start_time=time.time() - 3600,  # Last hour
-    end_time=time.time(),
+    include_history=True,        # Include historical metrics
+    operation_type="add",        # Filter by operation type
+    backend_type="ipfs",         # Filter by backend type
+    start_time=time.time()-3600, # Last hour
+    end_time=time.time()
 )
 
 # Display metrics
@@ -161,7 +174,7 @@ app = FastAPI()
 # Add metrics endpoint
 api.wal_add_metrics_endpoint(
     app=app,
-    endpoint="/metrics",  # Prometheus scrape endpoint
+    endpoint="/metrics"  # Prometheus scrape endpoint
 )
 ```
 
@@ -173,19 +186,18 @@ from fastapi import FastAPI, Request
 # Create FastAPI app
 app = FastAPI()
 
-
 # Add tracing middleware
 @app.middleware("http")
 async def tracing_middleware(request: Request, call_next):
     # Extract context from request headers if available
     carrier = dict(request.headers)
     context_result = api.wal_extract_tracing_context(carrier)
-
+    
     if context_result["success"]:
         parent_context = context_result["context"]
     else:
         parent_context = None
-
+        
     # Create span for this request
     span_result = api.wal_create_span(
         operation_type="http_request",
@@ -194,31 +206,31 @@ async def tracing_middleware(request: Request, call_next):
         attributes={
             "http.method": request.method,
             "http.url": str(request.url),
-            "http.path": request.url.path,
-        },
+            "http.path": request.url.path
+        }
     )
-
+    
     # Process the request
     start_time = time.time()
     response = await call_next(request)
     duration = time.time() - start_time
-
+    
     # Update span with response information
     if span_result["success"]:
         context = span_result["span_context"]
-
+        
         api._wal_telemetry_extension.tracer.update_span(
             context,
             success=response.status_code < 400,
             attributes={
                 "http.status_code": response.status_code,
-                "http.duration_ms": duration * 1000,
-            },
+                "http.duration_ms": duration * 1000
+            }
         )
-
+        
         # End span
         api._wal_telemetry_extension.tracer.end_span(context)
-
+        
     return response
 ```
 
@@ -228,14 +240,17 @@ async def tracing_middleware(request: Request, call_next):
 
 ```python
 # Service A: Create a span and inject context into headers
-span_result = api.wal_create_span(operation_type="process_file", backend="api")
+span_result = api.wal_create_span(
+    operation_type="process_file",
+    backend="api"
+)
 
 # Inject context into headers for HTTP request
 headers = {}
 if span_result["success"]:
     context = span_result["span_context"]
     inject_result = api.wal_inject_tracing_context(headers, context)
-
+    
 # Make HTTP request to Service B with propagated context
 response = requests.get("http://service-b/endpoint", headers=headers)
 
@@ -243,31 +258,32 @@ response = requests.get("http://service-b/endpoint", headers=headers)
 if span_result["success"]:
     api._wal_telemetry_extension.tracer.end_span(span_result["span_context"])
 
-
 # Service B: Extract context from request headers
 @app.middleware("http")
 async def tracing_middleware(request: Request, call_next):
     # Extract the propagated context
     carrier = dict(request.headers)
     context_result = api.wal_extract_tracing_context(carrier)
-
+    
     if context_result["success"]:
         parent_context = context_result["context"]
     else:
         parent_context = None
-
+        
     # Create a child span with the parent context
     span_result = api.wal_create_span(
-        operation_type="handle_request", backend="service-b", parent_context=parent_context
+        operation_type="handle_request",
+        backend="service-b",
+        parent_context=parent_context
     )
-
+    
     # Process the request
     response = await call_next(request)
-
+    
     # End the span
     if span_result["success"]:
         api._wal_telemetry_extension.tracer.end_span(span_result["span_context"])
-
+        
     return response
 ```
 
@@ -301,10 +317,10 @@ python examples/wal_telemetry_api_example.py --operations 50 --delay 0.1
 
 ```python
 api.wal_telemetry(
-    enabled=True,  # Whether telemetry is enabled
-    aggregation_interval=60,  # Interval for metric aggregation (seconds)
-    max_history_entries=100,  # Maximum historical entries to keep
-    log_level="INFO",  # Logging level
+    enabled=True,                  # Whether telemetry is enabled
+    aggregation_interval=60,       # Interval for metric aggregation (seconds)
+    max_history_entries=100,       # Maximum historical entries to keep
+    log_level="INFO"               # Logging level
 )
 ```
 
@@ -312,12 +328,12 @@ api.wal_telemetry(
 
 ```python
 api.wal_prometheus(
-    enabled=True,  # Whether Prometheus integration is enabled
-    port=8000,  # Port for standalone metrics server
-    endpoint="/metrics",  # Path for metrics endpoint
-    prefix="wal",  # Prefix for metric names
-    start_server=False,  # Whether to start a standalone server
-    registry_name=None,  # Custom name for the Prometheus registry
+    enabled=True,                  # Whether Prometheus integration is enabled
+    port=8000,                     # Port for standalone metrics server
+    endpoint="/metrics",           # Path for metrics endpoint
+    prefix="wal",                  # Prefix for metric names
+    start_server=False,            # Whether to start a standalone server
+    registry_name=None             # Custom name for the Prometheus registry
 )
 ```
 
@@ -325,13 +341,13 @@ api.wal_prometheus(
 
 ```python
 api.wal_tracing(
-    enabled=True,  # Whether tracing is enabled
-    service_name="ipfs-kit-wal",  # Name of the service
-    exporter_type="console",  # Exporter type: "console", "otlp", "jaeger", "zipkin"
-    exporter_endpoint=None,  # Endpoint for the exporter
-    resource_attributes=None,  # Additional attributes for the tracing resource
-    sampling_ratio=1.0,  # Fraction of traces to sample (0.0-1.0)
-    auto_instrument=True,  # Whether to automatically instrument operations
+    enabled=True,                  # Whether tracing is enabled
+    service_name="ipfs-kit-wal",   # Name of the service
+    exporter_type="console",       # Exporter type: "console", "otlp", "jaeger", "zipkin"
+    exporter_endpoint=None,        # Endpoint for the exporter
+    resource_attributes=None,      # Additional attributes for the tracing resource
+    sampling_ratio=1.0,            # Fraction of traces to sample (0.0-1.0)
+    auto_instrument=True           # Whether to automatically instrument operations
 )
 ```
 
@@ -339,11 +355,11 @@ api.wal_tracing(
 
 ```python
 api.wal_get_metrics(
-    include_history=False,  # Whether to include historical metrics
-    operation_type=None,  # Filter by operation type
-    backend_type=None,  # Filter by backend type
-    start_time=None,  # Start time for historical metrics
-    end_time=None,  # End time for historical metrics
+    include_history=False,        # Whether to include historical metrics
+    operation_type=None,          # Filter by operation type
+    backend_type=None,            # Filter by backend type
+    start_time=None,              # Start time for historical metrics
+    end_time=None                 # End time for historical metrics
 )
 ```
 
@@ -351,8 +367,8 @@ api.wal_get_metrics(
 
 ```python
 api.wal_add_metrics_endpoint(
-    app,  # FastAPI application
-    endpoint="/metrics",  # Path for the metrics endpoint
+    app,                          # FastAPI application
+    endpoint="/metrics"           # Path for the metrics endpoint
 )
 ```
 
@@ -360,22 +376,22 @@ api.wal_add_metrics_endpoint(
 
 ```python
 api.wal_create_span(
-    operation_type,  # Type of operation being traced
-    operation_id=None,  # Unique identifier for the operation
-    backend="api",  # Backend system processing the operation
-    parent_context=None,  # Parent context for distributed tracing
-    attributes=None,  # Additional span attributes
+    operation_type,               # Type of operation being traced
+    operation_id=None,            # Unique identifier for the operation
+    backend="api",                # Backend system processing the operation
+    parent_context=None,          # Parent context for distributed tracing
+    attributes=None               # Additional span attributes
 )
 
-api.wal_get_tracing_context()  # Get current tracing context
+api.wal_get_tracing_context()     # Get current tracing context
 
 api.wal_inject_tracing_context(
-    carrier,  # Dictionary to inject context into
-    context=None,  # Context to inject (uses current if None)
+    carrier,                      # Dictionary to inject context into
+    context=None                  # Context to inject (uses current if None)
 )
 
 api.wal_extract_tracing_context(
-    carrier  # Dictionary containing tracing context
+    carrier                       # Dictionary containing tracing context
 )
 ```
 
@@ -407,7 +423,6 @@ Enable detailed logging to diagnose issues:
 
 ```python
 import logging
-
 logging.basicConfig(level=logging.DEBUG)
 logging.getLogger("ipfs_kit_py.wal_telemetry_api").setLevel(logging.DEBUG)
 logging.getLogger("ipfs_kit_py.wal_telemetry_tracing").setLevel(logging.DEBUG)

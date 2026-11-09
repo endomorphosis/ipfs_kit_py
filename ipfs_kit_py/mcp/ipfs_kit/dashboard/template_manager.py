@@ -8,18 +8,17 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-
 class DashboardTemplateManager:
     """Manages dashboard HTML templates with modular JavaScript architecture."""
-
+    
     def __init__(self, templates_dir: Path):
         self.templates_dir = templates_dir
         self.templates_dir.mkdir(exist_ok=True)
-
+        
     def create_dashboard_template(self) -> str:
         """Create the main dashboard template with modular JavaScript imports."""
-
-        template_content = """<!DOCTYPE html>
+        
+        template_content = '''<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -128,12 +127,12 @@ class DashboardTemplateManager:
         }
     </script>
 </body>
-</html>"""
-
+</html>'''
+        
         template_path = self.templates_dir / "index.html"
         template_path.write_text(template_content)
         logger.info(f"Created modular dashboard template at {template_path}")
-
+        
         return template_content
 
 
@@ -273,14 +272,12 @@ def get_dashboard_template():
 
 def get_legacy_dashboard_template():
     """
-    DEPRECATED: Legacy function that previously provided a comprehensive HTML template
-    for the IPFS Kit dashboard with embedded JavaScript. This has been replaced by
+    DEPRECATED: Legacy function that previously provided a comprehensive HTML template 
+    for the IPFS Kit dashboard with embedded JavaScript. This has been replaced by 
     the modular approach using external JavaScript files for better separation of concerns.
-
-    This function is maintained for backward compatibility but should not be used
+    
+    This function is maintained for backward compatibility but should not be used 
     for new implementations.
     """
-    logger.warning(
-        "get_legacy_dashboard_template() is deprecated. Use get_enhanced_dashboard_template() instead."
-    )
+    logger.warning("get_legacy_dashboard_template() is deprecated. Use get_enhanced_dashboard_template() instead.")
     return get_enhanced_dashboard_template()

@@ -12,10 +12,10 @@ import logging
 
 # Setup logging
 logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger("add-root-endpoint")
-
 
 def add_root_endpoint(server_path):
     """Add a root endpoint to the FastAPI app."""
@@ -95,9 +95,9 @@ def add_root_endpoint(server_path):
     logger.info("Successfully added root endpoint to the server")
     return True
 
-
 if __name__ == "__main__":
-    server_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "run_mcp_server.py")
+    server_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                              "run_mcp_server.py")
 
     if len(sys.argv) > 1:
         server_path = sys.argv[1]

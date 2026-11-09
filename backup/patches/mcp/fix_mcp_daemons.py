@@ -24,9 +24,11 @@ import requests
 import psutil
 
 # Configure logging
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
 logger = logging.getLogger(__name__)
-
 
 def get_ipfs_path():
     """Get the IPFS repository path."""
@@ -38,7 +40,6 @@ def get_ipfs_path():
     # Default path
     return os.path.expanduser("~/.ipfs")
 
-
 def get_ipfs_cluster_path():
     """Get the IPFS Cluster service repository path."""
     # Check environment variable first
@@ -49,7 +50,6 @@ def get_ipfs_cluster_path():
     # Default path
     return os.path.expanduser("~/.ipfs-cluster")
 
-
 def get_lotus_path():
     """Get the Lotus repository path."""
     # Check environment variable first
@@ -59,7 +59,6 @@ def get_lotus_path():
 
     # Default path
     return os.path.expanduser("~/.lotus")
-
 
 def get_ipfs_cluster_follow_path():
     """Get the IPFS Cluster follower repository path."""
@@ -72,22 +71,20 @@ def get_ipfs_cluster_follow_path():
     cluster_path = get_ipfs_cluster_path()
     return os.path.join(os.path.dirname(cluster_path), ".ipfs-cluster-follow")
 
-
 def check_daemon_process(process_name):
     """Check if a daemon process is running by name."""
-    for proc in psutil.process_iter(["pid", "name", "cmdline"]):
+    for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
         try:
             # Check process name
-            if process_name in proc.info["name"]:
+            if process_name in proc.info['name']:
                 return True
 
             # Check command line arguments
-            if proc.info["cmdline"] and any(process_name in arg for arg in proc.info["cmdline"]):
+            if proc.info['cmdline'] and any(process_name in arg for arg in proc.info['cmdline']):
                 return True
         except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
             continue
     return False
-
 
 def check_ipfs_api():
     """Check if IPFS API is responsive."""
@@ -97,7 +94,6 @@ def check_ipfs_api():
     except requests.RequestException:
         return False
 
-
 def check_ipfs_cluster_api():
     """Check if IPFS Cluster API is responsive."""
     try:
@@ -105,7 +101,6 @@ def check_ipfs_cluster_api():
         return response.status_code == 200
     except requests.RequestException:
         return False
-
 
 def check_lotus_api():
     """Check if Lotus API is responsive."""
@@ -120,7 +115,6 @@ def check_lotus_api():
     except Exception:
         return False
 
-
 def clean_lock_files():
     """Clean up any stale lock files."""
     locks_cleaned = 0
@@ -129,7 +123,7 @@ def clean_lock_files():
     ipfs_lock = os.path.join(get_ipfs_path(), "repo.lock")
     if os.path.exists(ipfs_lock):
         try:
-            with open(ipfs_lock, "r") as f:
+            with open(ipfs_lock, 'r') as f:
                 try:
                     pid = int(f.read().strip())
                     logger.info(f"Found IPFS lock file with PID: {pid}")
@@ -137,16 +131,10 @@ def clean_lock_files():
                     # Check if process is running
                     try:
                         process = psutil.Process(pid)
-                        if "ipfs" in process.name().lower() or any(
-                            "ipfs" in arg.lower() for arg in process.cmdline()
-                        ):
-                            logger.info(
-                                f"IPFS process is still running with PID {pid}, keeping lock file"
-                            )
+                        if "ipfs" in process.name().lower() or any("ipfs" in arg.lower() for arg in process.cmdline()):
+                            logger.info(f"IPFS process is still running with PID {pid}, keeping lock file")
                         else:
-                            logger.warning(
-                                f"Process with PID {pid} exists but isn't IPFS, removing stale lock"
-                            )
+                            logger.warning(f"Process with PID {pid} exists but isn't IPFS, removing stale lock")
                             os.remove(ipfs_lock)
                             locks_cleaned += 1
                     except psutil.NoSuchProcess:
@@ -164,7 +152,7 @@ def clean_lock_files():
     cluster_lock = os.path.join(get_ipfs_cluster_path(), "service.lock")
     if os.path.exists(cluster_lock):
         try:
-            with open(cluster_lock, "r") as f:
+            with open(cluster_lock, 'r') as f:
                 try:
                     pid = int(f.read().strip())
                     logger.info(f"Found IPFS Cluster lock file with PID: {pid}")
@@ -172,16 +160,10 @@ def clean_lock_files():
                     # Check if process is running
                     try:
                         process = psutil.Process(pid)
-                        if "ipfs-cluster" in process.name().lower() or any(
-                            "ipfs-cluster" in arg.lower() for arg in process.cmdline()
-                        ):
-                            logger.info(
-                                f"IPFS Cluster process is still running with PID {pid}, keeping lock file"
-                            )
+                        if "ipfs-cluster" in process.name().lower() or any("ipfs-cluster" in arg.lower() for arg in process.cmdline()):
+                            logger.info(f"IPFS Cluster process is still running with PID {pid}, keeping lock file")
                         else:
-                            logger.warning(
-                                f"Process with PID {pid} exists but isn't IPFS Cluster, removing stale lock"
-                            )
+                            logger.warning(f"Process with PID {pid} exists but isn't IPFS Cluster, removing stale lock")
                             os.remove(cluster_lock)
                             locks_cleaned += 1
                     except psutil.NoSuchProcess:
@@ -199,7 +181,7 @@ def clean_lock_files():
     cluster_follow_lock = os.path.join(get_ipfs_cluster_follow_path(), "service.lock")
     if os.path.exists(cluster_follow_lock):
         try:
-            with open(cluster_follow_lock, "r") as f:
+            with open(cluster_follow_lock, 'r') as f:
                 try:
                     pid = int(f.read().strip())
                     logger.info(f"Found IPFS Cluster Follow lock file with PID: {pid}")
@@ -207,16 +189,10 @@ def clean_lock_files():
                     # Check if process is running
                     try:
                         process = psutil.Process(pid)
-                        if "ipfs-cluster" in process.name().lower() or any(
-                            "ipfs-cluster" in arg.lower() for arg in process.cmdline()
-                        ):
-                            logger.info(
-                                f"IPFS Cluster Follow process is still running with PID {pid}, keeping lock file"
-                            )
+                        if "ipfs-cluster" in process.name().lower() or any("ipfs-cluster" in arg.lower() for arg in process.cmdline()):
+                            logger.info(f"IPFS Cluster Follow process is still running with PID {pid}, keeping lock file")
                         else:
-                            logger.warning(
-                                f"Process with PID {pid} exists but isn't IPFS Cluster Follow, removing stale lock"
-                            )
+                            logger.warning(f"Process with PID {pid} exists but isn't IPFS Cluster Follow, removing stale lock")
                             os.remove(cluster_follow_lock)
                             locks_cleaned += 1
                     except psutil.NoSuchProcess:
@@ -234,7 +210,7 @@ def clean_lock_files():
     lotus_lock = os.path.join(get_lotus_path(), "repo.lock")
     if os.path.exists(lotus_lock):
         try:
-            with open(lotus_lock, "r") as f:
+            with open(lotus_lock, 'r') as f:
                 try:
                     pid = int(f.read().strip())
                     logger.info(f"Found Lotus lock file with PID: {pid}")
@@ -242,16 +218,10 @@ def clean_lock_files():
                     # Check if process is running
                     try:
                         process = psutil.Process(pid)
-                        if "lotus" in process.name().lower() or any(
-                            "lotus" in arg.lower() for arg in process.cmdline()
-                        ):
-                            logger.info(
-                                f"Lotus process is still running with PID {pid}, keeping lock file"
-                            )
+                        if "lotus" in process.name().lower() or any("lotus" in arg.lower() for arg in process.cmdline()):
+                            logger.info(f"Lotus process is still running with PID {pid}, keeping lock file")
                         else:
-                            logger.warning(
-                                f"Process with PID {pid} exists but isn't Lotus, removing stale lock"
-                            )
+                            logger.warning(f"Process with PID {pid} exists but isn't Lotus, removing stale lock")
                             os.remove(lotus_lock)
                             locks_cleaned += 1
                     except psutil.NoSuchProcess:
@@ -266,7 +236,6 @@ def clean_lock_files():
             logger.error(f"Error handling Lotus lock file: {e}")
 
     return locks_cleaned
-
 
 def ensure_ipfs_initialized():
     """Ensure IPFS repository is initialized."""
@@ -283,7 +252,7 @@ def ensure_ipfs_initialized():
                 ["ipfs", "init", "--profile=lowpower"],
                 env={"IPFS_PATH": ipfs_path, "PATH": os.environ["PATH"]},
                 capture_output=True,
-                text=True,
+                text=True
             )
 
             if result.returncode != 0:
@@ -298,7 +267,6 @@ def ensure_ipfs_initialized():
 
     logger.info(f"IPFS repository already initialized at {ipfs_path}")
     return True
-
 
 def ensure_ipfs_cluster_initialized():
     """Ensure IPFS Cluster repository is initialized."""
@@ -316,7 +284,7 @@ def ensure_ipfs_cluster_initialized():
                 ["ipfs-cluster-service", "init"],
                 env={"IPFS_CLUSTER_PATH": cluster_path, "PATH": os.environ["PATH"]},
                 capture_output=True,
-                text=True,
+                text=True
             )
 
             if result.returncode != 0:
@@ -332,22 +300,18 @@ def ensure_ipfs_cluster_initialized():
     logger.info(f"IPFS Cluster repository already initialized at {cluster_path}")
     return True
 
-
 def ensure_lotus_initialized():
     """Ensure Lotus repository is initialized."""
     lotus_path = get_lotus_path()
     config_file = os.path.join(lotus_path, "config.toml")
 
     if not os.path.exists(config_file):
-        logger.info(
-            f"Lotus repository not found at {lotus_path}, no automatic initialization available"
-        )
+        logger.info(f"Lotus repository not found at {lotus_path}, no automatic initialization available")
         logger.info("You will need to initialize Lotus manually with: lotus daemon --init")
         return False
 
     logger.info(f"Lotus repository already initialized at {lotus_path}")
     return True
-
 
 def start_ipfs_daemon():
     """Start the IPFS daemon."""
@@ -373,7 +337,7 @@ def start_ipfs_daemon():
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
-            start_new_session=True,  # Detach from parent process
+            start_new_session=True  # Detach from parent process
         )
 
         # Wait for daemon to start (look for the "Daemon is ready" message)
@@ -397,7 +361,6 @@ def start_ipfs_daemon():
     except Exception as e:
         logger.error(f"Error starting IPFS daemon: {e}")
         return False
-
 
 def start_ipfs_cluster_service():
     """Start the IPFS Cluster service."""
@@ -430,7 +393,7 @@ def start_ipfs_cluster_service():
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
-            start_new_session=True,  # Detach from parent process
+            start_new_session=True  # Detach from parent process
         )
 
         # Wait for daemon to start
@@ -455,7 +418,6 @@ def start_ipfs_cluster_service():
         logger.error(f"Error starting IPFS Cluster service: {e}")
         return False
 
-
 def start_lotus_daemon():
     """Start the Lotus daemon."""
     # Check if daemon is already running
@@ -479,7 +441,7 @@ def start_lotus_daemon():
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
-            start_new_session=True,  # Detach from parent process
+            start_new_session=True  # Detach from parent process
         )
 
         # Wait for daemon to start
@@ -504,11 +466,13 @@ def start_lotus_daemon():
         logger.error(f"Error starting Lotus daemon: {e}")
         return False
 
-
 def fix_mcp_daemon_configuration():
     """Update MCP server configuration to better handle daemons."""
     # Paths to search for run scripts
-    script_paths = [".", "ipfs_kit_py"]
+    script_paths = [
+        ".",
+        "ipfs_kit_py"
+    ]
 
     fixed_files = []
 
@@ -518,7 +482,7 @@ def fix_mcp_daemon_configuration():
         "run_mcp_server_fixed.py",
         "run_mcp_server.py",
         "start_mcp_server.sh",
-        "start_mcp_anyio_server.sh",
+        "start_mcp_anyio_server.sh"
     ]
 
     for script_path in script_paths:
@@ -527,7 +491,7 @@ def fix_mcp_daemon_configuration():
             if not os.path.exists(full_path):
                 continue
 
-            with open(full_path, "r") as f:
+            with open(full_path, 'r') as f:
                 content = f.read()
 
             # Check if this file has "--skip-daemon" flag
@@ -536,7 +500,7 @@ def fix_mcp_daemon_configuration():
                 updated_content = content.replace("--skip-daemon", "")
 
                 # Write updated content back
-                with open(full_path, "w") as f:
+                with open(full_path, 'w') as f:
                     f.write(updated_content)
 
                 fixed_files.append(full_path)
@@ -616,7 +580,7 @@ apply_daemon_control_patch()
 
     # Write the patch script
     patch_path = "patch_mcp_daemon_control.py"
-    with open(patch_path, "w") as f:
+    with open(patch_path, 'w') as f:
         f.write(patch_script)
 
     fixed_files.append(patch_path)
@@ -624,20 +588,13 @@ apply_daemon_control_patch()
 
     return fixed_files
 
-
 def main():
     """Main function to fix and start daemons."""
     parser = argparse.ArgumentParser(description="Fix and start daemons for MCP server")
     parser.add_argument("--clean-locks", action="store_true", help="Clean lock files")
-    parser.add_argument(
-        "--init-only", action="store_true", help="Only initialize repositories, don't start daemons"
-    )
-    parser.add_argument(
-        "--start-all", action="store_true", help="Start all daemons (IPFS, IPFS Cluster, Lotus)"
-    )
-    parser.add_argument(
-        "--fix-config", action="store_true", help="Fix MCP configuration to handle daemons better"
-    )
+    parser.add_argument("--init-only", action="store_true", help="Only initialize repositories, don't start daemons")
+    parser.add_argument("--start-all", action="store_true", help="Start all daemons (IPFS, IPFS Cluster, Lotus)")
+    parser.add_argument("--fix-config", action="store_true", help="Fix MCP configuration to handle daemons better")
     parser.add_argument("--ipfs", action="store_true", help="Start IPFS daemon")
     parser.add_argument("--ipfs-cluster", action="store_true", help="Start IPFS Cluster service")
     parser.add_argument("--lotus", action="store_true", help="Start Lotus daemon")
@@ -645,15 +602,8 @@ def main():
     args = parser.parse_args()
 
     # Default to starting IPFS if no specific action is specified
-    if not (
-        args.clean_locks
-        or args.init_only
-        or args.start_all
-        or args.fix_config
-        or args.ipfs
-        or args.ipfs_cluster
-        or args.lotus
-    ):
+    if not (args.clean_locks or args.init_only or args.start_all or
+            args.fix_config or args.ipfs or args.ipfs_cluster or args.lotus):
         args.ipfs = True
 
     # Clean lock files if requested
@@ -710,7 +660,6 @@ def main():
             logger.error("Failed to start Lotus daemon")
 
     logger.info("Daemon management complete")
-
 
 if __name__ == "__main__":
     main()

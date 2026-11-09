@@ -26,7 +26,8 @@ from ipfs_kit_py.ipfs_kit import ipfs_kit
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
 
@@ -339,13 +340,12 @@ HTML_TEMPLATE = """
 </html>
 """
 
-
 class OptimizedStreamingExample:
     """Example class for demonstrating optimized WebRTC streaming from IPFS."""
-
+    
     def __init__(self, cid=None, http_port=8080, webrtc_port=8081):
         """Initialize the streaming example.
-
+        
         Args:
             cid: Content identifier to stream. If None, a sample video will be added
             http_port: Port for the HTTP server serving the client page
@@ -357,65 +357,75 @@ class OptimizedStreamingExample:
         self.app = None
         self.stream_info = None
         self.metrics = {
-            "buffer": {"size": 0, "fill_level": 0, "underflows": 0, "overflows": 0},
-            "performance": {"framerate": 0, "processing_time": 0, "total_frames": 0},
-            "network": {"bandwidth": 0, "latency": 0, "packets_lost": 0},
+            "buffer": {
+                "size": 0,
+                "fill_level": 0,
+                "underflows": 0,
+                "overflows": 0
+            },
+            "performance": {
+                "framerate": 0,
+                "processing_time": 0,
+                "total_frames": 0
+            },
+            "network": {
+                "bandwidth": 0,
+                "latency": 0,
+                "packets_lost": 0
+            }
         }
-
+        
         # Create MCP server instance
         self.mcp_server = MCPServer(debug_mode=True)
         self.ipfs_model = self.mcp_server.models["ipfs"]
-
+        
         # Ensure we have a CID to stream
         if self.cid is None:
             self._add_sample_content()
-
+    
     def _add_sample_content(self):
         """Add a sample video file to IPFS if no CID is provided."""
         # Check if we have a sample video in the examples directory
         sample_path = os.path.join(os.path.dirname(__file__), "sample_video.mp4")
-
+        
         if not os.path.exists(sample_path):
             # Create a temporary file with simple content if sample doesn't exist
             logger.info("Sample video not found, creating a placeholder")
             from ipfs_kit_py.ipfs_kit import ipfs_kit
-
             kit = ipfs_kit()
-
+            
             # Use a small test pattern if available
-            result = kit.ipfs_add(
-                "<test pattern content - in a real example this would be video data>"
-            )
+            result = kit.ipfs_add("<test pattern content - in a real example this would be video data>")
             self.cid = result["Hash"]
             logger.info(f"Added test content with CID: {self.cid}")
         else:
             # Add the existing sample video
             logger.info(f"Adding sample video from {sample_path}")
             from ipfs_kit_py.ipfs_kit import ipfs_kit
-
             kit = ipfs_kit()
             result = kit.ipfs_add_file(sample_path)
             self.cid = result["Hash"]
             logger.info(f"Added sample video with CID: {self.cid}")
-
+    
     async def _start_stream(self, request):
         """Handle WebRTC signaling and start the stream."""
         params = await request.json()
-
+        
         # Extract SDP offer
-        offer = {"sdp": params["sdp"], "type": params["type"]}
-
+        offer = {
+            "sdp": params["sdp"],
+            "type": params["type"]
+        }
+        
         # Extract buffer parameters
         buffer_size = params.get("buffer_size", 30)
         prefetch_threshold = params.get("prefetch_threshold", 0.5)
         use_progressive_loading = params.get("use_progressive_loading", True)
-
-        logger.info(
-            f"Starting stream with buffer_size={buffer_size}, "
-            f"prefetch_threshold={prefetch_threshold}, "
-            f"progressive_loading={use_progressive_loading}"
-        )
-
+        
+        logger.info(f"Starting stream with buffer_size={buffer_size}, "
+                   f"prefetch_threshold={prefetch_threshold}, "
+                   f"progressive_loading={use_progressive_loading}")
+                   
         # Start WebRTC stream with optimized buffer settings
         stream_result = self.ipfs_model.stream_content_webrtc(
             cid=self.cid,
@@ -425,39 +435,37 @@ class OptimizedStreamingExample:
             buffer_size=buffer_size,
             prefetch_threshold=prefetch_threshold,
             use_progressive_loading=use_progressive_loading,
-            enable_benchmark=True,
+            enable_benchmark=True
         )
-
+        
         # Store stream info for later reference
         self.stream_info = stream_result
-
+        
         if not stream_result.get("success", False):
-            return web.json_response(
-                {"error": stream_result.get("error", "Unknown error")}, status=500
-            )
-
+            return web.json_response({"error": stream_result.get("error", "Unknown error")}, status=500)
+        
         # Get the PC and track for metrics tracking
         pc = stream_result.get("pc")
         track = stream_result.get("track")
-
+        
         if track and hasattr(track, "buffer_metrics"):
             # Update initial buffer metrics
             self.metrics["buffer"]["size"] = track.buffer_size
-
+            
         # Process the offer and generate answer
         answer = await stream_result.get("handle_offer")(offer)
-
+        
         # Start metrics collection thread
         self._start_metrics_collection(track)
-
+        
         return web.json_response(answer)
-
+    
     def _start_metrics_collection(self, track):
         """Start collecting metrics from the media track in a background thread."""
         if not track:
             logger.warning("Cannot start metrics collection: No track provided")
             return
-
+            
         def collect_metrics():
             while self.stream_info and self.stream_info.get("active", False):
                 try:
@@ -467,61 +475,55 @@ class OptimizedStreamingExample:
                         self.metrics["buffer"]["fill_level"] = buffer_metrics.get("fill_level", 0)
                         self.metrics["buffer"]["underflows"] = buffer_metrics.get("underflows", 0)
                         self.metrics["buffer"]["overflows"] = buffer_metrics.get("overflows", 0)
-
+                    
                     # Update performance metrics
                     if hasattr(track, "performance_metrics"):
                         perf_metrics = track.performance_metrics
                         self.metrics["performance"]["framerate"] = perf_metrics.get("framerate", 0)
-                        self.metrics["performance"]["processing_time"] = perf_metrics.get(
-                            "processing_time", 0
-                        )
-                        self.metrics["performance"]["total_frames"] = perf_metrics.get(
-                            "frames_processed", 0
-                        )
-
+                        self.metrics["performance"]["processing_time"] = perf_metrics.get("processing_time", 0)
+                        self.metrics["performance"]["total_frames"] = perf_metrics.get("frames_processed", 0)
+                    
                     # Update network metrics if available
                     # Note: These would typically come from WebRTC stats in a real application
                     # For this example, we're using simulated values
-                    self.metrics["network"]["bandwidth"] = 1500 + (
-                        time.time() % 200
-                    )  # simulate fluctuation
+                    self.metrics["network"]["bandwidth"] = 1500 + (time.time() % 200)  # simulate fluctuation
                     self.metrics["network"]["latency"] = 20 + (time.time() % 15)
                     self.metrics["network"]["packets_lost"] = int(time.time() % 5)
-
+                    
                 except Exception as e:
                     logger.error(f"Error collecting metrics: {e}")
-
+                
                 time.sleep(1)
-
+        
         # Start metrics collection in a background thread
         Thread(target=collect_metrics, daemon=True).start()
-
+    
     async def _get_metrics(self, request):
         """Return current streaming metrics."""
         return web.json_response(self.metrics)
-
+    
     async def _index(self, request):
         """Serve the HTML client page."""
-        return web.Response(text=HTML_TEMPLATE, content_type="text/html")
-
+        return web.Response(text=HTML_TEMPLATE, content_type='text/html')
+    
     async def setup_routes(self, app):
         """Set up the HTTP server routes."""
-        app.router.add_get("/", self._index)
-        app.router.add_post("/stream", self._start_stream)
-        app.router.add_get("/metrics", self._get_metrics)
-
+        app.router.add_get('/', self._index)
+        app.router.add_post('/stream', self._start_stream)
+        app.router.add_get('/metrics', self._get_metrics)
+    
     async def start(self):
         """Start the HTTP server."""
         self.app = web.Application()
         await self.setup_routes(self.app)
-
+        
         runner = web.AppRunner(self.app)
         await runner.setup()
-        site = web.TCPSite(runner, "0.0.0.0", self.http_port)
-
+        site = web.TCPSite(runner, '0.0.0.0', self.http_port)
+        
         logger.info(f"Starting HTTP server on http://localhost:{self.http_port}")
         await site.start()
-
+        
         # Keep the server running
         try:
             while True:
@@ -529,25 +531,23 @@ class OptimizedStreamingExample:
         finally:
             logger.info("Shutting down server")
             await runner.cleanup()
-
+            
             # Clean up any active streams
             if self.stream_info and self.stream_info.get("active", False):
                 cleanup_func = self.stream_info.get("cleanup")
                 if cleanup_func:
                     cleanup_func()
 
-
 def main():
     """Main entry point for the example."""
     # Create and start the streaming example
     example = OptimizedStreamingExample()
-
+    
     try:
         # Run the async-io event loop
         anyio.run(example.start())
     except KeyboardInterrupt:
         logger.info("Example stopped by user")
-
 
 if __name__ == "__main__":
     main()

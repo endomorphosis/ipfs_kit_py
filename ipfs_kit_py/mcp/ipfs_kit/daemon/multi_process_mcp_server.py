@@ -40,11 +40,10 @@ from .daemon_client import IPFSKitDaemonClient, DaemonAwareComponent
 
 logger = logging.getLogger(__name__)
 
-
 class MultiProcessMCPServer(DaemonAwareComponent):
     """
     Multi-processing enhanced MCP server for high-throughput IPFS Kit operations.
-
+    
     Features:
     - Process pools for parallel tool execution
     - Async MCP protocol handling
@@ -52,59 +51,57 @@ class MultiProcessMCPServer(DaemonAwareComponent):
     - Background task processing
     - Real-time WebSocket updates
     """
-
-    def __init__(
-        self,
-        daemon_url: str = "http://127.0.0.1:9999",
-        web_host: str = "127.0.0.1",
-        web_port: int = 8080,
-        max_workers: int = None,
-    ):
-
+    
+    def __init__(self, 
+                 daemon_url: str = "http://127.0.0.1:9999",
+                 web_host: str = "127.0.0.1",
+                 web_port: int = 8080,
+                 max_workers: int = None):
+        
         super().__init__(daemon_url)
-
+        
         self.web_host = web_host
         self.web_port = web_port
         self.max_workers = max_workers or min(mp.cpu_count(), 8)
-
+        
         # Multi-processing components
         self.process_pool = None
         self.thread_pool = None
-
+        
         # MCP Server
         self.mcp_server = Server("ipfs-kit-multiprocess")
-
+        
         # FastAPI app for dashboard
         self.web_app = self._create_web_app()
-
+        
         # WebSocket connections for real-time updates
         self.websocket_connections = set()
-
+        
         # Performance tracking
         self.performance_stats = {
-            "mcp_operations": 0,
-            "tool_executions": 0,
-            "websocket_connections": 0,
-            "start_time": None,
-            "total_response_time": 0.0,
+            'mcp_operations': 0,
+            'tool_executions': 0,
+            'websocket_connections': 0,
+            'start_time': None,
+            'total_response_time': 0.0
         }
-
+        
         # Setup MCP tools and handlers
         self._setup_mcp_tools()
         self._setup_mcp_handlers()
-
+        
         logger.info(f"🔧 Multi-Processing MCP Server initialized")
         logger.info(f"🌐 Web dashboard: http://{web_host}:{web_port}")
         logger.info(f"⚡ Workers: {self.max_workers}")
-
+    
     def _create_web_app(self) -> FastAPI:
         """Create FastAPI web application with high-performance dashboard."""
         app = FastAPI(
             title="Multi-Processing IPFS Kit MCP Server",
             description="High-throughput MCP server with multi-processing support",
-            version="2.0.0",
+            version="2.0.0"
         )
-
+        
         # Dashboard endpoints
         @app.get("/", response_class=HTMLResponse)
         async def dashboard():
@@ -441,55 +438,51 @@ class MultiProcessMCPServer(DaemonAwareComponent):
 </body>
 </html>
             """
-
+        
         @app.get("/api/stats")
         async def get_stats():
             """Get current server statistics."""
-            uptime = time.time() - (self.performance_stats["start_time"] or time.time())
-
-            return JSONResponse(
-                content={
-                    "mcp_operations": self.performance_stats["mcp_operations"],
-                    "tool_executions": self.performance_stats["tool_executions"],
-                    "websocket_connections": len(self.websocket_connections),
-                    "workers": self.max_workers,
-                    "uptime": uptime,
-                    "total_response_time": self.performance_stats["total_response_time"],
-                }
-            )
-
+            uptime = time.time() - (self.performance_stats['start_time'] or time.time())
+            
+            return JSONResponse(content={
+                "mcp_operations": self.performance_stats['mcp_operations'],
+                "tool_executions": self.performance_stats['tool_executions'],
+                "websocket_connections": len(self.websocket_connections),
+                "workers": self.max_workers,
+                "uptime": uptime,
+                "total_response_time": self.performance_stats['total_response_time']
+            })
+        
         @app.websocket("/ws")
         async def websocket_endpoint(websocket: WebSocket):
             """WebSocket endpoint for real-time updates."""
             await websocket.accept()
             self.websocket_connections.add(websocket)
-
+            
             try:
                 while True:
                     # Wait for messages from client
                     data = await websocket.receive_json()
-
-                    if data.get("type") == "operation":
+                    
+                    if data.get('type') == 'operation':
                         # Handle operation requests
-                        operation = data.get("operation")
+                        operation = data.get('operation')
                         result = await self._handle_websocket_operation(operation)
-
-                        await websocket.send_json(
-                            {
-                                "type": "log",
-                                "message": f"Operation {operation} completed: {result.get('success', False)}",
-                                "level": "success" if result.get("success") else "error",
-                            }
-                        )
-
+                        
+                        await websocket.send_json({
+                            "type": "log",
+                            "message": f"Operation {operation} completed: {result.get('success', False)}",
+                            "level": "success" if result.get('success') else "error"
+                        })
+                        
             except WebSocketDisconnect:
                 self.websocket_connections.discard(websocket)
             except Exception as e:
                 logger.error(f"WebSocket error: {e}")
                 self.websocket_connections.discard(websocket)
-
+        
         return app
-
+    
     async def _handle_websocket_operation(self, operation: str) -> Dict[str, Any]:
         """Handle WebSocket operation requests."""
         try:
@@ -499,21 +492,19 @@ class MultiProcessMCPServer(DaemonAwareComponent):
                 return await self.daemon_client.list_pins()
             elif operation == "stress-test":
                 # Run mini stress test
-                operations = [
-                    {"operation": "add", "cid": f"QmTest{i:06d}{'0' * 40}"} for i in range(10)
-                ]
+                operations = [{"operation": "add", "cid": f"QmTest{i:06d}{'0'*40}"} for i in range(10)]
                 return await self.daemon_client.batch_pin_operations(operations)
             elif operation == "performance-monitor":
                 return await self.daemon_client._make_request("GET", "/performance")
             else:
                 return {"success": False, "error": f"Unknown operation: {operation}"}
-
+                
         except Exception as e:
             return {"success": False, "error": str(e)}
-
+    
     def _setup_mcp_tools(self):
         """Setup MCP tools with multi-processing support."""
-
+        
         # Health monitoring tool
         @self.mcp_server.list_tools()
         async def handle_list_tools() -> list[types.Tool]:
@@ -525,9 +516,12 @@ class MultiProcessMCPServer(DaemonAwareComponent):
                     inputSchema={
                         "type": "object",
                         "properties": {
-                            "fast": {"type": "boolean", "description": "Use fast health check mode"}
-                        },
-                    },
+                            "fast": {
+                                "type": "boolean",
+                                "description": "Use fast health check mode"
+                            }
+                        }
+                    }
                 ),
                 types.Tool(
                     name="list_pins_concurrent",
@@ -537,10 +531,10 @@ class MultiProcessMCPServer(DaemonAwareComponent):
                         "properties": {
                             "limit": {
                                 "type": "integer",
-                                "description": "Maximum number of pins to return",
+                                "description": "Maximum number of pins to return"
                             }
-                        },
-                    },
+                        }
+                    }
                 ),
                 types.Tool(
                     name="batch_pin_operations",
@@ -554,14 +548,14 @@ class MultiProcessMCPServer(DaemonAwareComponent):
                                     "type": "object",
                                     "properties": {
                                         "operation": {"type": "string", "enum": ["add", "remove"]},
-                                        "cid": {"type": "string"},
-                                    },
+                                        "cid": {"type": "string"}
+                                    }
                                 },
-                                "description": "Array of pin operations to execute",
+                                "description": "Array of pin operations to execute"
                             }
                         },
-                        "required": ["operations"],
-                    },
+                        "required": ["operations"]
+                    }
                 ),
                 types.Tool(
                     name="performance_stress_test",
@@ -572,16 +566,16 @@ class MultiProcessMCPServer(DaemonAwareComponent):
                             "num_operations": {
                                 "type": "integer",
                                 "description": "Number of operations to perform",
-                                "default": 100,
+                                "default": 100
                             },
                             "operation_type": {
                                 "type": "string",
                                 "enum": ["add", "remove", "mixed"],
                                 "description": "Type of operations to perform",
-                                "default": "mixed",
-                            },
-                        },
-                    },
+                                "default": "mixed"
+                            }
+                        }
+                    }
                 ),
                 types.Tool(
                     name="backend_management",
@@ -591,182 +585,186 @@ class MultiProcessMCPServer(DaemonAwareComponent):
                         "properties": {
                             "action": {
                                 "type": "string",
-                                "enum": ["start", "stop", "restart", "status"],
+                                "enum": ["start", "stop", "restart", "status"]
                             },
                             "backend": {
                                 "type": "string",
-                                "enum": ["ipfs", "cluster", "lotus", "all"],
-                            },
+                                "enum": ["ipfs", "cluster", "lotus", "all"]
+                            }
                         },
-                        "required": ["action", "backend"],
-                    },
-                ),
+                        "required": ["action", "backend"]
+                    }
+                )
             ]
-
+        
         # Tool execution handlers with process pools
         @self.mcp_server.call_tool()
         async def handle_call_tool(name: str, arguments: dict) -> list[types.TextContent]:
             """Handle tool calls with multi-processing support."""
             start_time = time.time()
-
+            
             try:
-                self.performance_stats["tool_executions"] += 1
-
+                self.performance_stats['tool_executions'] += 1
+                
                 # Execute tool in process pool for CPU-intensive operations
                 if name == "health_check":
                     result = await anyio.to_thread.run_sync(
-                        self._execute_health_check_tool, arguments
+                        self._execute_health_check_tool,
+                        arguments
                     )
                 elif name == "list_pins_concurrent":
-                    result = await anyio.to_thread.run_sync(self._execute_list_pins_tool, arguments)
+                    result = await anyio.to_thread.run_sync(
+                        self._execute_list_pins_tool,
+                        arguments
+                    )
                 elif name == "batch_pin_operations":
                     result = await anyio.to_process.run_sync(
-                        self._execute_batch_operations_tool, arguments
+                        self._execute_batch_operations_tool,
+                        arguments
                     )
                 elif name == "performance_stress_test":
                     result = await anyio.to_process.run_sync(
-                        self._execute_stress_test_tool, arguments
+                        self._execute_stress_test_tool,
+                        arguments
                     )
                 elif name == "backend_management":
                     result = await anyio.to_process.run_sync(
-                        self._execute_backend_management_tool, arguments
+                        self._execute_backend_management_tool,
+                        arguments
                     )
                 else:
                     result = {"error": f"Unknown tool: {name}"}
-
+                
                 # Track performance
                 execution_time = (time.time() - start_time) * 1000
-                self.performance_stats["total_response_time"] += execution_time
-
+                self.performance_stats['total_response_time'] += execution_time
+                
                 # Broadcast update to WebSocket clients
-                await self._broadcast_update(
-                    {
-                        "type": "log",
-                        "message": f"Tool {name} executed in {execution_time:.1f}ms",
-                        "level": "success" if not result.get("error") else "error",
-                    }
-                )
-
-                return [TextContent(type="text", text=json.dumps(result, indent=2))]
-
+                await self._broadcast_update({
+                    "type": "log",
+                    "message": f"Tool {name} executed in {execution_time:.1f}ms",
+                    "level": "success" if not result.get('error') else "error"
+                })
+                
+                return [TextContent(
+                    type="text",
+                    text=json.dumps(result, indent=2)
+                )]
+                
             except Exception as e:
                 logger.error(f"Tool execution error: {e}")
-                return [TextContent(type="text", text=json.dumps({"error": str(e)}, indent=2))]
-
+                return [TextContent(
+                    type="text",
+                    text=json.dumps({"error": str(e)}, indent=2)
+                )]
+    
     def _execute_health_check_tool(self, arguments: dict) -> dict:
         """Execute health check tool in thread pool."""
         try:
             # Create async event loop in thread
-            fast = arguments.get("fast", False)
+            fast = arguments.get('fast', False)
             endpoint = "/health/fast" if fast else "/health"
 
             result = anyio.run(self.daemon_client._make_request, "GET", endpoint)
-
+            
             return result
-
+            
         except Exception as e:
             return {"error": str(e)}
-
+    
     def _execute_list_pins_tool(self, arguments: dict) -> dict:
         """Execute list pins tool in thread pool."""
         try:
             result = anyio.run(self.daemon_client.list_pins)
-
-            limit = arguments.get("limit")
-            if limit and "pins" in result:
-                result["pins"] = result["pins"][:limit]
-                result["limited"] = True
-                result["limit"] = limit
-
+            
+            limit = arguments.get('limit')
+            if limit and 'pins' in result:
+                result['pins'] = result['pins'][:limit]
+                result['limited'] = True
+                result['limit'] = limit
+            
             return result
-
+            
         except Exception as e:
             return {"error": str(e)}
-
+    
     def _execute_batch_operations_tool(self, arguments: dict) -> dict:
         """Execute batch operations tool in process pool."""
         try:
-            operations = arguments.get("operations", [])
+            operations = arguments.get('operations', [])
             result = anyio.run(self.daemon_client.batch_pin_operations, operations)
-
+            
             return result
-
+            
         except Exception as e:
             return {"error": str(e)}
-
+    
     def _execute_stress_test_tool(self, arguments: dict) -> dict:
         """Execute stress test tool in process pool."""
         try:
-            num_operations = arguments.get("num_operations", 100)
-            operation_type = arguments.get("operation_type", "mixed")
-
+            num_operations = arguments.get('num_operations', 100)
+            operation_type = arguments.get('operation_type', 'mixed')
+            
             # Generate test operations
             operations = []
             test_cid_base = "QmTest" + "0" * 40
-
+            
             if operation_type == "add":
-                operations = [
-                    {"operation": "add", "cid": f"{test_cid_base}{i:06d}"}
-                    for i in range(num_operations)
-                ]
+                operations = [{"operation": "add", "cid": f"{test_cid_base}{i:06d}"} 
+                             for i in range(num_operations)]
             elif operation_type == "remove":
-                operations = [
-                    {"operation": "remove", "cid": f"{test_cid_base}{i:06d}"}
-                    for i in range(num_operations)
-                ]
+                operations = [{"operation": "remove", "cid": f"{test_cid_base}{i:06d}"} 
+                             for i in range(num_operations)]
             else:  # mixed
                 for i in range(num_operations):
                     op_type = "add" if i % 2 == 0 else "remove"
                     operations.append({"operation": op_type, "cid": f"{test_cid_base}{i:06d}"})
-
+            
             start_time = time.time()
             result = anyio.run(self.daemon_client.batch_pin_operations, operations)
             total_time = time.time() - start_time
-
+            
             # Add stress test metrics
-            result.update(
-                {
-                    "stress_test": True,
-                    "operation_type": operation_type,
-                    "total_time_seconds": total_time,
-                    "throughput_ops_per_second": num_operations / total_time
-                    if total_time > 0
-                    else 0,
-                }
-            )
-
+            result.update({
+                "stress_test": True,
+                "operation_type": operation_type,
+                "total_time_seconds": total_time,
+                "throughput_ops_per_second": num_operations / total_time if total_time > 0 else 0
+            })
+            
             return result
-
+            
         except Exception as e:
             return {"error": str(e)}
-
+    
     def _execute_backend_management_tool(self, arguments: dict) -> dict:
         """Execute backend management tool in process pool."""
         try:
-            action = arguments.get("action")
-            backend = arguments.get("backend")
-
+            action = arguments.get('action')
+            backend = arguments.get('backend')
+            
             if action == "start":
-                result = anyio.run(
-                    self.daemon_client._make_request, "POST", f"/backends/{backend}/start"
-                )
+                result = anyio.run(self.daemon_client._make_request, "POST", f"/backends/{backend}/start")
             elif action == "status":
                 result = anyio.run(self.daemon_client.get_health)
                 # Filter for specific backend if not 'all'
-                if backend != "all" and "backends" in result:
-                    backend_status = result["backends"].get(backend, {})
-                    result = {"backend": backend, "status": backend_status}
+                if backend != 'all' and 'backends' in result:
+                    backend_status = result['backends'].get(backend, {})
+                    result = {
+                        "backend": backend,
+                        "status": backend_status
+                    }
             else:
                 result = {"error": f"Unsupported action: {action}"}
-
+            
             return result
-
+            
         except Exception as e:
             return {"error": str(e)}
-
+    
     def _setup_mcp_handlers(self):
         """Setup MCP server handlers."""
-
+        
         @self.mcp_server.list_resources()
         async def handle_list_resources() -> list[types.Resource]:
             """List available resources."""
@@ -775,28 +773,28 @@ class MultiProcessMCPServer(DaemonAwareComponent):
                     uri="ipfs://health-status",
                     name="Health Status",
                     description="Current daemon and backend health status",
-                    mimeType="application/json",
+                    mimeType="application/json"
                 ),
                 types.Resource(
                     uri="ipfs://pin-index",
                     name="Pin Index",
                     description="Current pin index with metadata",
-                    mimeType="application/json",
+                    mimeType="application/json"
                 ),
                 types.Resource(
                     uri="ipfs://performance-metrics",
                     name="Performance Metrics",
                     description="Real-time performance metrics",
-                    mimeType="application/json",
-                ),
+                    mimeType="application/json"
+                )
             ]
-
+        
         @self.mcp_server.read_resource()
         async def handle_read_resource(uri: str) -> str:
             """Read resource content with multi-processing."""
             try:
-                self.performance_stats["mcp_operations"] += 1
-
+                self.performance_stats['mcp_operations'] += 1
+                
                 if uri == "ipfs://health-status":
                     result = await self.daemon_client.get_health()
                 elif uri == "ipfs://pin-index":
@@ -805,17 +803,17 @@ class MultiProcessMCPServer(DaemonAwareComponent):
                     result = await self.daemon_client._make_request("GET", "/performance")
                 else:
                     result = {"error": f"Unknown resource: {uri}"}
-
+                
                 return json.dumps(result, indent=2)
-
+                
             except Exception as e:
                 return json.dumps({"error": str(e)}, indent=2)
-
+    
     async def _broadcast_update(self, data: dict):
         """Broadcast update to all WebSocket connections."""
         if not self.websocket_connections:
             return
-
+        
         # Send to all connected clients
         disconnected = set()
         for websocket in self.websocket_connections:
@@ -823,40 +821,44 @@ class MultiProcessMCPServer(DaemonAwareComponent):
                 await websocket.send_json(data)
             except Exception:
                 disconnected.add(websocket)
-
+        
         # Remove disconnected clients
         self.websocket_connections -= disconnected
-
+    
     async def start(self):
         """Start the multi-processing MCP server."""
         logger.info("🚀 Starting Multi-Processing MCP Server...")
-
+        
         # Initialize process pools
         self.process_pool = ProcessPoolExecutor(max_workers=self.max_workers)
         self.thread_pool = ThreadPoolExecutor(max_workers=self.max_workers * 2)
-
+        
         logger.info(f"⚡ Initialized {self.max_workers} process workers")
         logger.info(f"⚡ Initialized {self.max_workers * 2} thread workers")
-
+        
         # Set start time
-        self.performance_stats["start_time"] = time.time()
-
+        self.performance_stats['start_time'] = time.time()
+        
         # Start web dashboard
         config = uvicorn.Config(
-            self.web_app, host=self.web_host, port=self.web_port, log_level="info", access_log=False
+            self.web_app,
+            host=self.web_host,
+            port=self.web_port,
+            log_level="info",
+            access_log=False
         )
         server = uvicorn.Server(config)
-
+        
         logger.info(f"🌐 Starting web dashboard on {self.web_host}:{self.web_port}")
-
+        
         # Run both MCP server and web dashboard
         try:
             # Start web server in background
             anyio.lowlevel.spawn_system_task(server.serve)
-
+            
             # Start MCP server
             from mcp.server.stdio import stdio_server
-
+            
             async with stdio_server() as (read_stream, write_stream):
                 await self.mcp_server.run(
                     read_stream,
@@ -865,62 +867,63 @@ class MultiProcessMCPServer(DaemonAwareComponent):
                         server_name="ipfs-kit-multiprocess",
                         server_version="2.0.0",
                         capabilities=self.mcp_server.get_capabilities(
-                            notification_options=NotificationOptions(), experimental_capabilities={}
-                        ),
-                    ),
+                            notification_options=NotificationOptions(),
+                            experimental_capabilities={}
+                        )
+                    )
                 )
-
+            
         except Exception as e:
             logger.error(f"❌ Error running MCP server: {e}")
             return False
-
+        
         return True
-
+    
     async def stop(self):
         """Stop the multi-processing MCP server."""
         logger.info("🛑 Stopping Multi-Processing MCP Server...")
-
+        
         # Close WebSocket connections
         for websocket in self.websocket_connections:
             try:
                 await websocket.close()
             except:
                 pass
-
+        
         # Shutdown process pools
         if self.process_pool:
             self.process_pool.shutdown(wait=True)
         if self.thread_pool:
             self.thread_pool.shutdown(wait=True)
-
+        
         logger.info("✅ Multi-processing MCP server stopped")
 
 
 async def main():
     """Main entry point for multi-processing MCP server."""
     import argparse
-
+    
     parser = argparse.ArgumentParser(description="Multi-Processing IPFS Kit MCP Server")
     parser.add_argument("--daemon-url", default="http://127.0.0.1:9999", help="Daemon URL")
     parser.add_argument("--web-host", default="127.0.0.1", help="Web dashboard host")
     parser.add_argument("--web-port", type=int, default=8080, help="Web dashboard port")
     parser.add_argument("--workers", type=int, help="Number of worker processes")
     parser.add_argument("--debug", action="store_true", help="Enable debug logging")
-
+    
     args = parser.parse_args()
-
+    
     # Configure logging
     if args.debug:
         logging.getLogger().setLevel(logging.DEBUG)
-
+    
     # Create and start MCP server
     mcp_server = MultiProcessMCPServer(
         daemon_url=args.daemon_url,
         web_host=args.web_host,
         web_port=args.web_port,
-        max_workers=args.workers,
+        max_workers=args.workers
     )
-
+    
     print("=" * 80)
     print("⚡ MULTI-PROCESSING IPFS KIT MCP SERVER")
     print("=" * 80)
@@ -931,7 +934,7 @@ async def main():
     print(f"🔍 Debug: {args.debug}")
     print("=" * 80)
     print("🚀 Starting high-performance MCP server...")
-
+    
     try:
         await mcp_server.start()
     except KeyboardInterrupt:
@@ -945,5 +948,5 @@ async def main():
 
 if __name__ == "__main__":
     # Set multiprocessing start method
-    mp.set_start_method("spawn", force=True)
+    mp.set_start_method('spawn', force=True)
     anyio.run(main)

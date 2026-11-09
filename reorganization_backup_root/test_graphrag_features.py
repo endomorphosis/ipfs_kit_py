@@ -13,34 +13,27 @@ import os
 
 def test_basic_server():
     """Test basic server functionality in isolation."""
-
+    
     print("🧪 Quick Enhanced MCP Server Test")
     print("=" * 40)
-
+    
     # Set proper environment path
     venv_python = "/home/barberb/ipfs_kit_py/.venv/bin/python"
-
+    
     try:
         # Test that server can import successfully
         print("📋 1. Testing imports...")
-        result = subprocess.run(
-            [
-                venv_python,
-                "-c",
-                "import sys; sys.path.insert(0, 'mcp'); import enhanced_mcp_server_with_daemon_mgmt; print('✅ Server imports successfully')",
-            ],
-            capture_output=True,
-            text=True,
-            timeout=10,
-            cwd="/home/barberb/ipfs_kit_py",
-        )
-
+        result = subprocess.run([
+            venv_python, "-c", 
+            "import sys; sys.path.insert(0, 'mcp'); import enhanced_mcp_server_with_daemon_mgmt; print('✅ Server imports successfully')"
+        ], capture_output=True, text=True, timeout=10, cwd="/home/barberb/ipfs_kit_py")
+        
         if result.returncode == 0:
             print("✅ Server imports successfully")
         else:
             print(f"❌ Import failed: {result.stderr}")
             return False
-
+            
         # Test that GraphRAG search engine can be created
         print("📋 2. Testing GraphRAG engine...")
         test_code = """
@@ -54,21 +47,16 @@ try:
 except Exception as e:
     print(f'❌ GraphRAG engine failed: {e}')
 """
-
-        result = subprocess.run(
-            [venv_python, "-c", test_code],
-            capture_output=True,
-            text=True,
-            timeout=15,
-            cwd="/home/barberb/ipfs_kit_py",
-        )
-
+        
+        result = subprocess.run([venv_python, "-c", test_code], 
+                              capture_output=True, text=True, timeout=15, cwd="/home/barberb/ipfs_kit_py")
+        
         if result.returncode == 0:
             print(result.stdout.strip())
         else:
             print(f"❌ GraphRAG test failed: {result.stderr}")
             return False
-
+            
         # Test content indexing
         print("📋 3. Testing content indexing...")
         test_code = """
@@ -90,21 +78,16 @@ async def test_indexing():
 result = asyncio.run(test_indexing())
 print(f'✅ Content indexing: {result["success"]=}')
 """
-
-        result = subprocess.run(
-            [venv_python, "-c", test_code],
-            capture_output=True,
-            text=True,
-            timeout=15,
-            cwd="/home/barberb/ipfs_kit_py",
-        )
-
+        
+        result = subprocess.run([venv_python, "-c", test_code], 
+                              capture_output=True, text=True, timeout=15, cwd="/home/barberb/ipfs_kit_py")
+        
         if result.returncode == 0:
             print(result.stdout.strip())
         else:
             print(f"❌ Indexing test failed: {result.stderr}")
             return False
-
+            
         # Test text search
         print("📋 4. Testing search functionality...")
         test_code = """
@@ -129,24 +112,19 @@ async def test_search():
 result = asyncio.run(test_search())
 print(f'✅ Search functionality: {result["success"]=}, results={len(result.get("results", []))}')
 """
-
-        result = subprocess.run(
-            [venv_python, "-c", test_code],
-            capture_output=True,
-            text=True,
-            timeout=15,
-            cwd="/home/barberb/ipfs_kit_py",
-        )
-
+        
+        result = subprocess.run([venv_python, "-c", test_code], 
+                              capture_output=True, text=True, timeout=15, cwd="/home/barberb/ipfs_kit_py")
+        
         if result.returncode == 0:
             print(result.stdout.strip())
         else:
             print(f"❌ Search test failed: {result.stderr}")
             return False
-
+            
         print("\n🎉 All basic tests passed!")
         return True
-
+        
     except subprocess.TimeoutExpired:
         print("❌ Test timeout")
         return False
@@ -154,15 +132,14 @@ print(f'✅ Search functionality: {result["success"]=}, results={len(result.get(
         print(f"❌ Test error: {e}")
         return False
 
-
 def check_capabilities():
     """Check what search capabilities are available."""
-
+    
     print("\n📊 Search Capabilities Check")
     print("-" * 30)
-
+    
     venv_python = "/home/barberb/ipfs_kit_py/.venv/bin/python"
-
+    
     test_code = """
 import sys
 sys.path.insert(0, 'mcp')
@@ -184,30 +161,24 @@ print(f"  🔗 Knowledge graph nodes: {stats.get('knowledge_graph_nodes', 0)}")
 print(f"  🔗 Knowledge graph edges: {stats.get('knowledge_graph_edges', 0)}")
 print(f"  📈 RDF triples: {stats.get('rdf_triples', 0)}")
 """
-
+    
     try:
-        result = subprocess.run(
-            [venv_python, "-c", test_code],
-            capture_output=True,
-            text=True,
-            timeout=10,
-            cwd="/home/barberb/ipfs_kit_py",
-        )
-
+        result = subprocess.run([venv_python, "-c", test_code], 
+                              capture_output=True, text=True, timeout=10, cwd="/home/barberb/ipfs_kit_py")
+        
         if result.returncode == 0:
             print(result.stdout)
         else:
             print(f"❌ Capability check failed: {result.stderr}")
-
+            
     except Exception as e:
         print(f"❌ Error checking capabilities: {e}")
-
 
 if __name__ == "__main__":
     try:
         success = test_basic_server()
         check_capabilities()
-
+        
         print("\n" + "=" * 40)
         if success:
             print("🎯 Enhanced GraphRAG MCP Server is functional!")
@@ -217,7 +188,7 @@ if __name__ == "__main__":
             print("✅ Content indexing capabilities")
             print("✅ Text search functionality")
             print("✅ Database operations")
-
+            
             print("\n🚀 Ready for use with:")
             print("- VFS/MFS filesystem operations with auto-indexing")
             print("- Vector search (if sentence-transformers installed)")
@@ -226,11 +197,10 @@ if __name__ == "__main__":
             print("- Hybrid search combining multiple methods")
         else:
             print("❌ Some tests failed - check output above")
-
+            
     except KeyboardInterrupt:
         print("\n❌ Test interrupted")
     except Exception as e:
         print(f"\n❌ Unexpected error: {e}")
         import traceback
-
         traceback.print_exc()

@@ -11,7 +11,6 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-
 def test_webrtc_imports():
     """Test that webrtc_streaming can be imported safely."""
     logger.info("Testing WebRTC module imports...")
@@ -19,11 +18,7 @@ def test_webrtc_imports():
     try:
         # Try importing the webrtc_streaming module
         from ipfs_kit_py.webrtc_streaming import (
-            HAVE_WEBRTC,
-            HAVE_AV,
-            HAVE_CV2,
-            HAVE_NUMPY,
-            HAVE_AIORTC,
+            HAVE_WEBRTC, HAVE_AV, HAVE_CV2, HAVE_NUMPY, HAVE_AIORTC
         )
 
         logger.info("WebRTC dependency status:")
@@ -36,7 +31,6 @@ def test_webrtc_imports():
         # Try to import the WebRTCStreamingManager
         try:
             from ipfs_kit_py.webrtc_streaming import WebRTCStreamingManager
-
             logger.info("Successfully imported WebRTCStreamingManager")
 
             # Attempt to create an instance (should raise ImportError if dependencies missing)
@@ -53,7 +47,6 @@ def test_webrtc_imports():
         # Try to import the IPFSMediaStreamTrack
         try:
             from ipfs_kit_py.webrtc_streaming import IPFSMediaStreamTrack
-
             logger.info("Successfully imported IPFSMediaStreamTrack")
 
             # Attempt to create an instance (should raise ImportError if dependencies missing)
@@ -70,7 +63,6 @@ def test_webrtc_imports():
         # Try importing handle_webrtc_signaling
         try:
             from ipfs_kit_py.webrtc_streaming import handle_webrtc_signaling
-
             logger.info("Successfully imported handle_webrtc_signaling")
         except ImportError as e:
             logger.error(f"Failed to import handle_webrtc_signaling: {e}")
@@ -82,7 +74,6 @@ def test_webrtc_imports():
         logger.error(f"Failed to import webrtc_streaming: {e}")
         return False
 
-
 def test_high_level_api_imports():
     """Test that high_level_api can be imported safely."""
     logger.info("Testing high_level_api imports...")
@@ -90,12 +81,10 @@ def test_high_level_api_imports():
     try:
         # Try importing the high_level_api module
         from ipfs_kit_py.high_level_api import IPFSSimpleAPI
-
         logger.info("Successfully imported IPFSSimpleAPI from high_level_api")
 
         # Check WebRTC availability flag
         from ipfs_kit_py.high_level_api import HAVE_WEBRTC
-
         logger.info(f"HAVE_WEBRTC in high_level_api: {HAVE_WEBRTC}")
 
         return True
@@ -103,7 +92,6 @@ def test_high_level_api_imports():
     except ImportError as e:
         logger.error(f"Failed to import high_level_api: {e}")
         return False
-
 
 if __name__ == "__main__":
     webrtc_result = test_webrtc_imports()

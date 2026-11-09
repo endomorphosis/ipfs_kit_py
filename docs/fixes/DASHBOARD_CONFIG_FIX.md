@@ -37,8 +37,13 @@ async def _get_config_data(self):
 ```python
 async def _get_config_data(self):
     """Get configuration data including main config and backends."""
-    config_data = {"config": {"main": {}, "backends": {}}}
-
+    config_data = {
+        "config": {
+            "main": {},
+            "backends": {}
+        }
+    }
+    
     try:
         # Load backends.json if it exists
         backends_result = await self._read_config_file("backends.json")
@@ -58,15 +63,15 @@ async def _get_config_data(self):
                         config_data["config"]["backends"] = backends_list
                 else:
                     config_data["config"]["backends"] = backends_content
-
+        
         # Load main config if it exists
         main_result = await self._read_config_file("config.json")
         if main_result.get("success") and main_result.get("content"):
             config_data["config"]["main"] = main_result["content"]
-
+            
     except Exception as e:
         logger.error(f"Error loading config data: {e}")
-
+    
     return config_data
 ```
 
@@ -117,39 +122,39 @@ async def _update_backend_config(self, backend_name, config_data):
     try:
         # Read current backends config
         backends_result = await self._read_config_file("backends.json")
-
+        
         if backends_result.get("success"):
             backends_content = backends_result.get("content", {})
-
+            
             # Ensure we have a backends structure
             if "backends" not in backends_content:
                 backends_content = {"backends": {}}
-
+            
             # Update the specific backend config
             if isinstance(backends_content["backends"], dict):
                 if backend_name in backends_content["backends"]:
                     # Merge with existing backend
                     backends_content["backends"][backend_name]["config"] = {
                         **backends_content["backends"][backend_name].get("config", {}),
-                        **config_data.get("config", config_data),
+                        **config_data.get("config", config_data)
                     }
                 else:
                     # Create new backend entry
                     backends_content["backends"][backend_name] = {
                         "name": backend_name,
-                        "config": config_data.get("config", config_data),
+                        "config": config_data.get("config", config_data)
                     }
-
+            
             # Write updated config back
             write_result = await self._write_config_file("backends.json", backends_content)
-
+            
             if write_result.get("success"):
                 return {"status": "updated", "backend": backend_name}
             else:
                 return {"status": "error", "error": write_result.get("error")}
         else:
             return {"status": "error", "error": backends_result.get("error")}
-
+            
     except Exception as e:
         logger.error(f"Error updating backend config: {e}")
         return {"status": "error", "error": str(e)}

@@ -58,12 +58,20 @@ from ipfs_kit_py.ipfs_kit import ipfs_kit
 from ipfs_kit_py.cluster_state import ArrowClusterState
 
 # Through IPFS Kit (recommended)
-kit = ipfs_kit(metadata={"role": "master", "cluster_name": "test-cluster"})
+kit = ipfs_kit(
+    metadata={
+        "role": "master",
+        "cluster_name": "test-cluster"
+    }
+)
 # State is automatically initialized and managed
 
 # Direct initialization (advanced usage)
 state = ArrowClusterState(
-    cluster_id="test-cluster", role="master", state_path="/path/to/state", ipfs_client=kit.ipfs
+    cluster_id="test-cluster",
+    role="master",
+    state_path="/path/to/state",
+    ipfs_client=kit.ipfs
 )
 state.init_state()
 ```
@@ -76,7 +84,7 @@ result = state.register_node(
     node_id="worker-1",
     role="worker",
     resources={"cpu": 4, "memory": "8GB"},
-    metadata={"location": "us-east"},
+    metadata={"location": "us-east"}
 )
 
 # Update node status
@@ -86,14 +94,19 @@ state.update_node_status(node_id="worker-1", status="online")
 task_result = state.add_task(
     task_id="task-123",
     task_type="process",
-    payload={"cid": "QmTest", "options": {"format": "json"}},
+    payload={"cid": "QmTest", "options": {"format": "json"}}
 )
 
-assign_result = state.assign_task(task_id="task-123", node_id="worker-1")
+assign_result = state.assign_task(
+    task_id="task-123",
+    node_id="worker-1"
+)
 
 # Update task status
 state.update_task(
-    task_id="task-123", status="completed", result={"success": True, "output_cid": "QmOutput"}
+    task_id="task-123",
+    status="completed",
+    result={"success": True, "output_cid": "QmOutput"}
 )
 
 # Get the current state
@@ -108,7 +121,6 @@ state_table = state.get_state()
 
 # Convert to pandas DataFrame for analysis
 import pandas as pd
-
 df = state_table.to_pandas()
 
 # View node information
@@ -146,7 +158,6 @@ info = kit.get_state_interface_info()
 
 # In another process
 from ipfs_kit_py.cluster_state_helpers import connect_to_state_store
-
 state = connect_to_state_store(info["shared_memory_name"])
 ```
 
@@ -159,7 +170,7 @@ from ipfs_kit_py.cluster_state_helpers import (
     find_nodes_by_role,
     find_tasks_by_status,
     find_available_node_for_task,
-    get_cluster_status_summary,
+    get_cluster_status_summary
 )
 
 # Find all worker nodes
@@ -169,7 +180,10 @@ workers = find_nodes_by_role(state_table, "worker")
 pending_tasks = find_tasks_by_status(state_table, "pending")
 
 # Find an available node for a task
-best_node = find_available_node_for_task(state_table, task_requirements={"cpu": 2, "memory": "4GB"})
+best_node = find_available_node_for_task(
+    state_table,
+    task_requirements={"cpu": 2, "memory": "4GB"}
+)
 
 # Get a summary of the cluster status
 summary = get_cluster_status_summary(state_table)

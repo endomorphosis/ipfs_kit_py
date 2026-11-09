@@ -39,11 +39,11 @@ config = {
             "type": "s3",
             "config": {
                 "endpoint": "https://s3.amazonaws.com",
-                "access_key": "AKIA...",  # Will be encrypted
-                "secret_key": "SECRET123",  # Will be encrypted
-                "bucket": "my-bucket",  # NOT encrypted (not sensitive)
-                "region": "us-east-1",  # NOT encrypted (not sensitive)
-            },
+                "access_key": "AKIA...",          # Will be encrypted
+                "secret_key": "SECRET123",         # Will be encrypted
+                "bucket": "my-bucket",            # NOT encrypted (not sensitive)
+                "region": "us-east-1"             # NOT encrypted (not sensitive)
+            }
         }
     }
 }
@@ -81,14 +81,19 @@ The following field names are automatically detected as sensitive and encrypted:
 **Examples:**
 ```python
 # These will be ENCRYPTED:
-{"access_key": "AKIA123", "secret_key": "secret", "api_token": "token123", "password": "mypassword"}
+{
+    "access_key": "AKIA123",
+    "secret_key": "secret",
+    "api_token": "token123",
+    "password": "mypassword"
+}
 
 # These will NOT be encrypted:
 {
     "endpoint": "https://api.example.com",
     "bucket": "my-bucket",
     "region": "us-east-1",
-    "name": "backend_name",
+    "name": "backend_name"
 }
 ```
 
@@ -192,9 +197,9 @@ from ipfs_kit_py.secure_config import SecureConfigManager
 
 # Initialize
 manager = SecureConfigManager(
-    data_dir="~/.ipfs_kit",  # Config directory
-    enable_encryption=True,  # Enable encryption
-    master_password=None,  # Optional master password
+    data_dir="~/.ipfs_kit",           # Config directory
+    enable_encryption=True,            # Enable encryption
+    master_password=None               # Optional master password
 )
 
 # Save encrypted config
@@ -212,7 +217,10 @@ status = manager.get_encryption_status()
 
 ```python
 # Use password-based key derivation
-manager = SecureConfigManager(enable_encryption=True, master_password="my-secure-password")
+manager = SecureConfigManager(
+    enable_encryption=True,
+    master_password="my-secure-password"
+)
 
 # Key will be derived from password using PBKDF2
 manager.save_config("backends.json", config)
@@ -261,18 +269,18 @@ The encrypted config module integrates seamlessly with the dashboard:
 # In dashboard code
 from ipfs_kit_py.secure_config import SecureConfigManager
 
-
 class Dashboard:
     def __init__(self, config):
         self.secure_config = SecureConfigManager(
-            data_dir=config.get("data_dir"), enable_encryption=config.get("enable_encryption", True)
+            data_dir=config.get('data_dir'),
+            enable_encryption=config.get('enable_encryption', True)
         )
-
+    
     async def _get_backend_configs(self):
         """Get backend configurations with automatic decryption."""
         config = self.secure_config.load_config("backends.json")
         return config.get("backends", {})
-
+    
     async def _update_backend_config(self, backend_name, config_data):
         """Save backend config with automatic encryption."""
         backends = self.secure_config.load_config("backends.json") or {"backends": {}}
@@ -403,28 +411,28 @@ config = {
             "description": "Production S3 storage",
             "config": {
                 "endpoint": "https://s3.amazonaws.com",
-                "access_key": "AKIAIOSFODNN7EXAMPLE",  # ENCRYPTED
+                "access_key": "AKIAIOSFODNN7EXAMPLE",      # ENCRYPTED
                 "secret_key": "wJalrXUtnFEMI/K7MDENG...",  # ENCRYPTED
                 "bucket": "prod-bucket",
-                "region": "us-east-1",
-            },
+                "region": "us-east-1"
+            }
         },
         "hf_models": {
             "type": "huggingface",
             "description": "HuggingFace model storage",
             "config": {
                 "token": "hf_AbCdEfGhIjKlMnOpQrStUvWx...",  # ENCRYPTED
-                "endpoint": "https://huggingface.co",
-            },
+                "endpoint": "https://huggingface.co"
+            }
         },
         "gdrive_backup": {
             "type": "gdrive",
             "description": "Google Drive backup",
             "config": {
                 "credentials_path": "/path/to/credentials.json",
-                "token": "ya29.a0AfH6SMBx...",  # ENCRYPTED
-            },
-        },
+                "token": "ya29.a0AfH6SMBx..."              # ENCRYPTED
+            }
+        }
     }
 }
 

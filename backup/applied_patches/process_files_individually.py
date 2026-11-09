@@ -17,7 +17,6 @@ FAILED_LOG = f"{LOG_DIR}/failed_files.log"
 # Ensure log directory exists
 os.makedirs(LOG_DIR, exist_ok=True)
 
-
 def find_python_files():
     """Find all Python files in the directory."""
     python_files = []
@@ -27,13 +26,11 @@ def find_python_files():
                 python_files.append(os.path.join(root, file))
     return sorted(python_files)
 
-
 def create_backup():
     """Create a backup of the directory."""
     print(f"Creating backup of {MCP_DIR} to {BACKUP_DIR}...")
     shutil.copytree(MCP_DIR, BACKUP_DIR)
     print(f"Backup created successfully.")
-
 
 def process_file(file_path):
     """Process a single Python file with Black and Ruff."""
@@ -41,17 +38,18 @@ def process_file(file_path):
 
     # Attempt to format with Black
     black_result = subprocess.run(
-        ["black", "--quiet", "--target-version", "py38", file_path], capture_output=True, text=True
+        ["black", "--quiet", "--target-version", "py38", file_path],
+        capture_output=True, text=True
     )
 
     # Attempt to fix with Ruff (even if Black failed)
     ruff_result = subprocess.run(
-        ["ruff", "check", "--fix", "--ignore", "E999", file_path], capture_output=True, text=True
+        ["ruff", "check", "--fix", "--ignore", "E999", file_path],
+        capture_output=True, text=True
     )
 
     # Return success if either tool succeeded
     return black_result.returncode == 0 or ruff_result.returncode == 0, file_path
-
 
 def main():
     """Main function to process files."""
@@ -84,11 +82,10 @@ def main():
     print("\nResults:")
     print(f"- Successfully processed: {len(successful_files)} files")
     print(f"- Failed to process: {len(failed_files)} files")
-    print(f"- Success rate: {len(successful_files) / len(python_files) * 100:.1f}%")
+    print(f"- Success rate: {len(successful_files)/len(python_files)*100:.1f}%")
     print(f"\nSuccessful files logged to: {SUCCESS_LOG}")
     print(f"Failed files logged to: {FAILED_LOG}")
     print(f"Original files backed up to: {BACKUP_DIR}")
-
 
 if __name__ == "__main__":
     main()

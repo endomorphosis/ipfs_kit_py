@@ -18,9 +18,12 @@ logger = logging.getLogger(__name__)
 
 class LassieModel(BaseStorageModel):
     """Model for Lassie operations."""
-
     def __init__(
-        self, lassie_kit_instance=None, ipfs_model=None, cache_manager=None, credential_manager=None
+        self,
+        lassie_kit_instance = None,
+        ipfs_model = None,
+        cache_manager = None,
+        credential_manager = None
     ):
         """Initialize Lassie model with dependencies.
 
@@ -71,9 +74,7 @@ class LassieModel(BaseStorageModel):
                     if check_result.get("simulated", False):
                         result["simulated"] = True
                 else:
-                    result["error"] = check_result.get(
-                        "error", "Lassie not installed or not working properly"
-                    )
+                    result["error"] = check_result.get("error", "Lassie not installed or not working properly")
                     result["error_type"] = "ConnectionError"
             else:
                 result["error"] = "Lassie kit not available"
@@ -153,7 +154,7 @@ class LassieModel(BaseStorageModel):
                     path=path,
                     block_limit=block_limit,
                     protocols=protocols,
-                    providers=providers,
+                    providers=providers
                 )
 
                 if fetch_result.get("success", False):
@@ -448,9 +449,7 @@ class LassieModel(BaseStorageModel):
             lassie_result = self.retrieve_content(cid, temp_path)
 
             if not lassie_result.get("success", False):
-                result["error"] = lassie_result.get(
-                    "error", "Failed to retrieve content from Lassie"
-                )
+                result["error"] = lassie_result.get("error", "Failed to retrieve content from Lassie")
                 result["error_type"] = lassie_result.get("error_type", "LassieRetrieveError")
                 result["lassie_result"] = lassie_result
 

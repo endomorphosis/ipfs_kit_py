@@ -57,7 +57,6 @@ class PerformanceOptimizationService:
     This service implements the Performance Optimization requirement
     from the MCP roadmap.
     """
-
     def __init__(
         self,
         backend_registry,
@@ -103,9 +102,7 @@ class PerformanceOptimizationService:
 
         # Request queue for throttling
         # backend -> (send_stream, receive_stream)
-        self.request_queue: Dict[
-            str, Tuple[anyio.abc.ObjectSendStream, anyio.abc.ObjectReceiveStream]
-        ] = {}
+        self.request_queue: Dict[str, Tuple[anyio.abc.ObjectSendStream, anyio.abc.ObjectReceiveStream]] = {}
         self.request_semaphores = {}
 
         # Cached backend capabilities
@@ -763,8 +760,8 @@ class PerformanceOptimizationService:
         return None, None
 
     async def store_content(
-        self,
-        content: Union[bytes, io.BytesIO, str],
+    self,
+    content: Union[bytes, io.BytesIO, str],
         backends: Optional[List[str]] = None,
     ) -> Dict[str, Any]:
         """
@@ -905,8 +902,7 @@ class PerformanceOptimizationService:
             },
             "request_queue": {
                 # Memory streams do not expose a reliable queue size.
-                backend: None
-                for backend in self.request_queue
+                backend: None for backend in self.request_queue
             },
         }
 

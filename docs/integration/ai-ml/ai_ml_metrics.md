@@ -31,12 +31,12 @@ Configuration might occur during `AIMLMetrics` initialization or potentially via
 ```python
 # Example configuration snippet within main config
 config = {
-    "ai_ml": {
-        "metrics": {
-            "enabled": True,
-            "track_memory_usage": True,  # Track memory during operations (can add overhead)
-            "history_size": 5000,  # Max number of raw events to keep
-            "analysis_percentiles": [50, 90, 95, 99],  # Percentiles to calculate in reports
+    'ai_ml': {
+        'metrics': {
+            'enabled': True,
+            'track_memory_usage': True, # Track memory during operations (can add overhead)
+            'history_size': 5000, # Max number of raw events to keep
+            'analysis_percentiles': [50, 90, 95, 99] # Percentiles to calculate in reports
         }
         # ... other ai_ml config
     }
@@ -45,7 +45,6 @@ config = {
 
 # Or direct initialization
 from ipfs_kit_py.ai_ml_metrics import AIMLMetrics
-
 ai_metrics = AIMLMetrics(track_memory=True, history_size=5000)
 ```
 
@@ -81,9 +80,7 @@ print(f"{num_inferences} inference operations tracked.")
 num_epochs = 3
 samples_per_epoch = 1000
 for epoch in range(num_epochs):
-    with ai_metrics.track_training_epoch(
-        model_id=model_id, epoch=epoch, num_samples=samples_per_epoch
-    ):
+    with ai_metrics.track_training_epoch(model_id=model_id, epoch=epoch, num_samples=samples_per_epoch):
         print(f"Simulating training epoch {epoch}...")
         # Simulate training steps
         time.sleep(random.uniform(2.0, 5.0))
@@ -91,10 +88,7 @@ for epoch in range(num_epochs):
         ai_metrics.record_training_stats(
             model_id=model_id,
             epoch=epoch,
-            metrics={
-                "train_loss": random.uniform(0.1, 0.5),
-                "val_accuracy": random.uniform(0.8, 0.95),
-            },
+            metrics={'train_loss': random.uniform(0.1, 0.5), 'val_accuracy': random.uniform(0.8, 0.95)}
         )
 print(f"{num_epochs} training epochs tracked.")
 

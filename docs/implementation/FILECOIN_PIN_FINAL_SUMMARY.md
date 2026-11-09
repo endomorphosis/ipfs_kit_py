@@ -380,10 +380,16 @@ User Request
 from ipfs_kit_py.mcp.storage_manager.backends import FilecoinPinBackend
 
 # Initialize
-backend = FilecoinPinBackend(resources={"api_key": "your_key"}, metadata={"default_replication": 3})
+backend = FilecoinPinBackend(
+    resources={"api_key": "your_key"},
+    metadata={"default_replication": 3}
+)
 
 # Pin content
-result = backend.add_content(b"Important data", {"name": "my-data", "tags": ["important"]})
+result = backend.add_content(
+    b"Important data",
+    {"name": "my-data", "tags": ["important"]}
+)
 print(f"Pinned: {result['cid']}")
 ```
 

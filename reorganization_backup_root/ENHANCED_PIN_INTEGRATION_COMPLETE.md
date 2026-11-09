@@ -32,7 +32,7 @@ class EnhancedPinMetadataIndex:
     Unified pin metadata system with:
     - DuckDB + Parquet columnar storage
     - VFS integration hooks
-    - Filesystem journal sync capability
+    - Filesystem journal sync capability  
     - Multi-tier storage management
     - Background analytics services
     - Access pattern tracking
@@ -89,17 +89,17 @@ metrics = {
         "total_pins": 5,
         "total_size_bytes": 2684354560,  # ~2.5GB managed
         "tier_distribution": {"ssd": 1, "hdd": 1, "nvme": 1, "memory": 1, "filecoin": 1},
-        "access_patterns": {"sequential": 1, "streaming": 1, "random": 1, "frequent": 1, "cold": 1},
+        "access_patterns": {"sequential": 1, "streaming": 1, "random": 1, "frequent": 1, "cold": 1}
     },
     "vfs_analytics": {
         "total_vfs_pins": 5,
-        "mount_points": {"/documents": 1, "/media": 1, "/datasets": 1, "/config": 1, "/archive": 1},
+        "mount_points": {"/documents": 1, "/media": 1, "/datasets": 1, "/config": 1, "/archive": 1}
     },
     "performance_metrics": {
         "analytics_enabled": True,
         "predictions_enabled": True,
-        "background_services": "available",
-    },
+        "background_services": "available"
+    }
 }
 ```
 

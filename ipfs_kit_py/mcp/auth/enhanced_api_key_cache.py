@@ -31,7 +31,6 @@ logger = logging.getLogger(__name__)
 # Try importing optional dependencies
 try:
     import redis
-
     REDIS_AVAILABLE = True
 except ImportError:
     REDIS_AVAILABLE = False
@@ -39,7 +38,6 @@ except ImportError:
 
 try:
     import memcache
-
     MEMCACHED_AVAILABLE = True
 except ImportError:
     MEMCACHED_AVAILABLE = False
@@ -47,7 +45,6 @@ except ImportError:
 
 try:
     from cachetools import TTLCache, LRUCache, LFUCache
-
     CACHETOOLS_AVAILABLE = True
 except ImportError:
     CACHETOOLS_AVAILABLE = False
@@ -56,20 +53,16 @@ except ImportError:
 # Try importing pybloom_live for bloom filter support
 try:
     from pybloom_live import ScalableBloomFilter
-
     BLOOM_FILTER_AVAILABLE = True
     logger.info("Bloom filter support enabled for ultra-fast negative lookups.")
 except ImportError:
     BLOOM_FILTER_AVAILABLE = False
     logger.info("pybloom_live not available. Bloom filter optimizations disabled.")
-
     # Create dummy implementation
     class ScalableBloomFilter:
         def __init__(self, *args, **kwargs):
             self.items = set()
-
         def add(self, item):
             self.items.add(item)
-
         def __contains__(self, item):
             return item in self.items

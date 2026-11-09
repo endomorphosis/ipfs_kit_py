@@ -14,9 +14,7 @@ import signal
 import atexit
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 # Default server port
@@ -24,14 +22,13 @@ SERVER_PORT = 8001
 SERVER_PID_FILE = "mcp_server.pid"
 SERVER_LOG_FILE = "mcp_server.log"
 
-
 def check_server_running():
     """Check if server is already running."""
     if os.path.exists(SERVER_PID_FILE):
         try:
             with open(SERVER_PID_FILE, "r") as f:
                 pid = int(f.read().strip())
-
+            
             # Check if process is running
             try:
                 os.kill(pid, 0)
@@ -50,29 +47,28 @@ def check_server_running():
             return None
     return None
 
-
 def start_server():
     """Start the MCP server."""
     # Check if server is already running
     existing_pid = check_server_running()
     if existing_pid:
         return existing_pid
-
+    
     # Start the server as a subprocess
     logger.info(f"Starting MCP server on port {SERVER_PORT}...")
-
+    
     with open(SERVER_LOG_FILE, "w") as log_file:
         process = subprocess.Popen(
             [sys.executable, "run_mcp_server_for_tests.py", "--port", str(SERVER_PORT)],
             stdout=log_file,
             stderr=subprocess.STDOUT,
-            start_new_session=True,  # Detach from parent process
+            start_new_session=True  # Detach from parent process
         )
-
+    
     # Save PID to file
     with open(SERVER_PID_FILE, "w") as f:
         f.write(str(process.pid))
-
+    
     # Wait for server to start
     logger.info(f"Server started with PID {process.pid}, waiting for it to initialize...")
     max_attempts = 30
@@ -80,25 +76,23 @@ def start_server():
         try:
             # Try to connect to the server's health endpoint
             import requests
-
             response = requests.get(f"http://localhost:{SERVER_PORT}/api/v0/mcp/health")
             if response.status_code == 200:
                 logger.info(f"Server is ready after {attempt + 1} attempts")
                 return process.pid
         except requests.exceptions.RequestException:
             pass
-
+        
         time.sleep(1)
-
+        
         # Check if process is still running
         if process.poll() is not None:
             logger.error(f"Server process exited with code {process.returncode}")
             logger.error("Check server.log for details")
             return None
-
+    
     logger.error(f"Server did not initialize after {max_attempts} attempts")
     return None
-
 
 def stop_server(pid=None):
     """Stop the MCP server."""
@@ -114,13 +108,13 @@ def stop_server(pid=None):
         else:
             logger.warning("No PID file found")
             return False
-
+    
     # Send termination signal
     try:
         logger.info(f"Stopping server with PID {pid}...")
         # Try to send SIGTERM to process group
         os.killpg(os.getpgid(pid), signal.SIGTERM)
-
+        
         # Wait for process to terminate
         for _ in range(10):
             try:
@@ -133,16 +127,15 @@ def stop_server(pid=None):
             # Process didn't terminate, try SIGKILL
             logger.warning(f"Server did not stop gracefully, sending SIGKILL...")
             os.killpg(os.getpgid(pid), signal.SIGKILL)
-
+        
         # Clean up PID file
         if os.path.exists(SERVER_PID_FILE):
             os.remove(SERVER_PID_FILE)
-
+            
         return True
     except OSError as e:
         logger.error(f"Failed to stop server: {e}")
         return False
-
 
 def cleanup():
     """Cleanup function to stop server at exit."""
@@ -154,12 +147,11 @@ def cleanup():
         except (ValueError, FileNotFoundError):
             pass
 
-
 def main():
     """Main entry point."""
     # Register cleanup function
     atexit.register(cleanup)
-
+    
     # Handle command line arguments
     if len(sys.argv) > 1:
         if sys.argv[1] == "start":
@@ -199,7 +191,6 @@ def main():
         else:
             logger.error("Failed to start server")
             return 1
-
 
 if __name__ == "__main__":
     sys.exit(main())

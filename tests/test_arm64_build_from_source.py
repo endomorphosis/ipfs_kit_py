@@ -16,14 +16,13 @@ import subprocess
 import pytest
 
 # Add parent directory to path to import ipfs_kit_py modules
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "ipfs_kit_py"))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'ipfs_kit_py'))
 
 
 def _skip_if_not_arm64():
     machine = platform.machine().lower()
     if "aarch64" not in machine and "arm64" not in machine:
         pytest.skip("ARM64 build-from-source tests require ARM64 host")
-
 
 def check_architecture():
     """Check if running on ARM64."""
@@ -36,7 +35,6 @@ def check_architecture():
         print("  Build-from-source is primarily for ARM64 systems")
         return False
 
-
 def check_build_tools():
     """Check if required build tools are available."""
     tools = {
@@ -44,20 +42,19 @@ def check_build_tools():
         "make": ["make", "--version"],
         "gcc": ["gcc", "--version"],
     }
-
+    
     print("\nChecking build tools:")
     all_present = True
     for tool, cmd in tools.items():
         try:
             result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-            version = result.stdout.split("\n")[0]
+            version = result.stdout.split('\n')[0]
             print(f"✓ {tool}: {version}")
         except (subprocess.CalledProcessError, FileNotFoundError):
             print(f"✗ {tool}: Not found")
             all_present = False
-
+    
     return all_present
-
 
 def check_go():
     """Check if Go is installed."""
@@ -71,136 +68,129 @@ def check_go():
         print("  The installer will attempt to install Go automatically")
         return False
 
-
 def test_ipfs_build_methods():
     """Test IPFS build-from-source methods."""
     _skip_if_not_arm64()
-    print("\n" + "=" * 60)
+    print("\n" + "="*60)
     print("Testing IPFS build-from-source functionality")
-    print("=" * 60)
-
+    print("="*60)
+    
     try:
         from install_ipfs import install_ipfs
-
+        
         installer = install_ipfs()
-
+        
         # Check for build method
-        if hasattr(installer, "build_ipfs_from_source"):
+        if hasattr(installer, 'build_ipfs_from_source'):
             print("✓ build_ipfs_from_source method exists")
         else:
             pytest.fail("build_ipfs_from_source method not found")
-
+        
         # Check for Go installation method
-        if hasattr(installer, "_install_go"):
+        if hasattr(installer, '_install_go'):
             print("✓ _install_go method exists")
         else:
             pytest.fail("_install_go method not found")
-
+        
         # Check for PATH helper
-        if hasattr(installer, "_add_to_user_path"):
+        if hasattr(installer, '_add_to_user_path'):
             print("✓ _add_to_user_path method exists")
         else:
             pytest.fail("_add_to_user_path method not found")
-
+        
         # Check version methods
         current_version = installer.get_installed_kubo_version()
         print(f"  Current IPFS version: {current_version if current_version else 'Not installed'}")
-
+        
         latest_version = installer.get_latest_kubo_version()
         print(f"  Latest IPFS version: {latest_version}")
-
+        
         print("\n✓ IPFS build-from-source functionality verified")
         assert True
-
+        
     except Exception as e:
         print(f"\n✗ Error testing IPFS build functionality: {e}")
         import traceback
-
         traceback.print_exc()
         pytest.fail(str(e))
-
 
 def test_lotus_build_methods():
     """Test Lotus build-from-source methods."""
     _skip_if_not_arm64()
-    print("\n" + "=" * 60)
+    print("\n" + "="*60)
     print("Testing Lotus build-from-source functionality")
-    print("=" * 60)
-
+    print("="*60)
+    
     try:
         from install_lotus import install_lotus
-
+        
         installer = install_lotus()
-
+        
         # Check for build method
-        if hasattr(installer, "build_lotus_from_source"):
+        if hasattr(installer, 'build_lotus_from_source'):
             print("✓ build_lotus_from_source method exists")
         else:
             pytest.fail("build_lotus_from_source method not found")
-
+        
         # Check for Go installation method
-        if hasattr(installer, "_install_go_for_build"):
+        if hasattr(installer, '_install_go_for_build'):
             print("✓ _install_go_for_build method exists")
         else:
             pytest.fail("_install_go_for_build method not found")
-
+        
         # Check installation status
         installation = installer.check_existing_installation()
         if installation["installed"]:
             print(f"  Current Lotus version: {installation['version']}")
-            print(
-                f"  Installed binaries: {sum(installation['binaries'].values())} of {len(installation['binaries'])}"
-            )
+            print(f"  Installed binaries: {sum(installation['binaries'].values())} of {len(installation['binaries'])}")
         else:
             print("  Lotus not currently installed")
-
+        
         print("\n✓ Lotus build-from-source functionality verified")
         assert True
-
+        
     except Exception as e:
         print(f"\n✗ Error testing Lotus build functionality: {e}")
         import traceback
-
         traceback.print_exc()
         pytest.fail(str(e))
-
 
 def main():
     """Main test function."""
     print("ARM64 Build-from-Source Test Script")
-    print("=" * 60)
-
+    print("="*60)
+    
     results = []
-
+    
     # Check architecture
     is_arm64 = check_architecture()
-
+    
     # Check build tools
     tools_present = check_build_tools()
     results.append(("Build tools", tools_present))
-
+    
     # Check Go
     go_present = check_go()
-
+    
     # Test IPFS methods
     ipfs_ok = test_ipfs_build_methods()
     results.append(("IPFS build methods", ipfs_ok))
-
+    
     # Test Lotus methods
     lotus_ok = test_lotus_build_methods()
     results.append(("Lotus build methods", lotus_ok))
-
+    
     # Summary
-    print("\n" + "=" * 60)
+    print("\n" + "="*60)
     print("Test Summary")
-    print("=" * 60)
-
+    print("="*60)
+    
     for test_name, result in results:
         status = "✓ PASS" if result else "✗ FAIL"
         print(f"{status}: {test_name}")
-
+    
     all_passed = all(result for _, result in results)
-
+    
     if all_passed:
         print("\n✓ All tests passed!")
         if not is_arm64:
@@ -213,7 +203,6 @@ def main():
     else:
         print("\n✗ Some tests failed!")
         return 1
-
 
 if __name__ == "__main__":
     sys.exit(main())

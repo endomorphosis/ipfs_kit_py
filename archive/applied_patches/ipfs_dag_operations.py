@@ -18,7 +18,7 @@ Key features:
 import base64
 import io
 import base64
-import io  # Added io import
+import io # Added io import
 import json
 import logging
 import tempfile
@@ -27,20 +27,17 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple, Union, BinaryIO
 
-from ipfs_connection_pool import get_connection_pool  # type: ignore
+from ipfs_connection_pool import get_connection_pool # type: ignore
 
 # Set up logging
 logger = logging.getLogger("ipfs_dag_operations")
 
-
 class IPLDFormat(Enum):
     """Supported formats for IPLD data."""
-
-    DAG_PB = "dag-pb"  # Protocol Buffers (default in IPFS)
+    DAG_PB = "dag-pb"      # Protocol Buffers (default in IPFS)
     DAG_CBOR = "dag-cbor"  # CBOR-based format
     DAG_JSON = "dag-json"  # JSON-based format
-    RAW = "raw"  # Raw bytes
-
+    RAW = "raw"            # Raw bytes
 
 class DAGOperations:
     """
@@ -68,19 +65,19 @@ class DAGOperations:
     def __init__(self, connection_pool=None, config: Optional[Dict[str, Any]] = None):
         """
         Initialize DAG operations.
-
+        
         Args:
             connection_pool: Optional connection pool to use
             config: Configuration options for DAG operations
         """
         self.config = config or {}
         self.connection_pool = connection_pool or get_connection_pool()
-
+        
         # Default format when not specified
         self.default_format = self.config.get("default_format", IPLDFormat.DAG_JSON)
         if isinstance(self.default_format, IPLDFormat):
             self.default_format = self.default_format.value
-
+        
         # Performance metrics
         self.performance_metrics = {
             "put": {"count": 0, "total_time": 0, "avg_time": 0, "success_rate": 1.0},
@@ -90,11 +87,11 @@ class DAGOperations:
             "import": {"count": 0, "total_time": 0, "avg_time": 0, "success_rate": 1.0},
             "export": {"count": 0, "total_time": 0, "avg_time": 0, "success_rate": 1.0},
         }
-
+    
     def _update_metrics(self, operation: str, duration: float, success: bool) -> None:
         """
         Update performance metrics for an operation.
-
+        
         Args:
             operation: The operation name
             duration: The operation duration in seconds
@@ -105,13 +102,14 @@ class DAGOperations:
             metrics["count"] += 1
             metrics["total_time"] += duration
             metrics["avg_time"] = metrics["total_time"] / metrics["count"]
-
+            
             # Update success rate using exponential moving average
             alpha = 0.1  # Weight for new observations
-            metrics["success_rate"] = (1 - alpha) * metrics["success_rate"] + alpha * (
-                1.0 if success else 0.0
+            metrics["success_rate"] = (
+                (1 - alpha) * metrics["success_rate"] + 
+                alpha * (1.0 if success else 0.0)
             )
-
+    
     def put(
         self,
         data: Union[Dict[str, Any], List[Any], str, bytes],
@@ -167,15 +165,15 @@ class DAGOperations:
         """
         options = options or {}
         start_time = time.time()
-
+        
         # Set default format if not specified
         if format_type is None:
             format_type = self.default_format
-
+        
         # Convert enum to string if needed
         if isinstance(format_type, IPLDFormat):
             format_type = format_type.value
-
+        
         # Prepare data based on input type and encoding
         if isinstance(data, (dict, list)):
             # Convert to JSON string
@@ -208,7 +206,7 @@ class DAGOperations:
                 "error": f"Unsupported data type: {type(data)}",
                 "duration": duration,
             }
-
+        
         # Create the request parameters
         params = {
             "format": format_type,
@@ -216,12 +214,12 @@ class DAGOperations:
             "pin": "true" if pin else "false",
             "hash": hash_alg,
         }
-
+        
         # Add any other options
         for key, value in options.items():
             if key not in params and value is not None:
                 params[key] = str(value)
-
+        
         try:
             # Call the IPFS API
             response = self.connection_pool.post(
@@ -229,17 +227,17 @@ class DAGOperations:
                 data=data_str,
                 params=params,
             )
-
+            
             success = response.status_code == 200
-
+            
             # Update metrics
             duration = time.time() - start_time
             self._update_metrics("put", duration, success)
-
+            
             if success:
                 try:
                     response_json = response.json()
-
+                    
                     return {
                         "success": True,
                         "cid": response_json.get("Cid", {}).get("/"),
@@ -261,18 +259,18 @@ class DAGOperations:
                     "details": response.text,
                     "duration": duration,
                 }
-
+                
         except Exception as e:
             duration = time.time() - start_time
             self._update_metrics("put", duration, False)
-
+            
             return {
                 "success": False,
                 "error": f"Error putting DAG node: {str(e)}",
                 "exception": str(e),
                 "duration": duration,
             }
-
+    
     def get(
         self,
         cid: str,
@@ -330,23 +328,23 @@ class DAGOperations:
         """
         options = options or {}
         start_time = time.time()
-
+        
         # Create the request parameters
         params = {
             "arg": f"{cid}{path}",
             "output-codec": output_format,
         }
-
+        
         try:
             # Call the IPFS API
             response = self.connection_pool.post("dag/get", params=params)
-
+            
             success = response.status_code == 200
-
+            
             # Update metrics
             duration = time.time() - start_time
             self._update_metrics("get", duration, success)
-
+            
             if success:
                 # Process response based on output format
                 if output_format == "json":
@@ -358,7 +356,7 @@ class DAGOperations:
                 else:
                     # For raw/cbor, return the binary data
                     data = response.content
-
+                
                 return {
                     "success": True,
                     "cid": cid,
@@ -374,18 +372,18 @@ class DAGOperations:
                     "details": response.text,
                     "duration": duration,
                 }
-
+                
         except Exception as e:
             duration = time.time() - start_time
             self._update_metrics("get", duration, False)
-
+            
             return {
                 "success": False,
                 "error": f"Error getting DAG node: {str(e)}",
                 "exception": str(e),
                 "duration": duration,
             }
-
+    
     def resolve(
         self,
         cid_path: str,
@@ -427,26 +425,26 @@ class DAGOperations:
         """
         options = options or {}
         start_time = time.time()
-
+        
         # Create the request parameters
         params = {
             "arg": cid_path,
         }
-
+        
         try:
             # Call the IPFS API
             response = self.connection_pool.post("dag/resolve", params=params)
-
+            
             success = response.status_code == 200
-
+            
             # Update metrics
             duration = time.time() - start_time
             self._update_metrics("resolve", duration, success)
-
+            
             if success:
                 try:
                     response_json = response.json()
-
+                    
                     return {
                         "success": True,
                         "cid_path": cid_path,
@@ -468,18 +466,18 @@ class DAGOperations:
                     "details": response.text,
                     "duration": duration,
                 }
-
+                
         except Exception as e:
             duration = time.time() - start_time
             self._update_metrics("resolve", duration, False)
-
+            
             return {
                 "success": False,
                 "error": f"Error resolving DAG path: {str(e)}",
                 "exception": str(e),
                 "duration": duration,
             }
-
+    
     def stat(
         self,
         cid: str,
@@ -513,26 +511,26 @@ class DAGOperations:
         """
         options = options or {}
         start_time = time.time()
-
+        
         # Create the request parameters
         params = {
             "arg": cid,
         }
-
+        
         try:
             # Call the IPFS API
             response = self.connection_pool.post("dag/stat", params=params)
-
+            
             success = response.status_code == 200
-
+            
             # Update metrics
             duration = time.time() - start_time
             self._update_metrics("stat", duration, success)
-
+            
             if success:
                 try:
                     response_json = response.json()
-
+                    
                     return {
                         "success": True,
                         "cid": cid,
@@ -555,18 +553,18 @@ class DAGOperations:
                     "details": response.text,
                     "duration": duration,
                 }
-
+                
         except Exception as e:
             duration = time.time() - start_time
             self._update_metrics("stat", duration, False)
-
+            
             return {
                 "success": False,
                 "error": f"Error getting DAG stats: {str(e)}",
                 "exception": str(e),
                 "duration": duration,
             }
-
+    
     def import_data(
         self,
         data: Union[Dict[str, Any], List[Any], str, bytes, BinaryIO],
@@ -621,11 +619,11 @@ class DAGOperations:
         """
         options = options or {}
         start_time = time.time()
-
+        
         # Set default format if not specified
         if format_type is None:
             format_type = self.default_format
-
+        
         # Convert enum to string if needed
         if isinstance(format_type, IPLDFormat):
             format_type = format_type.value
@@ -665,30 +663,30 @@ class DAGOperations:
                     "allow-big-block": "true" if options.get("allow_big_block", False) else "false",
                     "silent": "true" if options.get("silent", False) else "false",
                 }
-
+                
                 # Call the IPFS API with the file
                 response = self.connection_pool.post(
                     "dag/import",
                     files={"file": data},
                     params=params,
                 )
-
+                
                 success = response.status_code == 200
-
+                
                 # Update metrics
                 duration = time.time() - start_time
                 self._update_metrics("import", duration, success)
-
+                
                 if success:
                     try:
                         response_json = response.json()
-
+                        
                         # Extract root CIDs if available
                         root_cids = []
                         for result in response_json.get("Root", {}).get("Cids", []):
                             if "/" in result:
                                 root_cids.append(result["/"])
-
+                        
                         return {
                             "success": True,
                             "root_cids": root_cids,
@@ -714,7 +712,7 @@ class DAGOperations:
             except Exception as e:
                 duration = time.time() - start_time
                 self._update_metrics("import", duration, False)
-
+                
                 return {
                     "success": False,
                     "error": f"Error importing DAG: {str(e)}",
@@ -724,15 +722,15 @@ class DAGOperations:
         else:
             # For other data types, use dag/put with the resolved format type
             logger.debug(f"Importing data using dag/put with format: {resolved_format_type}")
-            return self.put(  # type: ignore
+            return self.put( # type: ignore
                 data=data,
-                format_type=resolved_format_type,  # Use resolved format
+                format_type=resolved_format_type, # Use resolved format
                 input_encoding=input_encoding,
                 pin=pin,
                 hash_alg=hash_alg,
                 options=options,
             )
-
+    
     def export_data(
         self,
         cid: str,
@@ -784,13 +782,13 @@ class DAGOperations:
         """
         options = options or {}
         start_time = time.time()
-
+        
         # Create the request parameters
         params = {
             "arg": cid,
             "progress": "true" if progress else "false",
         }
-
+        
         try:
             # Determine if we're writing to a file or returning data
             if output_file is not None:
@@ -802,9 +800,9 @@ class DAGOperations:
                             params=params,
                             stream=True,
                         )
-
+                        
                         success = response.status_code == 200
-
+                        
                         if success:
                             # Stream response to file
                             for chunk in response.iter_content(chunk_size=8192):
@@ -813,34 +811,34 @@ class DAGOperations:
                             # Update metrics
                             duration = time.time() - start_time
                             self._update_metrics("export", duration, False)
-
+                            
                             return {
                                 "success": False,
                                 "error": f"Failed to export DAG: {response.status_code}",
                                 "details": response.text,
                                 "duration": duration,
                             }
-
+                        
                     # Update metrics
                     duration = time.time() - start_time
                     self._update_metrics("export", duration, True)
-
+                    
                     return {
                         "success": True,
                         "cid": cid,
                         "output_file": output_file,
                         "duration": duration,
                     }
-                elif hasattr(output_file, "write") and callable(output_file.write):
+                elif hasattr(output_file, 'write') and callable(output_file.write):
                     # It's a file-like object
                     response = self.connection_pool.post(
                         "dag/export",
                         params=params,
                         stream=True,
                     )
-
+                    
                     success = response.status_code == 200
-
+                    
                     if success:
                         # Stream response to file-like object
                         for chunk in response.iter_content(chunk_size=8192):
@@ -849,18 +847,18 @@ class DAGOperations:
                         # Update metrics
                         duration = time.time() - start_time
                         self._update_metrics("export", duration, False)
-
+                        
                         return {
                             "success": False,
                             "error": f"Failed to export DAG: {response.status_code}",
                             "details": response.text,
                             "duration": duration,
                         }
-
+                    
                     # Update metrics
                     duration = time.time() - start_time
                     self._update_metrics("export", duration, True)
-
+                    
                     return {
                         "success": True,
                         "cid": cid,
@@ -870,7 +868,7 @@ class DAGOperations:
                     # Invalid output_file parameter
                     duration = time.time() - start_time
                     self._update_metrics("export", duration, False)
-
+                    
                     return {
                         "success": False,
                         "error": f"Invalid output_file parameter: {type(output_file)}",
@@ -879,13 +877,13 @@ class DAGOperations:
             else:
                 # Return the data directly
                 response = self.connection_pool.post("dag/export", params=params)
-
+                
                 success = response.status_code == 200
-
+                
                 # Update metrics
                 duration = time.time() - start_time
                 self._update_metrics("export", duration, success)
-
+                
                 if success:
                     return {
                         "success": True,
@@ -901,18 +899,18 @@ class DAGOperations:
                         "details": response.text,
                         "duration": duration,
                     }
-
+                
         except Exception as e:
             duration = time.time() - start_time
             self._update_metrics("export", duration, False)
-
+            
             return {
                 "success": False,
                 "error": f"Error exporting DAG: {str(e)}",
                 "exception": str(e),
                 "duration": duration,
             }
-
+    
     def create_tree(
         self,
         data: Dict[str, Any],
@@ -922,21 +920,21 @@ class DAGOperations:
     ) -> Dict[str, Any]:
         """
         Create a tree structure in the DAG.
-
+        
         This helper method builds a complex tree structure from nested data.
-
+        
         Args:
             data: The hierarchical data to store
             format_type: IPLD format to use
             pin: Whether to pin the nodes
             options: Additional options for the operation
-
+            
         Returns:
             Dictionary with operation results
         """
         options = options or {}
         start_time = time.time()
-
+        
         # Use the standard put method for the root
         result = self.put(
             data=data,
@@ -944,9 +942,9 @@ class DAGOperations:
             pin=pin,
             options=options,
         )
-
+        
         duration = time.time() - start_time
-
+        
         if result["success"]:
             result["duration"] = duration
             result["operation"] = "create_tree"
@@ -958,7 +956,7 @@ class DAGOperations:
                 "details": result,
                 "duration": duration,
             }
-
+    
     def get_tree(
         self,
         cid: str,
@@ -967,36 +965,36 @@ class DAGOperations:
     ) -> Dict[str, Any]:
         """
         Retrieve a complete tree structure from the DAG.
-
+        
         This traverses a DAG structure to the specified depth.
-
+        
         Args:
             cid: The root CID of the tree
             max_depth: Maximum depth to traverse (-1 for unlimited)
             options: Additional options for the operation
-
+            
         Returns:
             Dictionary with operation results
         """
         options = options or {}
         start_time = time.time()
-
+        
         # Function to recursively traverse the DAG
         def traverse_dag(current_cid, current_depth=0):
             if max_depth >= 0 and current_depth > max_depth:
                 return None
-
+            
             # Get the node data
             get_result = self.get(current_cid)
             if not get_result["success"]:
                 return None
-
+            
             node_data = get_result["data"]
-
+            
             # If not a dict or list, we've reached a leaf
             if not isinstance(node_data, (dict, list)):
                 return node_data
-
+            
             # For dictionaries, traverse links
             if isinstance(node_data, dict):
                 result = {}
@@ -1010,7 +1008,7 @@ class DAGOperations:
                     else:
                         result[key] = value
                 return result
-
+            
             # For lists, traverse each item
             if isinstance(node_data, list):
                 result = []
@@ -1024,12 +1022,12 @@ class DAGOperations:
                     else:
                         result.append(item)
                 return result
-
+        
         # Start traversal from root
         tree_data = traverse_dag(cid)
-
+        
         duration = time.time() - start_time
-
+        
         if tree_data is not None:
             return {
                 "success": True,
@@ -1045,7 +1043,7 @@ class DAGOperations:
                 "cid": cid,
                 "duration": duration,
             }
-
+    
     def update_node(
         self,
         cid: str,
@@ -1056,22 +1054,22 @@ class DAGOperations:
     ) -> Dict[str, Any]:
         """
         Update a DAG node with new values.
-
+        
         This creates a new node with updated values while preserving the rest.
-
+        
         Args:
             cid: The CID of the node to update
             updates: Dictionary of key-value pairs to update
             format_type: IPLD format to use for the new node
             pin: Whether to pin the new node
             options: Additional options for the operation
-
+            
         Returns:
             Dictionary with operation results
         """
         options = options or {}
         start_time = time.time()
-
+        
         # Get the existing node
         get_result = self.get(cid)
         if not get_result["success"]:
@@ -1082,7 +1080,7 @@ class DAGOperations:
                 "details": get_result,
                 "duration": duration,
             }
-
+        
         # Ensure the data is a dictionary
         original_data = get_result["data"]
         if not isinstance(original_data, dict):
@@ -1092,22 +1090,22 @@ class DAGOperations:
                 "error": "Cannot update non-dictionary node",
                 "duration": duration,
             }
-
+        
         # Create a new node with updated values
         new_data = {**original_data, **updates}
         # Resolve format_type before calling put
         resolved_format_type = format_type if format_type is not None else self.default_format
 
         # Put the updated node
-        put_result = self.put(  # type: ignore
+        put_result = self.put( # type: ignore
             data=new_data,
-            format_type=resolved_format_type,  # Use resolved format
+            format_type=resolved_format_type, # Use resolved format
             pin=pin,
             options=options,
         )
-
+        
         duration = time.time() - start_time
-
+        
         if put_result["success"]:
             return {
                 "success": True,
@@ -1123,7 +1121,7 @@ class DAGOperations:
                 "details": put_result,
                 "duration": duration,
             }
-
+    
     def add_link(
         self,
         parent_cid: str,
@@ -1135,9 +1133,9 @@ class DAGOperations:
     ) -> Dict[str, Any]:
         """
         Add a link from a parent node to a child node.
-
+        
         This creates a new parent node with the additional link.
-
+        
         Args:
             parent_cid: The CID of the parent node
             name: The name for the link
@@ -1145,13 +1143,13 @@ class DAGOperations:
             format_type: IPLD format to use for the new parent
             pin: Whether to pin the new parent
             options: Additional options for the operation
-
+            
         Returns:
             Dictionary with operation results
         """
         options = options or {}
         start_time = time.time()
-
+        
         # Get the parent node
         get_result = self.get(parent_cid)
         if not get_result["success"]:
@@ -1162,7 +1160,7 @@ class DAGOperations:
                 "details": get_result,
                 "duration": duration,
             }
-
+        
         # Ensure the parent data is a dictionary
         parent_data = get_result["data"]
         if not isinstance(parent_data, dict):
@@ -1172,25 +1170,26 @@ class DAGOperations:
                 "error": "Parent node must be a dictionary to add links",
                 "duration": duration,
             }
-
+        
         # Create CID link format
-        child_link = {"/": child_cid}
-
+        child_link = {"/"
+        : child_cid}
+        
         # Create a new parent with the additional link
         new_parent = {**parent_data, name: child_link}
         # Resolve format_type before calling put
         resolved_format_type = format_type if format_type is not None else self.default_format
 
         # Put the updated parent
-        put_result = self.put(  # type: ignore
+        put_result = self.put( # type: ignore
             data=new_parent,
-            format_type=resolved_format_type,  # Use resolved format
+            format_type=resolved_format_type, # Use resolved format
             pin=pin,
             options=options,
         )
-
+        
         duration = time.time() - start_time
-
+        
         if put_result["success"]:
             return {
                 "success": True,
@@ -1207,7 +1206,7 @@ class DAGOperations:
                 "details": put_result,
                 "duration": duration,
             }
-
+    
     def remove_link(
         self,
         parent_cid: str,
@@ -1218,22 +1217,22 @@ class DAGOperations:
     ) -> Dict[str, Any]:
         """
         Remove a link from a parent node.
-
+        
         This creates a new parent node without the specified link.
-
+        
         Args:
             parent_cid: The CID of the parent node
             name: The name of the link to remove
             format_type: IPLD format to use for the new parent
             pin: Whether to pin the new parent
             options: Additional options for the operation
-
+            
         Returns:
             Dictionary with operation results
         """
         options = options or {}
         start_time = time.time()
-
+        
         # Get the parent node
         get_result = self.get(parent_cid)
         if not get_result["success"]:
@@ -1244,7 +1243,7 @@ class DAGOperations:
                 "details": get_result,
                 "duration": duration,
             }
-
+        
         # Ensure the parent data is a dictionary
         parent_data = get_result["data"]
         if not isinstance(parent_data, dict):
@@ -1254,7 +1253,7 @@ class DAGOperations:
                 "error": "Parent node must be a dictionary to remove links",
                 "duration": duration,
             }
-
+        
         # Check if the link exists
         if name not in parent_data:
             duration = time.time() - start_time
@@ -1263,22 +1262,22 @@ class DAGOperations:
                 "error": f"Link '{name}' not found in parent node",
                 "duration": duration,
             }
-
+        
         # Create a new parent without the link
         new_parent = {k: v for k, v in parent_data.items() if k != name}
         # Resolve format_type before calling put
         resolved_format_type = format_type if format_type is not None else self.default_format
 
         # Put the updated parent
-        put_result = self.put(  # type: ignore
+        put_result = self.put( # type: ignore
             data=new_parent,
-            format_type=resolved_format_type,  # Use resolved format
+            format_type=resolved_format_type, # Use resolved format
             pin=pin,
             options=options,
         )
-
+        
         duration = time.time() - start_time
-
+        
         if put_result["success"]:
             return {
                 "success": True,
@@ -1294,11 +1293,11 @@ class DAGOperations:
                 "details": put_result,
                 "duration": duration,
             }
-
+    
     def get_metrics(self) -> Dict[str, Any]:
         """
         Get performance metrics for DAG operations.
-
+        
         Returns:
             Dictionary with performance metrics
         """
@@ -1307,10 +1306,8 @@ class DAGOperations:
             "metrics": self.performance_metrics,
         }
 
-
 # Global instance
 _instance = None
-
 
 def get_instance(connection_pool=None, config=None) -> DAGOperations:
     """Get or create a singleton instance of the DAG operations."""

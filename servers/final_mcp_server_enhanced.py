@@ -34,8 +34,11 @@ from datetime import datetime
 # Configure comprehensive logging
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    handlers=[logging.FileHandler("final_mcp_server.log", mode="w"), logging.StreamHandler()],
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler("final_mcp_server.log", mode='w'),
+        logging.StreamHandler()
+    ]
 )
 logger = logging.getLogger("final-mcp")
 
@@ -56,8 +59,11 @@ from ipfs_kit_py.install_ipfs import install_ipfs
 # Configure comprehensive logging
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    handlers=[logging.FileHandler("final_mcp_server.log", mode="w"), logging.StreamHandler()],
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler("final_mcp_server.log", mode='w'),
+        logging.StreamHandler()
+    ]
 )
 logger = logging.getLogger("final-mcp")
 
@@ -77,7 +83,6 @@ lassie_client = None
 
 IPFS_PATH = os.path.join(os.path.expanduser("~"), ".ipfs")
 IPFS_BIN_PATH = shutil.which("ipfs") or "ipfs"
-
 
 async def _check_and_install_ipfs_daemon():
     """
@@ -119,7 +124,6 @@ async def _check_and_install_ipfs_daemon():
     except Exception as e:
         logger.error(f"❌ Failed to install IPFS via installer: {e}")
 
-
 async def _initialize_ipfs_repo():
     """
     Initializes IPFS repository if it doesn't exist.
@@ -128,24 +132,23 @@ async def _initialize_ipfs_repo():
         logger.info(f"IPFS_PATH {IPFS_PATH} does not exist. Creating...")
         Path(IPFS_PATH).mkdir(parents=True, exist_ok=True)
 
-    if not (Path(IPFS_PATH) / "api").is_dir():  # Check for a common repo file/dir
+    if not (Path(IPFS_PATH) / "api").is_dir(): # Check for a common repo file/dir
         logger.warning("IPFS repository not initialized. Running ipfs init...")
         try:
             result = await anyio.run_process(
-                [IPFS_BIN_PATH, "init"], stdout=subprocess.PIPE, stderr=subprocess.PIPE
+                [IPFS_BIN_PATH, "init"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE
             )
-
+            
             if result.returncode == 0:
                 logger.info(f"✅ IPFS repository initialized: {result.stdout.decode().strip()}")
             else:
-                logger.error(
-                    f"❌ Failed to initialize IPFS repository: {result.stderr.decode().strip()}"
-                )
+                logger.error(f"❌ Failed to initialize IPFS repository: {result.stderr.decode().strip()}")
         except Exception as e:
             logger.error(f"❌ Error running ipfs init: {e}")
     else:
         logger.info("✅ IPFS repository already initialized.")
-
 
 async def _connect_to_ipfs():
     """
@@ -160,21 +163,20 @@ async def _connect_to_ipfs():
             # This part needs to be robust enough not to fail if daemon is already running
             # or to handle its startup in a non-blocking way.
             # For simplicity, we'll just try to connect and assume it's handled externally or by previous steps.
-
+            
             # Connect to IPFS daemon
-            ipfs = ipfshttpclient.connect("/ip4/127.0.0.1/tcp/5001")
-            ipfs.id()  # Test connection
+            ipfs = ipfshttpclient.connect('/ip4/127.0.0.1/tcp/5001')
+            ipfs.id() # Test connection
             logger.info("✅ Connected to IPFS daemon.")
             return
         except ipfshttpclient.exceptions.ConnectionError as e:
-            logger.warning(f"Attempt {i + 1}/{retries}: IPFS daemon connection failed: {e}")
+            logger.warning(f"Attempt {i+1}/{retries}: IPFS daemon connection failed: {e}")
             await anyio.sleep(delay)
         except Exception as e:
             logger.error(f"❌ Failed to connect to IPFS daemon: {e}")
             break
     logger.error("❌ All retries failed. Could not connect to IPFS daemon.")
     ipfs = None
-
 
 # ============================================================================
 # FASTAPI APPLICATION WITH ENHANCED FEATURES
@@ -186,17 +188,19 @@ try:
     from fastapi.responses import JSONResponse
     from pydantic import BaseModel, Field
     import uvicorn
-
+    
     # Enhanced request models
     class AddRequest(BaseModel):
         content: str = Field(..., description="Content to add to IPFS")
-
+        
         class Config:
-            json_schema_extra = {"example": {"content": "Hello, IPFS!"}}
-
+            json_schema_extra = {
+                "example": {"content": "Hello, IPFS!"}
+            }
+    
     class PinRequest(BaseModel):
         recursive: bool = Field(default=True, description="Pin recursively")
-
+    
     # Create FastAPI application with comprehensive configuration
     app = FastAPI(
         title="Final MCP Server",
@@ -204,9 +208,9 @@ try:
         version=__version__,
         docs_url="/docs",
         redoc_url="/redoc",
-        openapi_url="/openapi.json",
+        openapi_url="/openapi.json"
     )
-
+    
     # Add CORS middleware for cross-origin requests
     app.add_middleware(
         CORSMiddleware,
@@ -215,7 +219,7 @@ try:
         allow_methods=["*"],
         allow_headers=["*"],
     )
-
+    
     # Request counter middleware
     @app.middleware("http")
     async def count_requests(request: Request, call_next):
@@ -224,7 +228,7 @@ try:
         response = await call_next(request)
         response.headers["X-Request-Count"] = str(request_count)
         return response
-
+    
     # Error handler
     @app.exception_handler(Exception)
     async def global_exception_handler(request: Request, exc: Exception):
@@ -234,14 +238,14 @@ try:
             content={
                 "error": "Internal server error",
                 "message": str(exc),
-                "path": str(request.url.path),
-            },
+                "path": str(request.url.path)
+            }
         )
-
+    
     # ========================================================================
     # API ENDPOINTS
     # ========================================================================
-
+    
     @app.get("/", summary="Server Information")
     async def root():
         """Get server information and status"""
@@ -254,12 +258,12 @@ try:
             "requests_served": request_count,
             "endpoints": {
                 "health": "/health",
-                "tools": "/mcp/tools",
+                "tools": "/mcp/tools", 
                 "docs": "/docs",
-                "ipfs": "/ipfs/*",
-            },
+                "ipfs": "/ipfs/*"
+            }
         }
-
+    
     @app.get("/health", summary="Health Check")
     async def health():
         """Comprehensive health check endpoint"""
@@ -280,9 +284,12 @@ try:
             "uptime": str(datetime.now() - server_start_time),
             "ipfs_connection": ipfs_status,
             "ipfs_version_info": ipfs_version_info,
-            "system": {"python_version": sys.version, "platform": sys.platform},
+            "system": {
+                "python_version": sys.version,
+                "platform": sys.platform
+            }
         }
-
+    
     @app.get("/mcp/tools", summary="List MCP Tools")
     async def list_tools():
         """List all available MCP tools"""
@@ -292,37 +299,37 @@ try:
                     "name": "ipfs_add",
                     "description": "Add content to IPFS",
                     "method": "POST",
-                    "endpoint": "/ipfs/add",
+                    "endpoint": "/ipfs/add"
                 },
                 {
-                    "name": "ipfs_cat",
+                    "name": "ipfs_cat", 
                     "description": "Get content from IPFS",
                     "method": "GET",
-                    "endpoint": "/ipfs/cat/{cid}",
+                    "endpoint": "/ipfs/cat/{cid}"
                 },
                 {
                     "name": "ipfs_pin_add",
-                    "description": "Pin content in IPFS",
+                    "description": "Pin content in IPFS", 
                     "method": "POST",
-                    "endpoint": "/ipfs/pin/add/{cid}",
+                    "endpoint": "/ipfs/pin/add/{cid}"
                 },
                 {
                     "name": "ipfs_pin_rm",
                     "description": "Unpin content in IPFS",
-                    "method": "DELETE",
-                    "endpoint": "/ipfs/pin/rm/{cid}",
+                    "method": "DELETE", 
+                    "endpoint": "/ipfs/pin/rm/{cid}"
                 },
                 {
                     "name": "ipfs_version",
                     "description": "Get IPFS version information",
                     "method": "GET",
-                    "endpoint": "/ipfs/version",
-                },
+                    "endpoint": "/ipfs/version"
+                }
             ],
             "total_tools": 5,
-            "server_version": __version__,
+            "server_version": __version__
         }
-
+    
     @app.post("/ipfs/add", summary="Add Content to IPFS")
     async def add_content(request: AddRequest):
         """Add content to IPFS and return CID"""
@@ -330,19 +337,19 @@ try:
             raise HTTPException(status_code=503, detail="IPFS daemon not connected")
         try:
             # ipfshttpclient's add method expects bytes or a file-like object
-            content_bytes = request.content.encode("utf-8")
+            content_bytes = request.content.encode('utf-8')
             result = ipfs.add(content_bytes, pin=True)
             cid = result["Hash"]
             return {
                 "success": True,
                 "cid": cid,
                 "size": len(content_bytes),
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": datetime.now().isoformat()
             }
         except Exception as e:
             logger.error(f"❌ Add content failed: {e}")
             raise HTTPException(status_code=500, detail=str(e))
-
+    
     @app.get("/ipfs/cat/{cid}", summary="Get Content from IPFS")
     async def get_content(cid: str):
         """Retrieve content from IPFS by CID"""
@@ -351,18 +358,18 @@ try:
         try:
             content = ipfs.cat(cid)
             # content is a generator, so read it all
-            full_content = b"".join(content)
+            full_content = b''.join(content)
             return {
                 "success": True,
-                "content": full_content.decode("utf-8", errors="replace"),
+                "content": full_content.decode('utf-8', errors='replace'),
                 "cid": cid,
                 "size": len(full_content),
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": datetime.now().isoformat()
             }
         except Exception as e:
             logger.error(f"❌ Get content failed: {e}")
             raise HTTPException(status_code=500, detail=str(e))
-
+    
     @app.post("/ipfs/pin/add/{cid}", summary="Pin Content")
     async def pin_content(cid: str, pin_request: PinRequest = PinRequest()):
         """Pin content in IPFS"""
@@ -375,12 +382,12 @@ try:
                 "result": result,
                 "cid": cid,
                 "recursive": pin_request.recursive,
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": datetime.now().isoformat()
             }
         except Exception as e:
             logger.error(f"❌ Pin content failed: {e}")
             raise HTTPException(status_code=500, detail=str(e))
-
+    
     @app.delete("/ipfs/pin/rm/{cid}", summary="Unpin Content")
     async def unpin_content(cid: str):
         """Remove pin from content in IPFS"""
@@ -392,12 +399,12 @@ try:
                 "success": True,
                 "result": result,
                 "cid": cid,
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": datetime.now().isoformat()
             }
         except Exception as e:
             logger.error(f"❌ Unpin content failed: {e}")
             raise HTTPException(status_code=500, detail=str(e))
-
+    
     @app.get("/ipfs/version", summary="Get IPFS Version")
     async def get_ipfs_version():
         """Get IPFS version information"""
@@ -405,11 +412,15 @@ try:
             raise HTTPException(status_code=503, detail="IPFS daemon not connected")
         try:
             result = ipfs.version()
-            return {"success": True, "version": result, "timestamp": datetime.now().isoformat()}
+            return {
+                "success": True,
+                "version": result,
+                "timestamp": datetime.now().isoformat()
+            }
         except Exception as e:
             logger.error(f"❌ Get version failed: {e}")
             raise HTTPException(status_code=500, detail=str(e))
-
+    
     @app.get("/stats", summary="Server Statistics")
     async def get_stats():
         """Get detailed server statistics"""
@@ -427,8 +438,8 @@ try:
                 "version": __version__,
                 "uptime": str(datetime.now() - server_start_time),
                 "requests_served": request_count,
-                "start_time": server_start_time.isoformat(),
-            },
+                "start_time": server_start_time.isoformat()
+            }
         }
 
     @app.get("/lassie/fetch/{cid}", summary="Fetch Content with Lassie")
@@ -441,11 +452,7 @@ try:
             lassie_url = f"http://localhost:41443/ipfs/{cid}"
             response = lassie_client.get(lassie_url, timeout=30)
             response.raise_for_status()
-            return {
-                "success": True,
-                "cid": cid,
-                "content": response.content.decode("utf-8", errors="replace"),
-            }
+            return {"success": True, "cid": cid, "content": response.content.decode('utf-8', errors='replace')}
         except requests.exceptions.RequestException as e:
             logger.error(f"❌ Lassie fetch failed for {cid}: {e}")
             raise HTTPException(status_code=500, detail=f"Lassie fetch failed: {e}")
@@ -459,7 +466,6 @@ except ImportError as e:
 # SIGNAL HANDLERS FOR GRACEFUL SHUTDOWN
 # ============================================================================
 
-
 def signal_handler(signum, frame):
     """Handle shutdown signals gracefully"""
     logger.info(f"🛑 Received signal {signum}, shutting down gracefully...")
@@ -469,14 +475,12 @@ def signal_handler(signum, frame):
         pid_file.unlink()
     sys.exit(0)
 
-
 signal.signal(signal.SIGINT, signal_handler)
 signal.signal(signal.SIGTERM, signal_handler)
 
 # ============================================================================
 # COMMAND-LINE INTERFACE
 # ============================================================================
-
 
 def main():
     """Main entry point with comprehensive CLI"""
@@ -491,26 +495,43 @@ Examples:
 
 Version: {__version__}
 Author: {__author__}
-        """,
+        """
     )
-
-    parser.add_argument("--host", default="0.0.0.0", help="Host to bind (default: 0.0.0.0)")
-    parser.add_argument("--port", type=int, default=9998, help="Port to bind (default: 9998)")
-    parser.add_argument("--debug", action="store_true", help="Enable debug logging")
-    parser.add_argument("--version", action="version", version=f"Final MCP Server {__version__}")
+    
+    parser.add_argument(
+        "--host", 
+        default="0.0.0.0", 
+        help="Host to bind (default: 0.0.0.0)"
+    )
+    parser.add_argument(
+        "--port", 
+        type=int, 
+        default=9998, 
+        help="Port to bind (default: 9998)"
+    )
+    parser.add_argument(
+        "--debug", 
+        action="store_true", 
+        help="Enable debug logging"
+    )
+    parser.add_argument(
+        "--version", 
+        action="version", 
+        version=f"Final MCP Server {__version__}"
+    )
     parser.add_argument(
         "--log-level",
         choices=["DEBUG", "INFO", "WARNING", "ERROR"],
         default="INFO",
-        help="Set logging level (default: INFO)",
+        help="Set logging level (default: INFO)"
     )
-
+    
     args = parser.parse_args()
-
+    
     # Configure logging level
     log_level = logging.DEBUG if args.debug else getattr(logging, args.log_level)
     logging.getLogger().setLevel(log_level)
-
+    
     # Startup banner
     print(f"""
 ╔══════════════════════════════════════════════════════════════╗
@@ -526,7 +547,7 @@ Author: {__author__}
 ║                                                              ║
 ╚══════════════════════════════════════════════════════════════╝
     """)
-
+    
     logger.info(f"🚀 Final MCP Server v{__version__} starting...")
     logger.info(f"📍 Binding to {args.host}:{args.port}")
     logger.info(f"🔍 Debug mode: {args.debug}")
@@ -540,7 +561,7 @@ Author: {__author__}
     global lassie_installer, lassie_client
     lassie_installer = install_lassie()
     logger.info("🚀 Lassie installer initialized.")
-
+    
     if lassie_installer.install_lassie_daemon():
         logger.info("✅ Lassie daemon installed.")
         if lassie_installer.config_lassie():
@@ -558,30 +579,30 @@ Author: {__author__}
             logger.error("❌ Failed to configure Lassie.")
     else:
         logger.error("❌ Failed to install Lassie daemon.")
-
+    
     if app is None:
         logger.error("❌ FastAPI not available - cannot start server")
         logger.error("💡 Install dependencies: pip install fastapi uvicorn pydantic")
         return 1
-
+    
     try:
         # Write PID file for process management
         pid_file = Path("final_mcp_server.pid")
         pid_file.write_text(str(os.getpid()))
         logger.info(f"📝 PID file written: {pid_file.absolute()}")
-
+        
         # Start the server
         logger.info("🎯 Server is ready to accept connections!")
-
+        
         uvicorn.run(
             app,
             host=args.host,
             port=args.port,
             log_level="debug" if args.debug else "info",
             access_log=True,
-            reload=args.debug,
+            reload=args.debug
         )
-
+        
     except KeyboardInterrupt:
         logger.info("⏹️ Server stopped by user")
         return 0
@@ -595,7 +616,6 @@ Author: {__author__}
         if pid_file.exists():
             pid_file.unlink()
             logger.info("🧹 Cleaned up PID file")
-
 
 if __name__ == "__main__":
     sys.exit(main())

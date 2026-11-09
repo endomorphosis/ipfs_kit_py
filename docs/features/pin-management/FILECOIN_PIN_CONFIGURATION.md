@@ -90,7 +90,7 @@ backend = FilecoinPinBackend(
         "api_key": os.getenv("FILECOIN_PIN_API_KEY"),
         "api_endpoint": os.getenv("FILECOIN_PIN_ENDPOINT", "https://api.filecoin.cloud/v1"),
         "timeout": int(os.getenv("FILECOIN_PIN_TIMEOUT", "60")),
-        "max_retries": 3,
+        "max_retries": 3
     },
     metadata={
         "default_replication": int(os.getenv("FILECOIN_PIN_REPLICATION", "3")),
@@ -99,9 +99,9 @@ backend = FilecoinPinBackend(
         "gateway_fallback": [
             "https://ipfs.io/ipfs/",
             "https://w3s.link/ipfs/",
-            "https://dweb.link/ipfs/",
-        ],
-    },
+            "https://dweb.link/ipfs/"
+        ]
+    }
 )
 ```
 

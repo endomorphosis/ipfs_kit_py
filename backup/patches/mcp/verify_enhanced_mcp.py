@@ -22,9 +22,11 @@ import anyio
 from typing import Dict, List, Any, Optional
 
 # Configure logging
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
 logger = logging.getLogger(__name__)
-
 
 class MCPVerifier:
     """Verifies enhanced MCP server functionality."""
@@ -61,9 +63,7 @@ class MCPVerifier:
 
         # Summary
         logger.info("=" * 80)
-        logger.info(
-            f"VERIFICATION SUMMARY: {self.tests_passed} passed, {self.tests_failed} failed, {self.tests_skipped} skipped"
-        )
+        logger.info(f"VERIFICATION SUMMARY: {self.tests_passed} passed, {self.tests_failed} failed, {self.tests_skipped} skipped")
         logger.info("=" * 80)
 
         # Return status code
@@ -71,7 +71,6 @@ class MCPVerifier:
 
     def test_wrapper(self, test_name):
         """Wrapper for tests to catch exceptions and track results."""
-
         def decorator(func):
             def wrapper(*args, **kwargs):
                 logger.info(f"Running test: {test_name}")
@@ -87,9 +86,7 @@ class MCPVerifier:
                     logger.error(f"❌ FAIL: {test_name} ({duration:.2f}s) - {str(e)}")
                     self.tests_failed += 1
                     return None
-
             return wrapper
-
         return decorator
 
     @test_wrapper("Basic Connectivity")
@@ -123,7 +120,10 @@ class MCPVerifier:
     @test_wrapper("SSE Endpoints")
     def verify_sse_endpoints(self):
         """Verify Server-Sent Events (SSE) endpoints."""
-        sse_endpoints = ["/sse", f"{self.api_prefix}/sse"]
+        sse_endpoints = [
+            "/sse",
+            f"{self.api_prefix}/sse"
+        ]
 
         results = {}
         for endpoint in sse_endpoints:
@@ -166,10 +166,17 @@ class MCPVerifier:
             "jsonrpc": "2.0",
             "id": 1,
             "method": "initialize",
-            "params": {"processId": os.getpid(), "rootUri": None, "capabilities": {}},
+            "params": {
+                "processId": os.getpid(),
+                "rootUri": None,
+                "capabilities": {}
+            }
         }
 
-        jsonrpc_endpoints = ["/jsonrpc", f"{self.api_prefix}/jsonrpc"]
+        jsonrpc_endpoints = [
+            "/jsonrpc",
+            f"{self.api_prefix}/jsonrpc"
+        ]
 
         results = {}
         for endpoint in jsonrpc_endpoints:
@@ -180,17 +187,13 @@ class MCPVerifier:
                 response = requests.post(url, json=initialize_request)
 
                 if response.status_code != 200:
-                    raise Exception(
-                        f"Failed to connect to JSON-RPC endpoint: {response.status_code}"
-                    )
+                    raise Exception(f"Failed to connect to JSON-RPC endpoint: {response.status_code}")
 
                 data = response.json()
                 if "result" not in data or "capabilities" not in data["result"]:
                     raise Exception(f"Invalid JSON-RPC response: {data}")
 
-                logger.info(
-                    f"  - JSON-RPC response contains server info: {data['result'].get('serverInfo', {}).get('name')}"
-                )
+                logger.info(f"  - JSON-RPC response contains server info: {data['result'].get('serverInfo', {}).get('name')}")
                 results[endpoint] = data
 
             except requests.RequestException as e:
@@ -209,7 +212,7 @@ class MCPVerifier:
 
         # Test add operation
         test_content = f"Test content from MCP verifier: {uuid.uuid4()}"
-        files = {"file": ("test.txt", test_content)}
+        files = {'file': ('test.txt', test_content)}
 
         try:
             add_url = f"{self.api_url}/ipfs/add"
@@ -286,7 +289,6 @@ class MCPVerifier:
 
         return results
 
-
 def main():
     """Run the verification script."""
     parser = argparse.ArgumentParser(description="Verify the enhanced MCP server")
@@ -299,7 +301,6 @@ def main():
     exit_code = verifier.run_verification()
 
     sys.exit(exit_code)
-
 
 if __name__ == "__main__":
     main()

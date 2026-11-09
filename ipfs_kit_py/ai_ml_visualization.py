@@ -402,7 +402,7 @@ class AIMLVisualization:
                         color="green",
                         linestyle="dashed",
                         linewidth=1,
-                        label=f"Mean: {latencies.get('mean') * 1000:.2f} ms",
+                        label=f'Mean: {latencies.get("mean") * 1000:.2f} ms',
                     )
 
                 if latencies.get("p95") is not None:
@@ -411,7 +411,7 @@ class AIMLVisualization:
                         color="red",
                         linestyle="dashed",
                         linewidth=1,
-                        label=f"95th %ile: {latencies.get('p95') * 1000:.2f} ms",
+                        label=f'95th %ile: {latencies.get("p95") * 1000:.2f} ms',
                     )
 
                 ax.set_xlabel("Latency (ms)")
@@ -691,10 +691,10 @@ class AIMLVisualization:
                 plt.xticks(rotation=45, ha="right")
 
             ax.set_title("Dataset Loading Performance")
-
+            
             # Add padding to the figure before calling tight_layout to avoid warnings
             fig.subplots_adjust(top=0.85, bottom=0.15)
-
+            
             # We'll wrap tight_layout in a try/except to avoid warnings
             try:
                 with warnings.catch_warnings():
@@ -1100,8 +1100,8 @@ class AIMLVisualization:
                     font-family: Arial, sans-serif;
                     margin: 0;
                     padding: 20px;
-                    background-color: {("#f5f5f5" if self.theme == "light" else "#2d2d2d")};
-                    color: {("#333" if self.theme == "light" else "#f5f5f5")};
+                    background-color: {('#f5f5f5' if self.theme == 'light' else '#2d2d2d')};
+                    color: {('#333' if self.theme == 'light' else '#f5f5f5')};
                 }}
                 .container {{
                     max-width: 1200px;
@@ -1112,7 +1112,7 @@ class AIMLVisualization:
                     margin-bottom: 30px;
                 }}
                 .section {{
-                    background-color: {("#fff" if self.theme == "light" else "#333")};
+                    background-color: {('#fff' if self.theme == 'light' else '#333')};
                     padding: 20px;
                     margin-bottom: 20px;
                     border-radius: 5px;
@@ -1126,10 +1126,10 @@ class AIMLVisualization:
                 .metrics-table th, .metrics-table td {{
                     padding: 8px;
                     text-align: left;
-                    border-bottom: 1px solid {("#ddd" if self.theme == "light" else "#555")};
+                    border-bottom: 1px solid {('#ddd' if self.theme == 'light' else '#555')};
                 }}
                 .metrics-table th {{
-                    background-color: {("#f2f2f2" if self.theme == "light" else "#444")};
+                    background-color: {('#f2f2f2' if self.theme == 'light' else '#444')};
                 }}
                 .plot-container {{
                     margin-top: 20px;
@@ -1141,7 +1141,7 @@ class AIMLVisualization:
                     padding: 10px;
                     margin-bottom: 10px;
                     border-left: 4px solid #4CAF50;
-                    background-color: {("#f9f9f9" if self.theme == "light" else "#3a3a3a")};
+                    background-color: {('#f9f9f9' if self.theme == 'light' else '#3a3a3a')};
                 }}
                 .recommendation.high {{
                     border-left-color: #F44336;
@@ -1153,7 +1153,7 @@ class AIMLVisualization:
                     text-align: center;
                     margin-top: 30px;
                     font-size: 12px;
-                    color: {("#777" if self.theme == "light" else "#aaa")};
+                    color: {('#777' if self.theme == 'light' else '#aaa')};
                 }}
             </style>
         </head>
@@ -1161,7 +1161,7 @@ class AIMLVisualization:
             <div class="container">
                 <div class="header">
                     <h1>AI/ML Performance Report</h1>
-                    <p>Generated on {time.strftime("%Y-%m-%d %H:%M:%S")}</p>
+                    <p>Generated on {time.strftime('%Y-%m-%d %H:%M:%S')}</p>
                 </div>
         """
 
@@ -1210,11 +1210,11 @@ class AIMLVisualization:
                 html += f"""
                         <tr>
                             <td>{model_id}</td>
-                            <td>{model_data.get("framework", "unknown")}</td>
+                            <td>{model_data.get('framework', 'unknown')}</td>
                             <td>{size_str}</td>
-                            <td>{load_stats.get("mean", "N/A")}</td>
-                            <td>{load_stats.get("min", "N/A")}</td>
-                            <td>{load_stats.get("max", "N/A")}</td>
+                            <td>{load_stats.get('mean', 'N/A')}</td>
+                            <td>{load_stats.get('min', 'N/A')}</td>
+                            <td>{load_stats.get('max', 'N/A')}</td>
                         </tr>
                 """
 
@@ -1342,10 +1342,10 @@ class AIMLVisualization:
                 html += f"""
                         <tr>
                             <td>{dataset_id}</td>
-                            <td>{dataset_data.get("format", "unknown")}</td>
+                            <td>{dataset_data.get('format', 'unknown')}</td>
                             <td>{size_str}</td>
-                            <td>{load_stats.get("mean", "N/A")}</td>
-                            <td>{preprocess_stats.get("mean", "N/A")}</td>
+                            <td>{load_stats.get('mean', 'N/A')}</td>
+                            <td>{preprocess_stats.get('mean', 'N/A')}</td>
                         </tr>
                 """
 
@@ -1389,11 +1389,11 @@ class AIMLVisualization:
                 html += f"""
                         <tr>
                             <td>Avg Coordination Overhead (s)</td>
-                            <td>{coordination_stats.get("mean", "N/A")}</td>
+                            <td>{coordination_stats.get('mean', 'N/A')}</td>
                         </tr>
                         <tr>
                             <td>Total Coordination Time (s)</td>
-                            <td>{coordination_stats.get("total", "N/A")}</td>
+                            <td>{coordination_stats.get('total', 'N/A')}</td>
                         </tr>
                 """
 
@@ -1403,15 +1403,15 @@ class AIMLVisualization:
                 html += f"""
                         <tr>
                             <td>Min Workers</td>
-                            <td>{worker_counts.get("min", "N/A")}</td>
+                            <td>{worker_counts.get('min', 'N/A')}</td>
                         </tr>
                         <tr>
                             <td>Max Workers</td>
-                            <td>{worker_counts.get("max", "N/A")}</td>
+                            <td>{worker_counts.get('max', 'N/A')}</td>
                         </tr>
                         <tr>
                             <td>Avg Workers</td>
-                            <td>{worker_counts.get("mean", "N/A")}</td>
+                            <td>{worker_counts.get('mean', 'N/A')}</td>
                         </tr>
                 """
 
@@ -1421,7 +1421,7 @@ class AIMLVisualization:
                 html += f"""
                         <tr>
                             <td>Avg Task Distribution Time (s)</td>
-                            <td>{task_dist_times.get("mean", "N/A")}</td>
+                            <td>{task_dist_times.get('mean', 'N/A')}</td>
                         </tr>
                 """
 
@@ -1431,7 +1431,7 @@ class AIMLVisualization:
                 html += f"""
                         <tr>
                             <td>Avg Result Aggregation Time (s)</td>
-                            <td>{result_agg_times.get("mean", "N/A")}</td>
+                            <td>{result_agg_times.get('mean', 'N/A')}</td>
                         </tr>
                 """
 
@@ -1469,8 +1469,8 @@ class AIMLVisualization:
                 severity = rec.get("severity", "low")
                 html += f"""
                         <div class="recommendation {severity}">
-                            <h3>{i}. {rec.get("message", "")}</h3>
-                            <p>{rec.get("details", "")}</p>
+                            <h3>{i}. {rec.get('message', '')}</h3>
+                            <p>{rec.get('details', '')}</p>
                         </div>
                 """
 
@@ -1531,6 +1531,7 @@ class AIMLVisualization:
 
             # Export individual plots
             if any(fmt in formats for fmt in ["png", "svg", "pdf"]):
+
                 if not MATPLOTLIB_AVAILABLE:
                     results["errors"].append(
                         "Matplotlib is required for image exports but not available"

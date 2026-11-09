@@ -17,7 +17,6 @@ from pathlib import Path
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("fix_mcp_command_handlers")
 
-
 def patch_command_dispatcher():
     """
     Patch the command dispatcher in the IPFS model to handle libp2p commands correctly.
@@ -25,7 +24,6 @@ def patch_command_dispatcher():
     try:
         # Import the IPFSModel class
         from ipfs_kit_py.mcp.models.ipfs_model import IPFSModel
-
         logger.info("Successfully imported IPFSModel")
 
         # Add helper to check if methods exist and create them if needed
@@ -58,7 +56,7 @@ def patch_command_dispatcher():
                 "success": False,
                 "operation_id": operation_id,
                 "timestamp": time.time(),
-                "peers": [],
+                "peers": []
             }
 
             # Try to use libp2p dependency if available
@@ -68,13 +66,13 @@ def patch_command_dispatcher():
 
                 if HAS_LIBP2P or install_dependencies():
                     # Try to use the real libp2p peer
-                    if hasattr(self.ipfs_kit, "libp2p_peer") and self.ipfs_kit.libp2p_peer:
+                    if hasattr(self.ipfs_kit, 'libp2p_peer') and self.ipfs_kit.libp2p_peer:
                         # Get connected peers
                         try:
                             libp2p_peer = self.ipfs_kit.libp2p_peer
                             peers = []
 
-                            if hasattr(libp2p_peer, "get_connected_peers"):
+                            if hasattr(libp2p_peer, 'get_connected_peers'):
                                 peer_ids = libp2p_peer.get_connected_peers()
 
                                 for peer_id in peer_ids:
@@ -83,11 +81,11 @@ def patch_command_dispatcher():
                                         "id": peer_id,
                                         "addresses": [],
                                         "connected_since": time.time() - random.randint(300, 7200),
-                                        "protocol_version": "ipfs/0.1.0",
+                                        "protocol_version": "ipfs/0.1.0"
                                     }
 
                                     # Try to get addresses
-                                    if hasattr(libp2p_peer, "get_peer_addresses"):
+                                    if hasattr(libp2p_peer, 'get_peer_addresses'):
                                         try:
                                             addresses = libp2p_peer.get_peer_addresses(peer_id)
                                             if addresses:
@@ -121,11 +119,11 @@ def patch_command_dispatcher():
                     "id": peer_id,
                     "addresses": [
                         f"/ip4/192.168.0.{random.randint(2, 254)}/tcp/4001/p2p/{peer_id}",
-                        f"/ip4/127.0.0.1/tcp/4001/p2p/{peer_id}",
+                        f"/ip4/127.0.0.1/tcp/4001/p2p/{peer_id}"
                     ],
                     "role": random.choice(["master", "worker", "leecher"]),
                     "connected_since": time.time() - random.randint(300, 7200),
-                    "protocol_version": "ipfs/0.1.0",
+                    "protocol_version": "ipfs/0.1.0"
                 }
                 peers.append(peer)
 
@@ -167,7 +165,7 @@ def patch_command_dispatcher():
                 "timestamp": time.time(),
                 "node_id": node_id,
                 "cluster_id": cluster_id,
-                "role": role,
+                "role": role
             }
 
             # Try to use libp2p dependency if available
@@ -177,23 +175,23 @@ def patch_command_dispatcher():
 
                 if HAS_LIBP2P or install_dependencies():
                     # Try to initialize libp2p peer if not exists
-                    if not hasattr(self.ipfs_kit, "libp2p_peer") or not self.ipfs_kit.libp2p_peer:
-                        if hasattr(self.ipfs_kit, "init_libp2p_peer"):
+                    if not hasattr(self.ipfs_kit, 'libp2p_peer') or not self.ipfs_kit.libp2p_peer:
+                        if hasattr(self.ipfs_kit, 'init_libp2p_peer'):
                             try:
                                 logger.info("Initializing libp2p peer")
                                 self.ipfs_kit.init_libp2p_peer(
                                     role=role,
-                                    bootstrap_peers=[master_address] if master_address else None,
+                                    bootstrap_peers=[master_address] if master_address else None
                                 )
                             except Exception as e:
                                 logger.warning(f"Failed to initialize libp2p peer: {e}")
 
                     # Try to use the libp2p peer
-                    if hasattr(self.ipfs_kit, "libp2p_peer") and self.ipfs_kit.libp2p_peer:
+                    if hasattr(self.ipfs_kit, 'libp2p_peer') and self.ipfs_kit.libp2p_peer:
                         libp2p_peer = self.ipfs_kit.libp2p_peer
 
                         # Try to connect to master
-                        if master_address and hasattr(libp2p_peer, "connect_peer"):
+                        if master_address and hasattr(libp2p_peer, 'connect_peer'):
                             try:
                                 logger.info(f"Connecting to master node at {master_address}")
                                 libp2p_peer.connect_peer(master_address)
@@ -207,15 +205,19 @@ def patch_command_dispatcher():
 
                             # Get connected peers
                             peer_list = []
-                            if hasattr(libp2p_peer, "get_connected_peers"):
+                            if hasattr(libp2p_peer, 'get_connected_peers'):
                                 try:
                                     peer_ids = libp2p_peer.get_connected_peers()
 
                                     for pid in peer_ids:
-                                        peer_info = {"id": pid, "addresses": [], "role": "unknown"}
+                                        peer_info = {
+                                            "id": pid,
+                                            "addresses": [],
+                                            "role": "unknown"
+                                        }
 
                                         # Try to get addresses
-                                        if hasattr(libp2p_peer, "get_peer_addresses"):
+                                        if hasattr(libp2p_peer, 'get_peer_addresses'):
                                             try:
                                                 addresses = libp2p_peer.get_peer_addresses(pid)
                                                 if addresses:
@@ -228,27 +230,21 @@ def patch_command_dispatcher():
                                     logger.warning(f"Error getting connected peers: {e}")
 
                             # Add current peer info
-                            peer_list.append(
-                                {
-                                    "id": peer_id,
-                                    "addresses": libp2p_peer.get_multiaddrs()
-                                    if hasattr(libp2p_peer, "get_multiaddrs")
-                                    else [],
-                                    "role": role,
-                                    "is_self": True,
-                                }
-                            )
+                            peer_list.append({
+                                "id": peer_id,
+                                "addresses": libp2p_peer.get_multiaddrs() if hasattr(libp2p_peer, 'get_multiaddrs') else [],
+                                "role": role,
+                                "is_self": True
+                            })
 
                             # Build successful result
-                            result.update(
-                                {
-                                    "success": True,
-                                    "status": "online",
-                                    "peers": peer_list,
-                                    "peer_count": len(peer_list),
-                                    "simulated": False,
-                                }
-                            )
+                            result.update({
+                                "success": True,
+                                "status": "online",
+                                "peers": peer_list,
+                                "peer_count": len(peer_list),
+                                "simulated": False
+                            })
 
                             logger.info(f"Successfully registered node {node_id} using real libp2p")
                             return result
@@ -266,26 +262,22 @@ def patch_command_dispatcher():
 
             for i in range(peer_count):
                 peer_id = f"QmSimPeer{i}{uuid.uuid4().hex[:8]}"
-                sample_peers.append(
-                    {
-                        "id": peer_id,
-                        "addresses": [
-                            f"/ip4/192.168.0.{random.randint(2, 254)}/tcp/4001/p2p/{peer_id}"
-                        ],
-                        "role": random.choice(["master", "worker", "leecher"]),
-                    }
-                )
+                sample_peers.append({
+                    "id": peer_id,
+                    "addresses": [
+                        f"/ip4/192.168.0.{random.randint(2, 254)}/tcp/4001/p2p/{peer_id}"
+                    ],
+                    "role": random.choice(["master", "worker", "leecher"])
+                })
 
             # Add result with the node_id we extracted earlier
-            result.update(
-                {
-                    "success": True,
-                    "status": "online",
-                    "peers": sample_peers,
-                    "peer_count": len(sample_peers),
-                    "simulated": True,
-                }
-            )
+            result.update({
+                "success": True,
+                "status": "online",
+                "peers": sample_peers,
+                "peer_count": len(sample_peers),
+                "simulated": True
+            })
 
             return result
 
@@ -318,10 +310,8 @@ def patch_command_dispatcher():
     except Exception as e:
         logger.error(f"Error patching MCP command handlers: {e}")
         import traceback
-
         traceback.print_exc()
         return False
-
 
 if __name__ == "__main__":
     success = patch_command_dispatcher()

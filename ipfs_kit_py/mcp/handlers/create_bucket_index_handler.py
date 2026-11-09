@@ -14,20 +14,19 @@ from typing import Dict, Any, List, Optional
 
 logger = logging.getLogger(__name__)
 
-
 class CreateBucketIndexHandler:
     """Handler for create_bucket_index MCP RPC calls."""
-
+    
     def __init__(self, ipfs_kit_dir: Path):
         self.ipfs_kit_dir = ipfs_kit_dir
         self.category = "vfs"
         self.priority = 2
         self.complexity = 3
-
+    
     async def handle(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """
         Handle create_bucket_index RPC call.
-
+        
         Legacy function: create_bucket_index
         New implementation: bucket_index_creator
         Category: vfs
@@ -35,7 +34,7 @@ class CreateBucketIndexHandler:
         try:
             # Execute the new bucket-centric implementation
             result = await self._execute_bucket_index_creator(params)
-
+            
             return {
                 "success": True,
                 "method": "create_bucket_index",
@@ -43,34 +42,32 @@ class CreateBucketIndexHandler:
                 "data": result,
                 "source": "comprehensive_bridge",
                 "priority": 2,
-                "complexity": 3,
+                "complexity": 3
             }
-
+            
         except Exception as e:
             logger.error(f"Error in create_bucket_index handler: {e}")
             return {
                 "success": False,
                 "error": str(e),
                 "method": "create_bucket_index",
-                "category": "vfs",
+                "category": "vfs"
             }
-
+    
     async def _execute_bucket_index_creator(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Execute the new implementation for create_bucket_index."""
         # TODO: Implement bucket operations: scan_bucket_contents, generate_index_data, store_index_files
         # TODO: Use state files: bucket_index/{name}.parquet, buckets/{name}/index.json
-
+        
+        
+        
         # Comprehensive implementation placeholder
         return {
             "message": "Comprehensive feature implementation in progress",
             "legacy_name": "create_bucket_index",
             "new_implementation": "bucket_index_creator",
             "category": "vfs",
-            "bucket_operations": [
-                "scan_bucket_contents",
-                "generate_index_data",
-                "store_index_files",
-            ],
+            "bucket_operations": ["scan_bucket_contents", "generate_index_data", "store_index_files"],
             "state_files": ["bucket_index/{name}.parquet", "buckets/{name}/index.json"],
             "dependencies": [],
             "mcp_methods": [],
@@ -80,6 +77,6 @@ class CreateBucketIndexHandler:
                 "This handler bridges legacy comprehensive dashboard functionality",
                 "to the new bucket-centric architecture with light initialization",
                 "Progressive enhancement ensures graceful fallbacks",
-                "State management uses ~/.ipfs_kit/ directory structure",
-            ],
+                "State management uses ~/.ipfs_kit/ directory structure"
+            ]
         }

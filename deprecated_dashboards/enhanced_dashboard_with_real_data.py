@@ -33,18 +33,18 @@ logger = logging.getLogger(__name__)
 
 class EnhancedDashboard:
     """Enhanced dashboard that properly reads all ~/.ipfs_kit/ data."""
-
+    
     def __init__(self, config: Dict[str, Any]):
         """Initialize the enhanced dashboard."""
         self.config = config
-        self.host = config.get("host", "127.0.0.1")
-        self.port = config.get("port", 8082)
-        self.mcp_server_url = config.get("mcp_server_url", "http://127.0.0.1:8004")
-        self.data_dir = Path(config.get("data_dir", "~/.ipfs_kit")).expanduser()
-
+        self.host = config.get('host', '127.0.0.1')
+        self.port = config.get('port', 8082)
+        self.mcp_server_url = config.get('mcp_server_url', 'http://127.0.0.1:8004')
+        self.data_dir = Path(config.get('data_dir', '~/.ipfs_kit')).expanduser()
+        
         # Initialize FastAPI
         self.app = FastAPI(title="Enhanced IPFS Kit Dashboard", version="1.0.0")
-
+        
         # Add CORS middleware
         self.app.add_middleware(
             CORSMiddleware,
@@ -53,43 +53,43 @@ class EnhancedDashboard:
             allow_methods=["*"],
             allow_headers=["*"],
         )
-
+        
         # Setup routes
         self._setup_routes()
-
+        
         logger.info(f"Enhanced Dashboard initialized on {self.host}:{self.port}")
-
+    
     def _setup_routes(self):
         """Setup all dashboard routes."""
-
+        
         @self.app.get("/", response_class=HTMLResponse)
         async def dashboard_home():
             return await self._render_dashboard()
-
+        
         @self.app.get("/api/status")
         async def get_system_status():
             return await self._get_enhanced_system_status()
-
+        
         @self.app.get("/api/backends")
         async def get_backends():
             return await self._get_enhanced_backends_data()
-
+        
         @self.app.get("/api/pins")
         async def get_pins():
             return await self._get_enhanced_pins_data()
-
+        
         @self.app.get("/api/buckets")
         async def get_buckets():
             return await self._get_enhanced_buckets_data()
-
+        
         @self.app.get("/api/metrics")
         async def get_metrics():
             return await self._get_enhanced_metrics()
-
+        
         @self.app.get("/api/health")
         async def get_health():
             return await self._get_comprehensive_health()
-
+    
     async def _get_enhanced_system_status(self) -> Dict[str, Any]:
         """Get comprehensive system status with real data."""
         try:
@@ -97,7 +97,7 @@ class EnhancedDashboard:
             cpu_percent = psutil.cpu_percent(interval=1)
             memory = psutil.virtual_memory()
             disk = psutil.disk_usage(str(self.data_dir))
-
+            
             # Check MCP server
             mcp_status = "Unknown"
             try:
@@ -109,7 +109,7 @@ class EnhancedDashboard:
                             mcp_status = f"Error {resp.status}"
             except Exception:
                 mcp_status = "Stopped"
-
+            
             # Count real data
             backend_count = len(list((self.data_dir / "backend_configs").glob("*.yaml")))
             pin_count = 0
@@ -119,7 +119,7 @@ class EnhancedDashboard:
                     pin_count = len(df)
                 except Exception:
                     pass
-
+            
             return {
                 "status": "ok",
                 "timestamp": datetime.now().isoformat(),
@@ -144,26 +144,26 @@ class EnhancedDashboard:
                     "backends": (self.data_dir / "backends").exists(),
                     "pin_metadata": (self.data_dir / "pin_metadata").exists(),
                     "buckets": (self.data_dir / "buckets").exists(),
-                },
+                }
             }
         except Exception as e:
             logger.error(f"Error getting system status: {e}")
             return {"status": "error", "error": str(e)}
-
+    
     async def _get_enhanced_backends_data(self) -> Dict[str, Any]:
         """Get comprehensive backend data from YAML configs and metadata."""
         try:
             backends = []
             config_dir = self.data_dir / "backend_configs"
-
+            
             if config_dir.exists():
                 for config_file in config_dir.glob("*.yaml"):
                     try:
-                        with open(config_file, "r") as f:
+                        with open(config_file, 'r') as f:
                             config_data = yaml.safe_load(f)
-
+                        
                         backend_name = config_file.stem
-
+                        
                         # Get pin mappings if available
                         pin_mappings = 0
                         backend_dir = self.data_dir / "backends" / backend_name
@@ -175,22 +175,22 @@ class EnhancedDashboard:
                                     pin_mappings = len(df)
                                 except Exception:
                                     pass
-
+                        
                         # Determine backend type and status
                         backend_type = "unknown"
-                        if "s3" in backend_name.lower():
+                        if 's3' in backend_name.lower():
                             backend_type = "s3"
-                        elif "storacha" in backend_name.lower():
+                        elif 'storacha' in backend_name.lower():
                             backend_type = "storacha"
-                        elif "github" in backend_name.lower():
+                        elif 'github' in backend_name.lower():
                             backend_type = "github"
-                        elif "ftp" in backend_name.lower():
+                        elif 'ftp' in backend_name.lower():
                             backend_type = "ftp"
-                        elif "sshfs" in backend_name.lower():
+                        elif 'sshfs' in backend_name.lower():
                             backend_type = "sshfs"
-                        elif "huggingface" in backend_name.lower() or "hf" in backend_name.lower():
+                        elif 'huggingface' in backend_name.lower() or 'hf' in backend_name.lower():
                             backend_type = "huggingface"
-
+                        
                         backend_info = {
                             "name": backend_name,
                             "type": backend_type,
@@ -198,16 +198,14 @@ class EnhancedDashboard:
                             "health": "unknown",
                             "config": config_data,
                             "pin_mappings": pin_mappings,
-                            "last_modified": datetime.fromtimestamp(
-                                config_file.stat().st_mtime
-                            ).isoformat(),
-                            "config_file": str(config_file),
+                            "last_modified": datetime.fromtimestamp(config_file.stat().st_mtime).isoformat(),
+                            "config_file": str(config_file)
                         }
                         backends.append(backend_info)
-
+                        
                     except Exception as e:
                         logger.warning(f"Error reading backend config {config_file}: {e}")
-
+            
             return {
                 "backends": backends,
                 "total": len(backends),
@@ -215,23 +213,23 @@ class EnhancedDashboard:
                     backend_type: len([b for b in backends if b["type"] == backend_type])
                     for backend_type in set(b["type"] for b in backends)
                 },
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": datetime.now().isoformat()
             }
-
+            
         except Exception as e:
             logger.error(f"Error getting backends data: {e}")
             return {"backends": [], "error": str(e)}
-
+    
     async def _get_enhanced_pins_data(self) -> Dict[str, Any]:
         """Get comprehensive pins data from parquet files."""
         try:
             pins = []
             pins_file = self.data_dir / "pin_metadata" / "pins.parquet"
-
+            
             if pins_file.exists():
                 try:
                     df = pd.read_parquet(pins_file)
-
+                    
                     for _, row in df.iterrows():
                         pin_info = {
                             "cid": row.get("cid", ""),
@@ -242,26 +240,23 @@ class EnhancedDashboard:
                             "created_at": row.get("created_at", ""),
                             "status": row.get("status", "pinned"),
                             "metadata": row.get("metadata", {}),
-                            "display_name": row.get(
-                                "name",
-                                row.get("cid", "")[:12] + "..." if row.get("cid") else "unknown",
-                            ),
+                            "display_name": row.get("name", row.get("cid", "")[:12] + "..." if row.get("cid") else "unknown")
                         }
                         pins.append(pin_info)
-
+                        
                 except Exception as e:
                     logger.error(f"Error reading pins parquet: {e}")
-
+            
             # Get unique CIDs and calculate stats
             unique_cids = set(pin["cid"] for pin in pins if pin["cid"])
             total_size = sum(pin.get("file_size", 0) for pin in pins)
-
+            
             # Group by status
             by_status = {}
             for pin in pins:
                 status = pin.get("status", "unknown")
                 by_status[status] = by_status.get(status, 0) + 1
-
+            
             return {
                 "pins": pins,
                 "total": len(pins),
@@ -269,52 +264,50 @@ class EnhancedDashboard:
                 "total_size_bytes": total_size,
                 "total_size_mb": total_size / (1024 * 1024) if total_size else 0,
                 "by_status": by_status,
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": datetime.now().isoformat()
             }
-
+            
         except Exception as e:
             logger.error(f"Error getting pins data: {e}")
             return {"pins": [], "error": str(e)}
-
+    
     async def _get_enhanced_buckets_data(self) -> Dict[str, Any]:
         """Get comprehensive bucket data."""
         try:
             buckets = []
             buckets_dir = self.data_dir / "buckets"
             bucket_configs_dir = self.data_dir / "bucket_configs"
-
+            
             # Check bucket configs
             if bucket_configs_dir.exists():
                 for config_file in bucket_configs_dir.glob("*.yaml"):
                     try:
-                        with open(config_file, "r") as f:
+                        with open(config_file, 'r') as f:
                             config_data = yaml.safe_load(f)
-
+                        
                         bucket_name = config_file.stem
                         bucket_info = {
                             "name": bucket_name,
                             "config": config_data,
                             "type": config_data.get("type", "unknown"),
                             "status": "configured",
-                            "last_modified": datetime.fromtimestamp(
-                                config_file.stat().st_mtime
-                            ).isoformat(),
+                            "last_modified": datetime.fromtimestamp(config_file.stat().st_mtime).isoformat()
                         }
                         buckets.append(bucket_info)
-
+                        
                     except Exception as e:
                         logger.warning(f"Error reading bucket config {config_file}: {e}")
-
+            
             return {
                 "buckets": buckets,
                 "total": len(buckets),
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": datetime.now().isoformat()
             }
-
+            
         except Exception as e:
             logger.error(f"Error getting buckets data: {e}")
             return {"buckets": [], "error": str(e)}
-
+    
     async def _get_enhanced_metrics(self) -> Dict[str, Any]:
         """Get comprehensive system metrics."""
         try:
@@ -323,7 +316,7 @@ class EnhancedDashboard:
             memory = psutil.virtual_memory()
             swap = psutil.swap_memory()
             disk = psutil.disk_usage(str(self.data_dir))
-
+            
             # Network stats (if available)
             try:
                 network = psutil.net_io_counters()
@@ -331,11 +324,11 @@ class EnhancedDashboard:
                     "bytes_sent": network.bytes_sent,
                     "bytes_recv": network.bytes_recv,
                     "packets_sent": network.packets_sent,
-                    "packets_recv": network.packets_recv,
+                    "packets_recv": network.packets_recv
                 }
             except Exception:
                 network_stats = {}
-
+            
             # Process info
             try:
                 current_process = psutil.Process()
@@ -344,11 +337,11 @@ class EnhancedDashboard:
                     "memory_percent": current_process.memory_percent(),
                     "cpu_percent": current_process.cpu_percent(),
                     "num_threads": current_process.num_threads(),
-                    "create_time": current_process.create_time(),
+                    "create_time": current_process.create_time()
                 }
             except Exception:
                 process_stats = {}
-
+            
             return {
                 "timestamp": datetime.now().isoformat(),
                 "system": {
@@ -358,126 +351,96 @@ class EnhancedDashboard:
                         "times": {
                             "user": cpu_times.user,
                             "system": cpu_times.system,
-                            "idle": cpu_times.idle,
-                        },
+                            "idle": cpu_times.idle
+                        }
                     },
                     "memory": {
                         "total": memory.total,
                         "available": memory.available,
                         "percent": memory.percent,
                         "used": memory.used,
-                        "free": memory.free,
+                        "free": memory.free
                     },
                     "swap": {
                         "total": swap.total,
                         "used": swap.used,
                         "free": swap.free,
-                        "percent": swap.percent,
+                        "percent": swap.percent
                     },
                     "disk": {
                         "total": disk.total,
                         "used": disk.used,
                         "free": disk.free,
-                        "percent": (disk.used / disk.total) * 100,
-                    },
+                        "percent": (disk.used / disk.total) * 100
+                    }
                 },
                 "network": network_stats,
-                "process": process_stats,
+                "process": process_stats
             }
-
+            
         except Exception as e:
             logger.error(f"Error getting metrics: {e}")
             return {"error": str(e)}
-
+    
     async def _get_comprehensive_health(self) -> Dict[str, Any]:
         """Get comprehensive health status."""
         try:
             health_status = {
                 "overall": "healthy",
                 "timestamp": datetime.now().isoformat(),
-                "checks": {},
+                "checks": {}
             }
-
+            
             # Check MCP server
             try:
                 async with aiohttp.ClientSession() as session:
                     async with session.get(f"{self.mcp_server_url}/health", timeout=2) as resp:
                         if resp.status == 200:
-                            health_status["checks"]["mcp_server"] = {
-                                "status": "healthy",
-                                "response_time": "< 2s",
-                            }
+                            health_status["checks"]["mcp_server"] = {"status": "healthy", "response_time": "< 2s"}
                         else:
-                            health_status["checks"]["mcp_server"] = {
-                                "status": "unhealthy",
-                                "error": f"HTTP {resp.status}",
-                            }
+                            health_status["checks"]["mcp_server"] = {"status": "unhealthy", "error": f"HTTP {resp.status}"}
                             health_status["overall"] = "degraded"
             except Exception as e:
                 health_status["checks"]["mcp_server"] = {"status": "unhealthy", "error": str(e)}
                 health_status["overall"] = "degraded"
-
+            
             # Check data directory
             if self.data_dir.exists():
-                health_status["checks"]["data_directory"] = {
-                    "status": "healthy",
-                    "path": str(self.data_dir),
-                }
+                health_status["checks"]["data_directory"] = {"status": "healthy", "path": str(self.data_dir)}
             else:
-                health_status["checks"]["data_directory"] = {
-                    "status": "unhealthy",
-                    "error": "Directory not found",
-                }
+                health_status["checks"]["data_directory"] = {"status": "unhealthy", "error": "Directory not found"}
                 health_status["overall"] = "unhealthy"
-
+            
             # Check system resources
             memory = psutil.virtual_memory()
             disk = psutil.disk_usage(str(self.data_dir))
-
+            
             if memory.percent > 90:
-                health_status["checks"]["memory"] = {
-                    "status": "critical",
-                    "usage": f"{memory.percent}%",
-                }
+                health_status["checks"]["memory"] = {"status": "critical", "usage": f"{memory.percent}%"}
                 health_status["overall"] = "critical"
             elif memory.percent > 80:
-                health_status["checks"]["memory"] = {
-                    "status": "warning",
-                    "usage": f"{memory.percent}%",
-                }
+                health_status["checks"]["memory"] = {"status": "warning", "usage": f"{memory.percent}%"}
                 if health_status["overall"] == "healthy":
                     health_status["overall"] = "degraded"
             else:
-                health_status["checks"]["memory"] = {
-                    "status": "healthy",
-                    "usage": f"{memory.percent}%",
-                }
-
+                health_status["checks"]["memory"] = {"status": "healthy", "usage": f"{memory.percent}%"}
+            
             if (disk.used / disk.total) * 100 > 95:
-                health_status["checks"]["disk"] = {
-                    "status": "critical",
-                    "usage": f"{(disk.used / disk.total) * 100:.1f}%",
-                }
+                health_status["checks"]["disk"] = {"status": "critical", "usage": f"{(disk.used / disk.total) * 100:.1f}%"}
                 health_status["overall"] = "critical"
             elif (disk.used / disk.total) * 100 > 85:
-                health_status["checks"]["disk"] = {
-                    "status": "warning",
-                    "usage": f"{(disk.used / disk.total) * 100:.1f}%",
-                }
+                health_status["checks"]["disk"] = {"status": "warning", "usage": f"{(disk.used / disk.total) * 100:.1f}%"}
                 if health_status["overall"] == "healthy":
                     health_status["overall"] = "degraded"
             else:
-                health_status["checks"]["disk"] = {
-                    "status": "healthy",
-                    "usage": f"{(disk.used / disk.total) * 100:.1f}%",
-                }
-
+                health_status["checks"]["disk"] = {"status": "healthy", "usage": f"{(disk.used / disk.total) * 100:.1f}%"}
+            
             return health_status
-
+            
         except Exception as e:
             logger.error(f"Error getting health status: {e}")
             return {"overall": "unhealthy", "error": str(e)}
-
+    
     async def _render_dashboard(self) -> str:
         """Render the enhanced dashboard HTML."""
         html = """
@@ -730,12 +693,17 @@ class EnhancedDashboard:
 </html>
         """
         return html
-
+    
     async def start(self):
         """Start the enhanced dashboard server."""
-        config = uvicorn.Config(app=self.app, host=self.host, port=self.port, log_level="info")
+        config = uvicorn.Config(
+            app=self.app,
+            host=self.host,
+            port=self.port,
+            log_level="info"
+        )
         server = uvicorn.Server(config)
-
+        
         logger.info(f"🚀 Enhanced Dashboard starting on http://{self.host}:{self.port}")
         await server.serve()
 
@@ -743,22 +711,22 @@ class EnhancedDashboard:
 async def main():
     """Main entry point."""
     import argparse
-
+    
     parser = argparse.ArgumentParser(description="Enhanced IPFS Kit Dashboard")
-    parser.add_argument("--host", default="127.0.0.1", help="Host to bind to")
-    parser.add_argument("--port", type=int, default=8082, help="Port to bind to")
-    parser.add_argument("--mcp-url", default="http://127.0.0.1:8004", help="MCP server URL")
-    parser.add_argument("--data-dir", default="~/.ipfs_kit", help="Data directory")
-
+    parser.add_argument('--host', default='127.0.0.1', help='Host to bind to')
+    parser.add_argument('--port', type=int, default=8082, help='Port to bind to')
+    parser.add_argument('--mcp-url', default='http://127.0.0.1:8004', help='MCP server URL')
+    parser.add_argument('--data-dir', default='~/.ipfs_kit', help='Data directory')
+    
     args = parser.parse_args()
-
+    
     config = {
-        "host": args.host,
-        "port": args.port,
-        "mcp_server_url": args.mcp_url,
-        "data_dir": args.data_dir,
+        'host': args.host,
+        'port': args.port,
+        'mcp_server_url': args.mcp_url,
+        'data_dir': args.data_dir
     }
-
+    
     dashboard = EnhancedDashboard(config)
     await dashboard.start()
 

@@ -13,7 +13,6 @@ from datetime import datetime
 ENDPOINT = "http://localhost:9997/jsonrpc"
 TEST_ENDPOINT = "http://localhost:9997/health"
 
-
 def test_health():
     """Test the health endpoint of the MCP server."""
     print(f"Testing health endpoint: {TEST_ENDPOINT}")
@@ -31,19 +30,18 @@ def test_health():
         print(f"Error connecting to health endpoint: {e}")
         return False
 
-
 def call_jsonrpc(method, params=None):
     """Make a JSON-RPC call to the MCP server."""
     if params is None:
         params = {}
-
+    
     payload = {
         "jsonrpc": "2.0",
         "method": method,
         "params": params,
-        "id": int(datetime.now().timestamp() * 1000),
+        "id": int(datetime.now().timestamp() * 1000)
     }
-
+    
     print(f"Calling method: {method} with params: {params}")
     try:
         response = requests.post(ENDPOINT, json=payload, timeout=10)
@@ -59,15 +57,14 @@ def call_jsonrpc(method, params=None):
         print(f"Error: {e}")
         return None
 
-
 def main():
     """Run basic MCP tests."""
     print(f"Testing MCP server at {ENDPOINT}")
-
+    
     # First test the health endpoint
     if not test_health():
         print("WARNING: Health endpoint test failed, but continuing with RPC tests...")
-
+    
     # Test the ping method
     print("\nTesting ping method")
     ping_result = call_jsonrpc("ping")
@@ -75,7 +72,7 @@ def main():
         print("Ping test PASSED!")
     else:
         print("Ping test FAILED!")
-
+    
     # Test the list_tools method
     print("\nTesting list_tools method")
     tools_result = call_jsonrpc("list_tools")
@@ -84,10 +81,9 @@ def main():
         print(f"Server has {tool_count} tools available")
     else:
         print("list_tools test FAILED!")
-
+    
     # Done!
     print("\nBasic MCP tests complete")
-
 
 if __name__ == "__main__":
     main()

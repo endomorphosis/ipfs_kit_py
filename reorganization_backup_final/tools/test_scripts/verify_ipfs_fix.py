@@ -19,7 +19,10 @@ from typing import Dict, Any, Optional
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    handlers=[logging.FileHandler("verification.log"), logging.StreamHandler()],
+    handlers=[
+        logging.FileHandler("verification.log"),
+        logging.StreamHandler()
+    ]
 )
 logger = logging.getLogger("ipfs-fix-verify")
 
@@ -59,11 +62,11 @@ def call_jsonrpc(method: str, params: Dict[str, Any]) -> Dict[str, Any]:
         "jsonrpc": "2.0",
         "id": str(datetime.now().timestamp()),
         "method": method,
-        "params": params,
+        "params": params
     }
-
+    
     logger.info(f"Calling {method} with params: {json.dumps(params, indent=2)}")
-
+    
     try:
         response = requests.post(JSONRPC_URL, json=payload, timeout=TIMEOUT)
         if response.status_code == 200:
@@ -92,21 +95,19 @@ def test_ipfs_add():
         # With pin parameter
         {"content": TEST_CONTENT, "pin": True},
     ]
-
+    
     results = []
     for i, params in enumerate(test_cases):
-        logger.info(f"=== Test Case {i + 1}: {params} ===")
+        logger.info(f"=== Test Case {i+1}: {params} ===")
         result = call_jsonrpc("ipfs_add", params)
         results.append({"params": params, "result": result})
         if "error" in result:
-            logger.error(f"Test case {i + 1} failed")
-        elif (
-            "result" in result and isinstance(result["result"], dict) and "cid" in result["result"]
-        ):
-            logger.info(f"Test case {i + 1} passed - CID: {result['result']['cid']}")
+            logger.error(f"Test case {i+1} failed")
+        elif "result" in result and isinstance(result["result"], dict) and "cid" in result["result"]:
+            logger.info(f"Test case {i+1} passed - CID: {result['result']['cid']}")
         else:
-            logger.warning(f"Test case {i + 1} - unexpected result format")
-
+            logger.warning(f"Test case {i+1} - unexpected result format")
+    
     return results
 
 
@@ -115,7 +116,7 @@ def test_ipfs_cat(cid: Optional[str] = None):
     if not cid:
         # Use a known test CID if none provided
         cid = "QmPZ9gcCEpqKTo6aq61g2nXGUhM4iCL3ewB6LDXZCtioEB"
-
+    
     result = call_jsonrpc("ipfs_cat", {"cid": cid})
     if "error" in result:
         logger.error(f"ipfs_cat test failed")
@@ -132,28 +133,29 @@ def test_mfs_operations():
     if "error" in mkdir_result:
         logger.error(f"ipfs_files_mkdir test failed")
         return False
-
+    
     # Write file
-    write_result = call_jsonrpc(
-        "ipfs_files_write",
-        {"path": f"{TEST_MFS_PATH}/test.txt", "content": TEST_CONTENT, "create": True},
-    )
+    write_result = call_jsonrpc("ipfs_files_write", {
+        "path": f"{TEST_MFS_PATH}/test.txt", 
+        "content": TEST_CONTENT,
+        "create": True
+    })
     if "error" in write_result:
         logger.error(f"ipfs_files_write test failed")
         return False
-
+    
     # Read file
     read_result = call_jsonrpc("ipfs_files_read", {"path": f"{TEST_MFS_PATH}/test.txt"})
     if "error" in read_result:
         logger.error(f"ipfs_files_read test failed")
         return False
-
+    
     # List directory
     ls_result = call_jsonrpc("ipfs_files_ls", {"path": TEST_MFS_PATH})
     if "error" in ls_result:
         logger.error(f"ipfs_files_ls test failed")
         return False
-
+    
     logger.info(f"MFS operations test passed")
     return True
 
@@ -161,41 +163,35 @@ def test_mfs_operations():
 def run_all_tests():
     """Run all verification tests"""
     logger.info("Starting IPFS MCP verification tests")
-
+    
     if not check_server_health():
         logger.error("Server health check failed, cannot proceed with tests")
         return False
-
+    
     # Test ipfs_add with various parameter combinations
     add_results = test_ipfs_add()
-
+    
     # If we have a successful add result, use that CID for cat test
     cid = None
     for result in add_results:
         if "result" in result["result"] and "cid" in result["result"]["result"]:
             cid = result["result"]["result"]["cid"]
             break
-
+    
     # Test ipfs_cat
     cat_result = test_ipfs_cat(cid)
-
+    
     # Test MFS operations
     mfs_result = test_mfs_operations()
-
+    
     # Overall results
-    success = (
-        any(["result" in r["result"] and "cid" in r["result"]["result"] for r in add_results])
-        and cat_result
-        and mfs_result
-    )
-
+    success = any(["result" in r["result"] and "cid" in r["result"]["result"] for r in add_results]) and cat_result and mfs_result
+    
     if success:
-        logger.info(
-            "🎉 All verification tests PASSED! The IPFS MCP integration is working correctly."
-        )
+        logger.info("🎉 All verification tests PASSED! The IPFS MCP integration is working correctly.")
     else:
         logger.error("❌ Some verification tests FAILED. See logs for details.")
-
+    
     return success
 
 

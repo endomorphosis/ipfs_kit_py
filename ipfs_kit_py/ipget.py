@@ -60,11 +60,11 @@ class ipget:
 
         self.http_client = httpx.Client(
             transport=httpx.HTTPTransport(retries=3),
-            event_hooks={"request": [self._log_request], "response": [self._log_response]},
+            event_hooks={'request': [self._log_request], 'response': [self._log_response]}
         )
         self.ipfs_api_addr = None
-        if self.config and "Addresses" in self.config and "API" in self.config["Addresses"]:
-            self.ipfs_api_addr = self.config["Addresses"]["API"]
+        if self.config and 'Addresses' in self.config and 'API' in self.config['Addresses']:
+            self.ipfs_api_addr = self.config['Addresses']['API']
 
     def _log_request(self, request):
         logger.debug(f"Request: {request.method} {request.url}")
@@ -76,11 +76,11 @@ class ipget:
     def _get_api_addr(self):
         if self.ipfs_api_addr:
             return self.ipfs_api_addr
-
+        
         try:
             result = self._run_cli_command(["ipfs", "config", "Addresses.API"])
-            if result["success"]:
-                self.ipfs_api_addr = result["stdout"].strip()
+            if result['success']:
+                self.ipfs_api_addr = result['stdout'].strip()
                 return self.ipfs_api_addr
         except Exception as e:
             logger.warning(f"Could not get API address from config: {e}")
@@ -106,9 +106,7 @@ class ipget:
         except httpx.RequestError as e:
             raise IPFSConnectionError(f"HTTP request failed: {e}")
         except httpx.HTTPStatusError as e:
-            raise IPFSError(
-                f"HTTP request failed with status {e.response.status_code}: {e.response.text}"
-            )
+            raise IPFSError(f"HTTP request failed with status {e.response.status_code}: {e.response.text}")
 
     def run_ipget_command(self, cmd_args, check=True, timeout=30, correlation_id=None, shell=False):
         # First, try to execute the command via HTTP API if possible
@@ -118,22 +116,18 @@ class ipget:
                 params = {}
                 if len(cmd_args) > 2:
                     for i in range(2, len(cmd_args)):
-                        if cmd_args[i].startswith("--"):
-                            key, value = (
-                                cmd_args[i][2:].split("=", 1)
-                                if "=" in cmd_args[i]
-                                else (cmd_args[i][2:], "true")
-                            )
+                        if cmd_args[i].startswith('--'):
+                            key, value = cmd_args[i][2:].split('=', 1) if '=' in cmd_args[i] else (cmd_args[i][2:], 'true')
                             params[key] = value
                         else:
-                            params["arg"] = cmd_args[i]
-
+                            params['arg'] = cmd_args[i]
+                
                 response = self._http_request("POST", api_path, params=params, timeout=timeout)
                 return {
                     "success": True,
                     "stdout_json": response,
                     "stdout": json.dumps(response),
-                    "returncode": 0,
+                    "returncode": 0
                 }
         except (IPFSConnectionError, IPFSTimeoutError, IPFSError) as e:
             logger.warning(f"IPFS API request failed, falling back to CLI: {e}")

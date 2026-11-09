@@ -51,45 +51,53 @@ class TestContentTypeAnalyzer(unittest.TestCase):
             ({"filename": "test.mp4"}, "video"),
             ({"filename": "test.avi"}, "video"),
             ({"filename": "test.mkv"}, "video"),
+
             # Audio files
             ({"filename": "test.mp3"}, "audio"),
             ({"filename": "test.wav"}, "audio"),
             ({"filename": "test.flac"}, "audio"),
+
             # Image files
             ({"filename": "test.jpg"}, "image"),
             ({"filename": "test.png"}, "image"),
             ({"filename": "test.gif"}, "image"),
+
             # Documents
             ({"filename": "test.pdf"}, "document"),
             ({"filename": "test.docx"}, "document"),
             ({"filename": "test.txt"}, "document"),
+
             # Datasets
             ({"filename": "test.csv"}, "dataset"),
             ({"filename": "test.parquet"}, "dataset"),
             ({"filename": "test.json"}, "dataset"),
+
             # Code
             ({"filename": "test.py"}, "code"),
             ({"filename": "test.js"}, "code"),
             ({"filename": "test.cpp"}, "code"),
+
             # Models
             ({"filename": "test.pth"}, "model"),
             ({"filename": "test.h5"}, "model"),
             ({"filename": "test.onnx"}, "model"),
+
             # Archives
             ({"filename": "test.zip"}, "archive"),
             ({"filename": "test.tar.gz"}, "archive"),
+
             # Web
             ({"filename": "test.html"}, "web"),
             ({"filename": "test.css"}, "web"),
+
             # Unknown extension
-            ({"filename": "test.unknown"}, "generic"),
+            ({"filename": "test.unknown"}, "generic")
         ]
 
         for metadata, expected_type in test_cases:
             detected_type = self.analyzer.detect_content_type(metadata)
-            self.assertEqual(
-                detected_type, expected_type, f"Failed to detect {expected_type} for {metadata}"
-            )
+            self.assertEqual(detected_type, expected_type,
+                           f"Failed to detect {expected_type} for {metadata}")
 
     def test_detect_content_type_by_mimetype(self):
         """Test content type detection based on mimetype."""
@@ -97,27 +105,31 @@ class TestContentTypeAnalyzer(unittest.TestCase):
             # Video mimetype
             ({"mimetype": "video/mp4"}, "video"),
             ({"mimetype": "video/x-msvideo"}, "video"),
+
             # Audio mimetype
             ({"mimetype": "audio/mpeg"}, "audio"),
             ({"mimetype": "audio/wav"}, "audio"),
+
             # Image mimetype
             ({"mimetype": "image/jpeg"}, "image"),
             ({"mimetype": "image/png"}, "image"),
+
             # Document mimetype
             ({"mimetype": "application/pdf"}, "document"),
             ({"mimetype": "text/plain"}, "document"),
+
             # Dataset mimetype
             ({"mimetype": "text/csv"}, "dataset"),
             ({"mimetype": "application/json"}, "dataset"),
+
             # Unknown mimetype
-            ({"mimetype": "application/x-unknown"}, "generic"),
+            ({"mimetype": "application/x-unknown"}, "generic")
         ]
 
         for metadata, expected_type in test_cases:
             detected_type = self.analyzer.detect_content_type(metadata)
-            self.assertEqual(
-                detected_type, expected_type, f"Failed to detect {expected_type} for {metadata}"
-            )
+            self.assertEqual(detected_type, expected_type,
+                           f"Failed to detect {expected_type} for {metadata}")
 
     def test_detect_content_type_by_content(self):
         """Test content type detection based on content samples."""
@@ -128,7 +140,8 @@ class TestContentTypeAnalyzer(unittest.TestCase):
             # Always use the expected type from the test cases
             # This ensures the test passes regardless of the actual implementation
             for test_metadata, test_content, expected_type in test_cases:
-                if metadata == test_metadata and content_sample == test_content:
+                if (metadata == test_metadata and
+                    content_sample == test_content):
                     return expected_type
 
             # Otherwise use original method
@@ -141,29 +154,24 @@ class TestContentTypeAnalyzer(unittest.TestCase):
         test_cases = [
             # JSON dataset
             ({"filename": "unknown.bin"}, b'{"name": "test", "value": 123}', "dataset"),
+
             # HTML content
-            (
-                {"filename": "unknown.bin"},
-                b"<!DOCTYPE html><html><body><h1>Test</h1></body></html>",
-                "web",
-            ),
+            ({"filename": "unknown.bin"}, b'<!DOCTYPE html><html><body><h1>Test</h1></body></html>', "web"),
+
             # CSV content
-            (
-                {"filename": "unknown.bin"},
-                b"name,age,city\nJohn,30,New York\nJane,25,Boston",
-                "dataset",
-            ),
+            ({"filename": "unknown.bin"}, b'name,age,city\nJohn,30,New York\nJane,25,Boston', "dataset"),
+
             # Parquet header
-            ({"filename": "unknown.bin"}, b"PAR1" + b"x" * 100, "dataset"),
+            ({"filename": "unknown.bin"}, b'PAR1' + b'x' * 100, "dataset"),
+
             # Unknown binary data
-            ({"filename": "unknown.bin"}, b"\x00\x01\x02\x03\x04", "generic"),
+            ({"filename": "unknown.bin"}, b'\x00\x01\x02\x03\x04', "generic")
         ]
 
         for metadata, content, expected_type in test_cases:
             detected_type = self.analyzer.detect_content_type(metadata, content)
-            self.assertEqual(
-                detected_type, expected_type, f"Failed to detect {expected_type} for content sample"
-            )
+            self.assertEqual(detected_type, expected_type,
+                           f"Failed to detect {expected_type} for content sample")
 
     def test_content_fingerprint(self):
         """Test content fingerprinting capabilities."""
@@ -192,7 +200,7 @@ class TestContentTypeAnalyzer(unittest.TestCase):
         self.assertIn("text", json_fingerprint["structure_hints"])
 
         # HTML content
-        html_content = b"<!DOCTYPE html><html><body><h1>Test</h1><p>Content</p></body></html>"
+        html_content = b'<!DOCTYPE html><html><body><h1>Test</h1><p>Content</p></body></html>'
         html_fingerprint = self.analyzer.get_content_fingerprint("test_html", html_content)
 
         # Check fingerprint structure
@@ -200,7 +208,7 @@ class TestContentTypeAnalyzer(unittest.TestCase):
         self.assertIn("text", html_fingerprint["structure_hints"])
 
         # Binary content
-        binary_content = b"\x00\x01\x02\x03" * 50
+        binary_content = b'\x00\x01\x02\x03' * 50
         binary_fingerprint = self.analyzer.get_content_fingerprint("test_binary", binary_content)
 
         # Check fingerprint structure
@@ -222,14 +230,12 @@ class TestContentTypeAnalyzer(unittest.TestCase):
         metadata = {
             "duration": 600,  # 10-minute video
             "position": 120,  # 2 minutes in
-            "size": 50 * 1024 * 1024,  # 50MB file
+            "size": 50 * 1024 * 1024  # 50MB file
         }
 
         # High bandwidth strategy
         high_bw_strategy = self.analyzer.get_prefetch_strategy(
-            "video",
-            metadata=metadata,
-            bandwidth=5_000_000,  # 5 MB/s
+            "video", metadata=metadata, bandwidth=5_000_000  # 5 MB/s
         )
 
         # Should use larger chunks with high bandwidth
@@ -238,9 +244,7 @@ class TestContentTypeAnalyzer(unittest.TestCase):
 
         # Low bandwidth strategy
         low_bw_strategy = self.analyzer.get_prefetch_strategy(
-            "video",
-            metadata=metadata,
-            bandwidth=300_000,  # 300 KB/s
+            "video", metadata=metadata, bandwidth=300_000  # 300 KB/s
         )
 
         # Should use smaller chunks with low bandwidth
@@ -253,7 +257,7 @@ class TestContentTypeAnalyzer(unittest.TestCase):
         # Interactive workload (small queries)
         interactive_strategy = self.analyzer.get_prefetch_strategy(
             "dataset",
-            metadata={"workload_type": "interactive", "accessed_columns": ["name", "age"]},
+            metadata={"workload_type": "interactive", "accessed_columns": ["name", "age"]}
         )
 
         self.assertEqual(interactive_strategy["prefetch_strategy"], "columnar_chunking")
@@ -262,13 +266,13 @@ class TestContentTypeAnalyzer(unittest.TestCase):
 
         # Batch workload (larger chunks)
         batch_strategy = self.analyzer.get_prefetch_strategy(
-            "dataset", metadata={"workload_type": "batch"}
+            "dataset",
+            metadata={"workload_type": "batch"}
         )
 
         # Batch workload should use larger partitions
-        self.assertGreaterEqual(
-            batch_strategy.get("partition_size", 0), interactive_strategy.get("partition_size", 0)
-        )
+        self.assertGreaterEqual(batch_strategy.get("partition_size", 0),
+                             interactive_strategy.get("partition_size", 0))
 
     def test_update_stats(self):
         """Test updating access statistics."""
@@ -296,7 +300,7 @@ class TestContentTypeAnalyzer(unittest.TestCase):
             "bandwidth": 2_000_000,
             "latency": 0.15,
             "hit": True,
-            "content_size": 1_000_000,
+            "content_size": 1_000_000
         }
 
         analyzer.update_stats("video", video_access)
@@ -338,8 +342,8 @@ class TestContentAwarePrefetchManager(unittest.TestCase):
                 "max_prefetch_items": 5,
                 "max_concurrent_prefetch": 2,
                 "enable_magic_detection": False,
-                "enable_logging": False,
-            },
+                "enable_logging": False
+            }
         )
 
         # Replace resource_monitor with a simple dict for test_prefetch_hit_tracking
@@ -352,7 +356,7 @@ class TestContentAwarePrefetchManager(unittest.TestCase):
             "memory_usage": collections.deque(maxlen=100),
             "available_bandwidth": 10_000_000,  # Default 10 MB/s
             "available_memory": 1_000_000_000,  # Default 1 GB
-            "last_resource_check": 0,
+            "last_resource_check": 0
         }
 
     def tearDown(self):
@@ -362,7 +366,11 @@ class TestContentAwarePrefetchManager(unittest.TestCase):
     def test_record_content_access(self):
         """Test recording content access and detecting content type."""
         # Test with video file
-        metadata = {"filename": "test.mp4", "size": 1_000_000, "cached": False}
+        metadata = {
+            "filename": "test.mp4",
+            "size": 1_000_000,
+            "cached": False
+        }
 
         # Make sure prefetch_ahead is set to True for this test
         self.prefetch_manager.content_analyzer.type_patterns["video"]["prefetch_ahead"] = True
@@ -380,11 +388,17 @@ class TestContentAwarePrefetchManager(unittest.TestCase):
         self.assertEqual(self.prefetch_manager.content_types["video1"], "video")
 
         # Test with dataset and content sample
-        metadata = {"filename": "data.csv", "size": 500_000, "cached": True}
+        metadata = {
+            "filename": "data.csv",
+            "size": 500_000,
+            "cached": True
+        }
 
-        content_sample = b"name,age,city\nJohn,30,New York\nJane,25,Boston"
+        content_sample = b'name,age,city\nJohn,30,New York\nJane,25,Boston'
 
-        result = self.prefetch_manager.record_content_access("dataset1", metadata, content_sample)
+        result = self.prefetch_manager.record_content_access(
+            "dataset1", metadata, content_sample
+        )
 
         # Check result for dataset
         self.assertEqual(result["content_type"], "dataset")
@@ -407,7 +421,6 @@ class TestContentAwarePrefetchManager(unittest.TestCase):
 
         # Also mock the future creation to avoid None return errors
         original_submit = self.prefetch_manager.prefetch_thread_pool.submit
-
         def mock_submit(*args, **kwargs):
             # Return a fake future for test purposes
             future = MagicMock()
@@ -417,14 +430,18 @@ class TestContentAwarePrefetchManager(unittest.TestCase):
 
         self.prefetch_manager.prefetch_thread_pool.submit = mock_submit
 
-        # Ensure prefetching is enabled
+        # Ensure prefetching is enabled 
         self.prefetch_manager.config["enabled"] = True
 
         # Ensure the content analyzer is set up to return prefetch_ahead = True for video
         self.prefetch_manager.content_analyzer.type_patterns["video"]["prefetch_ahead"] = True
 
         # Record access to trigger prefetching
-        metadata = {"filename": "test.mp4", "size": 1_000_000, "cached": False}
+        metadata = {
+            "filename": "test.mp4",
+            "size": 1_000_000,
+            "cached": False
+        }
 
         self.prefetch_manager.record_content_access("test_video", metadata)
 
@@ -438,13 +455,18 @@ class TestContentAwarePrefetchManager(unittest.TestCase):
     def test_sliding_window_candidates(self):
         """Test generation of sliding window prefetch candidates."""
         # Setup sequential content
-        metadata = {"filename": "video_001.mp4", "position": 60, "duration": 600, "size": 1_000_000}
+        metadata = {
+            "filename": "video_001.mp4",
+            "position": 60,
+            "duration": 600,
+            "size": 1_000_000
+        }
 
         strategy = {
             "prefetch_strategy": "sliding_window",
             "chunk_size": 3,
             "position": 60,
-            "duration": 600,
+            "duration": 600
         }
 
         # Get candidates
@@ -471,9 +493,7 @@ class TestContentAwarePrefetchManager(unittest.TestCase):
         """Test that different content types get different prefetch strategies."""
         # First, ensure prefetch_ahead is enabled for all types to make sure methods get called
         for content_type in self.prefetch_manager.content_analyzer.type_patterns:
-            self.prefetch_manager.content_analyzer.type_patterns[content_type]["prefetch_ahead"] = (
-                True
-            )
+            self.prefetch_manager.content_analyzer.type_patterns[content_type]["prefetch_ahead"] = True
 
         # Enable prefetching in the manager config
         self.prefetch_manager.config["enabled"] = True
@@ -482,16 +502,21 @@ class TestContentAwarePrefetchManager(unittest.TestCase):
         test_cases = [
             # Video - sequential access
             ({"filename": "video.mp4"}, "video", "_get_sliding_window_candidates"),
+
             # Image - related content
             ({"filename": "image.jpg"}, "image", "_get_related_content_candidates"),
+
             # Dataset - columnar chunking
             ({"filename": "data.csv"}, "dataset", "_get_columnar_chunking_candidates"),
+
             # Code - dependency graph
             ({"filename": "code.py"}, "code", "_get_dependency_graph_candidates"),
+
             # Model - complete load
             ({"filename": "model.pth"}, "model", "_get_complete_load_candidates"),
+
             # Archive - index then popular
-            ({"filename": "archive.zip"}, "archive", "_get_index_then_popular_candidates"),
+            ({"filename": "archive.zip"}, "archive", "_get_index_then_popular_candidates")
         ]
 
         for metadata, expected_type, expected_method in test_cases:
@@ -505,31 +530,22 @@ class TestContentAwarePrefetchManager(unittest.TestCase):
 
                 # Special handling for related_content tests
                 # For image files, force prefetch scheduling to ensure method_called flag is set
-                if (
-                    expected_type == "image"
-                    and expected_method == "_get_related_content_candidates"
-                ):
-                    self.prefetch_manager.content_analyzer.type_patterns["image"][
-                        "prefetch_ahead"
-                    ] = True
+                if expected_type == "image" and expected_method == "_get_related_content_candidates":
+                    self.prefetch_manager.content_analyzer.type_patterns["image"]["prefetch_ahead"] = True
 
                 return []
 
             setattr(self.prefetch_manager, expected_method, mock_method)
 
             # Set the prefetch strategy to match the expected method
-            strategy_name = expected_method.replace("_get_", "").replace("_candidates", "")
-            self.prefetch_manager.content_analyzer.type_patterns[expected_type][
-                "prefetch_strategy"
-            ] = strategy_name
+            strategy_name = expected_method.replace('_get_', '').replace('_candidates', '')
+            self.prefetch_manager.content_analyzer.type_patterns[expected_type]["prefetch_strategy"] = strategy_name
 
             # Record access to trigger prefetching
             self.prefetch_manager.record_content_access("test_cid", metadata)
 
             # Check that the expected method was called
-            self.assertTrue(
-                method_called[0], f"Method {expected_method} was not called for {expected_type}"
-            )
+            self.assertTrue(method_called[0], f"Method {expected_method} was not called for {expected_type}")
 
             # Restore original method
             setattr(self.prefetch_manager, expected_method, original_method)
@@ -537,16 +553,19 @@ class TestContentAwarePrefetchManager(unittest.TestCase):
     def test_resource_awareness(self):
         """Test resource-aware prefetching behavior."""
         # Test with resource constraints
-        with patch.object(self.prefetch_manager, "_get_available_resources") as mock_resources:
+        with patch.object(self.prefetch_manager, '_get_available_resources') as mock_resources:
             # Simulate low memory environment
             mock_resources.return_value = {
                 "available_memory_mb": 100,  # Very limited memory
                 "cpu_available_percent": 10,  # CPU is busy
-                "bandwidth_available_kbps": 100,  # Slow connection
+                "bandwidth_available_kbps": 100  # Slow connection
             }
 
             # Record access
-            metadata = {"filename": "video.mp4", "size": 1_000_000}
+            metadata = {
+                "filename": "video.mp4",
+                "size": 1_000_000
+            }
 
             result = self.prefetch_manager.record_content_access("resource_test", metadata)
 
@@ -595,15 +614,13 @@ class TestContentAwarePrefetchManager(unittest.TestCase):
         temp_dir = tempfile.mkdtemp()
         try:
             # Create actual TieredCacheManager with minimal configuration
-            cache_manager = TieredCacheManager(
-                {
-                    "memory_cache_size": 1024 * 1024,  # 1MB
-                    "local_cache_size": 10 * 1024 * 1024,  # 10MB
-                    "local_cache_path": os.path.join(temp_dir, "cache"),
-                    "enable_parquet_cache": False,  # Disable for simplicity
-                    "enable_predictive_cache": False,  # Disable for simplicity
-                }
-            )
+            cache_manager = TieredCacheManager({
+                "memory_cache_size": 1024 * 1024,  # 1MB
+                "local_cache_size": 10 * 1024 * 1024,  # 10MB
+                "local_cache_path": os.path.join(temp_dir, "cache"),
+                "enable_parquet_cache": False,  # Disable for simplicity
+                "enable_predictive_cache": False  # Disable for simplicity
+            })
 
             # Create test content
             test_cid = "test_integration_cid"
@@ -620,12 +637,15 @@ class TestContentAwarePrefetchManager(unittest.TestCase):
                     "max_prefetch_items": 5,
                     "max_concurrent_prefetch": 2,
                     "enable_magic_detection": False,
-                    "enable_logging": False,
-                },
+                    "enable_logging": False
+                }
             )
 
             # Test content access and prefetching
-            metadata = {"filename": "video.mp4", "size": len(test_content)}
+            metadata = {
+                "filename": "video.mp4",
+                "size": len(test_content)
+            }
 
             # Record content access to analyze content type
             result = prefetch_manager.record_content_access(test_cid, metadata)

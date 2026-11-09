@@ -7,8 +7,8 @@ import os
 import sys
 
 # Define the path to the server_bridge.py file
-mcp_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ipfs_kit_py", "mcp")
-server_bridge_path = os.path.join(mcp_dir, "server_bridge.py")
+mcp_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'ipfs_kit_py', 'mcp')
+server_bridge_path = os.path.join(mcp_dir, 'server_bridge.py')
 
 # Check if the file exists
 if not os.path.exists(server_bridge_path):
@@ -16,7 +16,7 @@ if not os.path.exists(server_bridge_path):
     sys.exit(1)
 
 # Read the current content of the file
-with open(server_bridge_path, "r") as f:
+with open(server_bridge_path, 'r') as f:
     content = f.read()
 
 # Find the health handler method
@@ -37,16 +37,17 @@ health_method = content[health_method_start:next_method]
 if "model.isolation_mode" in health_method:
     # Replace the model.isolation_mode with a safer version using getattr
     fixed_health_method = health_method.replace(
-        "model.isolation_mode", "getattr(model, 'isolation_mode', self.isolation_mode)"
+        "model.isolation_mode",
+        "getattr(model, 'isolation_mode', self.isolation_mode)"
     )
-
+    
     # Update the content
     content = content.replace(health_method, fixed_health_method)
-
+    
     # Write the modified content back to the file
-    with open(server_bridge_path, "w") as f:
+    with open(server_bridge_path, 'w') as f:
         f.write(content)
-
+    
     print(f"✅ Fixed health method in {server_bridge_path}")
 else:
     print(f"✅ No issues found with health method in {server_bridge_path}")

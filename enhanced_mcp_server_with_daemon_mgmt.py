@@ -12,7 +12,6 @@ import os
 from typing import Any, Dict, List
 
 if os.environ.get("PYTEST_CURRENT_TEST"):
-
     class GraphRAGSearchEngine:  # type: ignore
         """Lightweight GraphRAG stub for fast pytest runs."""
 

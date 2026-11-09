@@ -13,20 +13,10 @@ from ipfs_kit_py.vfs_readiness_report import build_vfs_readiness_report
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Generate VFS readiness release evidence")
-    parser.add_argument(
-        "--benchmark",
-        default=os.environ.get("IPFS_KIT_VFS_BENCHMARK_OUT", "build/vfs_readiness_benchmark.json"),
-    )
-    parser.add_argument(
-        "--output",
-        default=os.environ.get(
-            "IPFS_KIT_VFS_READINESS_REPORT_OUT", "build/vfs_readiness_report.json"
-        ),
-    )
+    parser.add_argument("--benchmark", default=os.environ.get("IPFS_KIT_VFS_BENCHMARK_OUT", "build/vfs_readiness_benchmark.json"))
+    parser.add_argument("--output", default=os.environ.get("IPFS_KIT_VFS_READINESS_REPORT_OUT", "build/vfs_readiness_report.json"))
     parser.add_argument("--release-sha", default=os.environ.get("GITHUB_SHA"))
-    parser.add_argument(
-        "--contracts-passed", default=os.environ.get("IPFS_KIT_VFS_CONTRACTS_PASSED", "1")
-    )
+    parser.add_argument("--contracts-passed", default=os.environ.get("IPFS_KIT_VFS_CONTRACTS_PASSED", "1"))
     parser.add_argument(
         "--suites",
         default=os.environ.get(

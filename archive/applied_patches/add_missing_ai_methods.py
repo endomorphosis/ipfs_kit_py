@@ -2,7 +2,6 @@
 """
 Script to add missing AI/ML methods to high_level_api.py
 """
-
 import os
 import sys
 import re
@@ -23,7 +22,7 @@ METHODS_TO_ADD = [
     "ai_list_models",
     "ai_llama_index_query",
     "ai_query_knowledge_graph",
-    "ai_register_model",
+    "ai_register_model"
 ]
 
 # Method implementations
@@ -161,6 +160,7 @@ METHOD_IMPLEMENTATIONS = {
             
         return result
 ''',
+
     "ai_register_model": '''
     def ai_register_model(
         self, 
@@ -256,6 +256,7 @@ METHOD_IMPLEMENTATIONS = {
             
         return result
 ''',
+
     "ai_create_embeddings": '''
     def ai_create_embeddings(
         self, 
@@ -378,6 +379,7 @@ METHOD_IMPLEMENTATIONS = {
             
         return result
 ''',
+
     "ai_create_vector_index": '''
     def ai_create_vector_index(
         self, 
@@ -488,6 +490,7 @@ METHOD_IMPLEMENTATIONS = {
             
         return result
 ''',
+
     "ai_hybrid_search": '''
     def ai_hybrid_search(
         self, 
@@ -646,6 +649,7 @@ METHOD_IMPLEMENTATIONS = {
             
         return result
 ''',
+
     "ai_langchain_query": '''
     def ai_langchain_query(
         self, 
@@ -764,6 +768,7 @@ METHOD_IMPLEMENTATIONS = {
             
         return result
 ''',
+
     "ai_llama_index_query": '''
     def ai_llama_index_query(
         self, 
@@ -886,6 +891,7 @@ METHOD_IMPLEMENTATIONS = {
             
         return result
 ''',
+
     "ai_create_knowledge_graph": '''
     def ai_create_knowledge_graph(
         self, 
@@ -1088,6 +1094,7 @@ METHOD_IMPLEMENTATIONS = {
             
         return result
 ''',
+
     "ai_query_knowledge_graph": '''
     def ai_query_knowledge_graph(
         self, 
@@ -1278,6 +1285,7 @@ METHOD_IMPLEMENTATIONS = {
             
         return result
 ''',
+
     "ai_calculate_graph_metrics": '''
     def ai_calculate_graph_metrics(
         self, 
@@ -1426,6 +1434,7 @@ METHOD_IMPLEMENTATIONS = {
             
         return result
 ''',
+
     "ai_expand_knowledge_graph": '''
     def ai_expand_knowledge_graph(
         self, 
@@ -1606,6 +1615,7 @@ METHOD_IMPLEMENTATIONS = {
             
         return result
 ''',
+
     "ai_distributed_training_cancel_job": '''
     def ai_distributed_training_cancel_job(
         self, 
@@ -1704,47 +1714,45 @@ METHOD_IMPLEMENTATIONS = {
             self.logger.error(f"Error cancelling training job: {e}")
             
         return result
-''',
+'''
 }
-
 
 def fix_high_level_api():
     """Fix high_level_api.py by adding missing methods."""
     # Back up the original file
     backup_file = "ipfs_kit_py/high_level_api.py.bak.add_missing_methods"
     input_file = "ipfs_kit_py/high_level_api.py"
-
+    
     # Make a backup
     import shutil
-
     shutil.copy2(input_file, backup_file)
     print(f"Backed up original file to {backup_file}")
-
+    
     # Read the original file content
-    with open(input_file, "r", encoding="utf-8") as file:
+    with open(input_file, 'r', encoding='utf-8') as file:
         content = file.read()
-
+    
     # Find the position to insert new methods
     # Look for the last method definition or the singleton comment
     import re
-
+    
     # Find the position before the singleton comment
-    singleton_comment_match = re.search(r"# Create a singleton instance for easy import", content)
+    singleton_comment_match = re.search(r'# Create a singleton instance for easy import', content)
     if singleton_comment_match:
         insert_pos = singleton_comment_match.start()
     else:
         # If no singleton comment, find the end of the last method
-        method_matches = list(re.finditer(r"def\s+\w+\([^)]*\):", content))
+        method_matches = list(re.finditer(r'def\s+\w+\([^)]*\):', content))
         if method_matches:
             last_method = method_matches[-1]
-
+            
             # Find where this method ends (the next method or the end of the file)
-            method_name = re.search(r"def\s+(\w+)", last_method.group(0)).group(1)
-
+            method_name = re.search(r'def\s+(\w+)', last_method.group(0)).group(1)
+            
             # Find all the indented lines that follow
-            method_pattern = re.compile(r"(def\s+%s[^\n]*\n)(([ ]{4,}[^\n]*\n)*)" % method_name)
+            method_pattern = re.compile(r'(def\s+%s[^\n]*\n)(([ ]{4,}[^\n]*\n)*)' % method_name)
             method_match = method_pattern.search(content, last_method.start())
-
+            
             if method_match:
                 insert_pos = method_match.end()
             else:
@@ -1753,26 +1761,25 @@ def fix_high_level_api():
         else:
             # Fallback: insert at the end of the file
             insert_pos = len(content)
-
+    
     # Add the missing methods
     added_methods = []
     new_content = content[:insert_pos]
-
+    
     for method_name in METHODS_TO_ADD:
         if method_name in METHOD_IMPLEMENTATIONS:
             new_content += METHOD_IMPLEMENTATIONS[method_name]
             added_methods.append(method_name)
-
+    
     # Add the rest of the original file
     new_content += content[insert_pos:]
-
+    
     # Write the updated file
-    with open(input_file, "w", encoding="utf-8") as file:
+    with open(input_file, 'w', encoding='utf-8') as file:
         file.write(new_content)
-
+    
     print(f"Added {len(added_methods)} methods to {input_file}: {', '.join(added_methods)}")
     return added_methods
-
 
 if __name__ == "__main__":
     fix_high_level_api()

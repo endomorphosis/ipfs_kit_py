@@ -18,13 +18,9 @@ import unittest
 from unittest.mock import MagicMock, patch
 
 # We need to patch FastAPI imports before importing the module
-with (
-    patch("ipfs_kit_py.api.FastAPI"),
-    patch("ipfs_kit_py.api.uvicorn"),
-    patch("ipfs_kit_py.api.HTTPException"),
-    patch("ipfs_kit_py.api.CORSMiddleware"),
-    patch("ipfs_kit_py.api.IPFSSimpleAPI"),
-):
+with patch("ipfs_kit_py.api.FastAPI"), patch("ipfs_kit_py.api.uvicorn"), patch(
+    "ipfs_kit_py.api.HTTPException"
+), patch("ipfs_kit_py.api.CORSMiddleware"), patch("ipfs_kit_py.api.IPFSSimpleAPI"):
     # Only now import the module to test
     from ipfs_kit_py.api import (
         APIRequest,

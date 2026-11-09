@@ -7,7 +7,7 @@ while preserving all core IPFS Kit functionality.
 
 Steps:
 1. Identify and disable gRPC imports
-2. Create HTTP API alternatives
+2. Create HTTP API alternatives  
 3. Update configuration to use single protobuf version
 4. Create deprecation notices
 5. Preserve all core functionality
@@ -22,7 +22,7 @@ from pathlib import Path
 # Files that depend on conflicting gRPC/protobuf versions
 GRPC_DEPENDENT_FILES = [
     "ipfs_kit_py/routing/grpc_server.py",
-    "ipfs_kit_py/routing/grpc_client.py",
+    "ipfs_kit_py/routing/grpc_client.py", 
     "ipfs_kit_py/routing/grpc_auth.py",
     "ipfs_kit_py/routing/standalone_grpc_server.py",
     "ipfs_kit_py/routing/grpc/routing_pb2.py",
@@ -40,10 +40,9 @@ CORE_FUNCTIONALITY = [
     "mcp_module/",  # MCP servers
 ]
 
-
 def create_grpc_deprecation_notice():
     """Create comprehensive deprecation notice."""
-
+    
     notice_content = """# gRPC Components Deprecation Notice
 
 ## Status: DEPRECATED as of July 10, 2025
@@ -182,13 +181,12 @@ For questions about migration or HTTP API usage, please refer to the updated doc
     os.makedirs("ipfs_kit_py/routing", exist_ok=True)
     with open("ipfs_kit_py/routing/GRPC_DEPRECATION_NOTICE.md", "w") as f:
         f.write(notice_content)
-
+    
     print("✅ Created gRPC deprecation notice")
-
 
 def create_http_api_server():
     """Create HTTP API server to replace gRPC functionality."""
-
+    
     http_server_content = '''"""
 HTTP Routing API Server - Replacement for Deprecated gRPC Service
 
@@ -525,13 +523,12 @@ if __name__ == "__main__":
 
     with open("ipfs_kit_py/routing/http_server.py", "w") as f:
         f.write(http_server_content)
-
+    
     print("✅ Created HTTP API server replacement")
-
 
 def disable_grpc_imports():
     """Disable problematic gRPC imports by creating stub files."""
-
+    
     # Create stub for gRPC server
     grpc_stub_content = '''"""
 gRPC Routing Service - DEPRECATED
@@ -583,24 +580,24 @@ __all__ = ["GRPCServer", "RoutingServiceServicer"]
     # Create stubs for all gRPC files
     grpc_files = [
         "ipfs_kit_py/routing/grpc_server.py",
-        "ipfs_kit_py/routing/grpc_client.py",
+        "ipfs_kit_py/routing/grpc_client.py", 
         "ipfs_kit_py/routing/grpc_auth.py",
-        "ipfs_kit_py/routing/standalone_grpc_server.py",
+        "ipfs_kit_py/routing/standalone_grpc_server.py"
     ]
-
+    
     for grpc_file in grpc_files:
         if os.path.exists(grpc_file):
             # Backup original file
             backup_file = grpc_file + ".deprecated_backup"
             shutil.copy2(grpc_file, backup_file)
             print(f"📁 Backed up {grpc_file} to {backup_file}")
-
+        
         # Create deprecation stub
         with open(grpc_file, "w") as f:
             f.write(grpc_stub_content)
-
+        
         print(f"🚫 Disabled gRPC imports in {grpc_file}")
-
+    
     # Handle protobuf generated files
     grpc_dir = "ipfs_kit_py/routing/grpc"
     if os.path.exists(grpc_dir):
@@ -610,82 +607,80 @@ __all__ = ["GRPCServer", "RoutingServiceServicer"]
             shutil.rmtree(backup_dir)
         shutil.copytree(grpc_dir, backup_dir)
         print(f"📁 Backed up {grpc_dir} to {backup_dir}")
-
+        
         # Create empty __init__.py to prevent imports
         init_file = os.path.join(grpc_dir, "__init__.py")
         with open(init_file, "w") as f:
             f.write('"""gRPC protobuf modules deprecated - use HTTP API"""\n')
             f.write('raise ImportError("gRPC protobuf modules deprecated")\n')
-
+        
         print(f"🚫 Disabled protobuf imports in {grpc_dir}")
-
 
 def update_imports_to_avoid_grpc():
     """Update imports in other files to avoid gRPC dependencies."""
-
+    
     # Files that might import gRPC components
     files_to_check = [
         "ipfs_kit_py/__init__.py",
         "ipfs_kit_py/ipfs_kit.py",
         "mcp_module/mcp_server.py",
-        "enhanced_mcp_server_with_daemon_mgmt.py",
+        "enhanced_mcp_server_with_daemon_mgmt.py"
     ]
-
+    
     for file_path in files_to_check:
         if not os.path.exists(file_path):
             continue
-
+            
         print(f"🔍 Checking {file_path} for gRPC imports...")
-
+        
         try:
             with open(file_path, "r") as f:
                 content = f.read()
-
+            
             # Check for gRPC imports
             grpc_imports = [
                 "from ipfs_kit_py.routing.grpc_server",
-                "from ipfs_kit_py.routing.grpc_client",
+                "from ipfs_kit_py.routing.grpc_client", 
                 "from ipfs_kit_py.routing.grpc_auth",
                 "from ipfs_kit_py.routing.standalone_grpc_server",
                 "import ipfs_kit_py.routing.grpc",
-                "from .routing.grpc",
+                "from .routing.grpc"
             ]
-
+            
             has_grpc_imports = any(imp in content for imp in grpc_imports)
-
+            
             if has_grpc_imports:
                 print(f"⚠️  Found gRPC imports in {file_path}")
                 # Create backup
                 backup_path = file_path + ".pre_grpc_deprecation_backup"
                 shutil.copy2(file_path, backup_path)
                 print(f"📁 Backed up to {backup_path}")
-
+                
                 # Comment out gRPC imports
-                lines = content.split("\n")
+                lines = content.split('\n')
                 updated_lines = []
-
+                
                 for line in lines:
                     if any(imp in line for imp in grpc_imports):
                         updated_lines.append(f"# DEPRECATED: {line}")
                         updated_lines.append("# Use ipfs_kit_py.routing.http_server instead")
                     else:
                         updated_lines.append(line)
-
+                
                 # Write updated content
                 with open(file_path, "w") as f:
-                    f.write("\n".join(updated_lines))
-
+                    f.write('\n'.join(updated_lines))
+                
                 print(f"✅ Updated {file_path} to remove gRPC imports")
             else:
                 print(f"✅ No gRPC imports found in {file_path}")
-
+                
         except Exception as e:
             print(f"❌ Error checking {file_path}: {e}")
 
-
 def create_compatibility_layer():
     """Create compatibility layer for smooth transition."""
-
+    
     compat_content = '''"""
 IPFS Kit Compatibility Layer for gRPC Deprecation
 
@@ -753,67 +748,64 @@ __all__ = ["grpc_deprecation_warning", "get_routing_client", "get_routing_server
 
     with open("ipfs_kit_py/compat.py", "w") as f:
         f.write(compat_content)
-
+    
     print("✅ Created compatibility layer")
-
 
 def update_setup_requirements():
     """Update setup.py to remove gRPC dependencies."""
-
+    
     setup_files = ["setup.py", "pyproject.toml"]
-
+    
     for setup_file in setup_files:
         if not os.path.exists(setup_file):
             continue
-
+            
         print(f"🔍 Updating {setup_file}...")
-
+        
         try:
             with open(setup_file, "r") as f:
                 content = f.read()
-
+            
             # Backup original
             backup_path = setup_file + ".pre_grpc_deprecation_backup"
             shutil.copy2(setup_file, backup_path)
-
+            
             # Remove gRPC dependencies
             grpc_deps = [
                 "grpcio",
-                "grpcio-tools",
+                "grpcio-tools", 
                 "grpcio-status",
-                "protobuf==5.29.0",  # Specific version that caused conflicts
+                "protobuf==5.29.0"  # Specific version that caused conflicts
             ]
-
+            
             updated_content = content
             for dep in grpc_deps:
                 # Remove exact matches and version specifications
                 import re
-
                 pattern = rf'["\']?{re.escape(dep)}[^"\']*["\']?,?\s*\n?'
-                updated_content = re.sub(pattern, "", updated_content)
-
+                updated_content = re.sub(pattern, '', updated_content)
+            
             # Clean up any remaining protobuf constraints
             # Keep compatible protobuf version for libp2p
             if "protobuf" not in updated_content:
                 # Add back compatible protobuf version
                 if "install_requires" in updated_content:
                     updated_content = updated_content.replace(
-                        "install_requires=[",
-                        'install_requires=[\n    "protobuf>=3.20.1,<4.0.0",  # Compatible with libp2p',
+                        "install_requires=[", 
+                        'install_requires=[\n    "protobuf>=3.20.1,<4.0.0",  # Compatible with libp2p'
                     )
-
+            
             with open(setup_file, "w") as f:
                 f.write(updated_content)
-
+            
             print(f"✅ Updated {setup_file} - removed gRPC dependencies")
-
+            
         except Exception as e:
             print(f"❌ Error updating {setup_file}: {e}")
 
-
 def create_migration_script():
     """Create script to help users migrate from gRPC to HTTP API."""
-
+    
     migration_content = '''#!/usr/bin/env python3
 """
 Migration Script: gRPC to HTTP API
@@ -950,54 +942,53 @@ if __name__ == "__main__":
 
     with open("migrate_grpc_to_http.py", "w") as f:
         f.write(migration_content)
-
+    
     os.chmod("migrate_grpc_to_http.py", 0o755)
     print("✅ Created migration script")
 
-
 def main():
     """Main deprecation function."""
-
+    
     print("🚫 Deprecating gRPC Components to Resolve Protobuf Conflicts")
     print("=" * 65)
-
+    
     print("📋 Analysis Summary:")
     print("  • gRPC routing service requires: protobuf==5.29.0")
-    print("  • libp2p networking requires: protobuf>=3.20.1,<4.0.0")
+    print("  • libp2p networking requires: protobuf>=3.20.1,<4.0.0")  
     print("  • Current environment has: protobuf 6.30.2 or 3.20.3")
     print("  • Result: Runtime validation failures and import crashes")
     print()
-
+    
     print("🎯 Deprecation Strategy:")
     print("  • Disable gRPC routing service (optional component)")
     print("  • Create HTTP API replacement")
     print("  • Preserve all core IPFS Kit functionality")
     print("  • Use single compatible protobuf version")
     print()
-
+    
     print("🔧 Implementing deprecation...")
-
+    
     # Step 1: Create documentation
     create_grpc_deprecation_notice()
-
+    
     # Step 2: Create HTTP API replacement
     create_http_api_server()
-
-    # Step 3: Disable gRPC imports
+    
+    # Step 3: Disable gRPC imports  
     disable_grpc_imports()
-
+    
     # Step 4: Update other imports
     update_imports_to_avoid_grpc()
-
+    
     # Step 5: Create compatibility layer
     create_compatibility_layer()
-
+    
     # Step 6: Update setup requirements
     update_setup_requirements()
-
+    
     # Step 7: Create migration tools
     create_migration_script()
-
+    
     print()
     print("✅ gRPC Deprecation Complete!")
     print()
@@ -1021,7 +1012,6 @@ def main():
     print("  4. Update any custom code using gRPC routing")
     print()
     print("🎉 IPFS Kit is now protobuf-conflict-free!")
-
 
 if __name__ == "__main__":
     main()

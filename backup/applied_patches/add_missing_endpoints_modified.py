@@ -16,10 +16,10 @@ import time
 
 # Setup logging
 logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger("add-missing-endpoints")
-
 
 def add_endpoints_to_server(server_path):
     """Add missing endpoints to the MCP server."""
@@ -41,7 +41,7 @@ def add_endpoints_to_server(server_path):
     logger.info(f"Created backup at {backup_path}")
 
     # Check if the endpoints already exist
-    if "async def versions(" in content and '@self.router.get(""' in content:
+    if "async def versions(" in content and "@self.router.get(\"\"" in content:
         logger.info("Root and versions endpoints already exist")
         return True
 
@@ -63,24 +63,22 @@ def add_endpoints_to_server(server_path):
     # Create new endpoints to add
     new_endpoints = [
         f',\n{indent}    ("", self.mcp_root, ["GET"])',
-        f',\n{indent}    ("/versions", self.versions_endpoint, ["GET"])',
+        f',\n{indent}    ("/versions", self.versions_endpoint, ["GET"])'
     ]
 
     if not health_exists:
         new_endpoints.append(f',\n{indent}    ("/health", self.health_check, ["GET"])')
 
     # Add the endpoints to the list
-    modified_content = content[: endpoints_end - 1]
+    modified_content = content[:endpoints_end - 1]
     for endpoint in new_endpoints:
         modified_content += endpoint
-    modified_content += content[endpoints_end - 1 :]
+    modified_content += content[endpoints_end - 1:]
 
     # Now add the endpoint methods to the class
 
     # Find a good place to add the methods - before the last method or at the end of the class
-    method_definition = re.search(
-        r"(\s+)def\s+\w+\([^)]*\):\s*\n\s+\"\"\"[^\"]*\"\"\"\s*\n", content
-    )
+    method_definition = re.search(r"(\s+)def\s+\w+\([^)]*\):\s*\n\s+\"\"\"[^\"]*\"\"\"\s*\n", content)
     if method_definition:
         indent = method_definition.group(1)
         method_pos = content.rfind(f"{indent}def ")
@@ -168,11 +166,9 @@ def add_endpoints_to_server(server_path):
     logger.info("Successfully added missing endpoints to the server")
     return True
 
-
 if __name__ == "__main__":
-    server_path = os.path.join(
-        os.path.dirname(os.path.abspath(__file__)), "ipfs_kit_py", "mcp", "server.py"
-    )
+    server_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                              "ipfs_kit_py", "mcp", "server.py")
 
     if len(sys.argv) > 1:
         server_path = sys.argv[1]

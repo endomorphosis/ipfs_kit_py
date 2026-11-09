@@ -408,7 +408,7 @@ class TestHighLevelAPIAIML(unittest.TestCase):
         # Setup test data
         model_cid = "QmTestModelCID"
         test_data_cid = "QmTestDataCID"
-
+        
         # Test with keyword-only parameters
         batch_size = 32
         max_samples = 100
@@ -423,12 +423,16 @@ class TestHighLevelAPIAIML(unittest.TestCase):
                 "success": True,
                 "model_cid": model_cid,
                 "test_data_cid": test_data_cid,
-                "metrics": {"accuracy": 0.92, "precision": 0.89, "recall": 0.87},
+                "metrics": {
+                    "accuracy": 0.92,
+                    "precision": 0.89,
+                    "recall": 0.87
+                },
                 "predictions_cid": "QmPredictionsCID",
                 "samples_processed": 100,
                 "sample_predictions": [
                     {"sample_id": 0, "prediction": 1, "confidence": 0.95},
-                    {"sample_id": 1, "prediction": 0, "confidence": 0.89},
+                    {"sample_id": 1, "prediction": 0, "confidence": 0.89}
                 ],
                 "processing_time_ms": 1250,
                 "inference_time_per_sample_ms": 12.5,
@@ -437,13 +441,13 @@ class TestHighLevelAPIAIML(unittest.TestCase):
 
             # Test with AI/ML integration unavailable
             result = self.api.ai_test_inference(
-                model_cid,
+                model_cid, 
                 test_data_cid,
                 batch_size=batch_size,
                 max_samples=max_samples,
                 metrics=metrics,
                 output_format=output_format,
-                device=device,
+                device=device
             )
 
             # Verify
@@ -459,13 +463,13 @@ class TestHighLevelAPIAIML(unittest.TestCase):
                 "AI/ML integration not available, using simulated response",
             )
             mock_test_inference.assert_called_once_with(
-                model_cid,
+                model_cid, 
                 test_data_cid,
                 batch_size=batch_size,
                 max_samples=max_samples,
                 metrics=metrics,
                 output_format=output_format,
-                device=device,
+                device=device
             )
 
         # Test with AI/ML integration available by patching the method directly
@@ -475,16 +479,23 @@ class TestHighLevelAPIAIML(unittest.TestCase):
                 "success": True,
                 "model_cid": model_cid,
                 "test_data_cid": test_data_cid,
-                "metrics": {"accuracy": 0.94, "precision": 0.92, "recall": 0.90},
+                "metrics": {
+                    "accuracy": 0.94,
+                    "precision": 0.92,
+                    "recall": 0.90
+                },
                 "predictions_cid": "QmRealPredictionsCID",
                 "samples_processed": 100,
                 "processing_time_ms": 980,
-                "inference_time_per_sample_ms": 9.8,
+                "inference_time_per_sample_ms": 9.8
             }
 
             # Simulate AI/ML integration available
             result = self.api.ai_test_inference(
-                model_cid, test_data_cid, batch_size=batch_size, compute_metrics=True
+                model_cid, 
+                test_data_cid,
+                batch_size=batch_size,
+                compute_metrics=True
             )
 
             # Verify
@@ -493,7 +504,10 @@ class TestHighLevelAPIAIML(unittest.TestCase):
             self.assertEqual(result["metrics"]["accuracy"], 0.94)
             self.assertEqual(result["predictions_cid"], "QmRealPredictionsCID")
             mock_test_inference.assert_called_once_with(
-                model_cid, test_data_cid, batch_size=batch_size, compute_metrics=True
+                model_cid, 
+                test_data_cid,
+                batch_size=batch_size,
+                compute_metrics=True
             )
 
     def test_ai_update_deployment(self):
@@ -1470,7 +1484,7 @@ class TestHighLevelAPIAIML(unittest.TestCase):
         entity_types = ["Person", "Organization", "Location"]
         relationship_types = ["worksFor", "locatedIn"]
         max_entities = 50
-
+        
         # Test with AI/ML integration unavailable with simulation allowed
         with patch.object(self.api, "ai_create_knowledge_graph") as mock_create_graph:
             mock_create_graph.return_value = {
@@ -1484,7 +1498,7 @@ class TestHighLevelAPIAIML(unittest.TestCase):
                         "id": "person_0",
                         "type": "Person",
                         "name": "Person 0",
-                        "properties": {"occupation": "Researcher"},
+                        "properties": {"occupation": "Researcher"}
                     }
                 ],
                 "relationships": [
@@ -1493,14 +1507,14 @@ class TestHighLevelAPIAIML(unittest.TestCase):
                         "type": "worksFor",
                         "source": "person_0",
                         "target": "organization_1",
-                        "properties": {"confidence": 0.9},
+                        "properties": {"confidence": 0.9}
                     }
                 ],
                 "entity_count": 25,
                 "relationship_count": 50,
                 "source_data_cid": source_data_cid,
                 "processing_time_ms": 550,
-                "simulation_note": "AI/ML integration not available, using simulated response",
+                "simulation_note": "AI/ML integration not available, using simulated response"
             }
 
             # Test with AI/ML integration unavailable
@@ -1512,7 +1526,7 @@ class TestHighLevelAPIAIML(unittest.TestCase):
                 max_entities=max_entities,
                 include_text_context=True,
                 extract_metadata=True,
-                allow_simulation=True,
+                allow_simulation=True
             )
 
             # Verify
@@ -1538,7 +1552,7 @@ class TestHighLevelAPIAIML(unittest.TestCase):
                 max_entities=max_entities,
                 include_text_context=True,
                 extract_metadata=True,
-                allow_simulation=True,
+                allow_simulation=True
             )
 
         # Test with AI/ML integration available by patching the method directly
@@ -1555,14 +1569,14 @@ class TestHighLevelAPIAIML(unittest.TestCase):
                         "id": "person_123",
                         "type": "Person",
                         "name": "Jane Doe",
-                        "properties": {"occupation": "Data Scientist", "expertise": "AI"},
+                        "properties": {"occupation": "Data Scientist", "expertise": "AI"}
                     },
                     {
                         "id": "org_456",
                         "type": "Organization",
                         "name": "TechCorp",
-                        "properties": {"industry": "Technology", "size": "Large"},
-                    },
+                        "properties": {"industry": "Technology", "size": "Large"}
+                    }
                 ],
                 "relationships": [
                     {
@@ -1570,20 +1584,25 @@ class TestHighLevelAPIAIML(unittest.TestCase):
                         "type": "worksFor",
                         "source": "person_123",
                         "target": "org_456",
-                        "properties": {"confidence": 0.95, "since": "2020"},
+                        "properties": {"confidence": 0.95, "since": "2020"}
                     }
                 ],
                 "entity_count": 42,
                 "relationship_count": 78,
                 "source_data_cid": source_data_cid,
                 "processing_time_ms": 1250,
-                "entity_types": {"Person": 15, "Organization": 12, "Location": 8, "Topic": 7},
+                "entity_types": {
+                    "Person": 15,
+                    "Organization": 12,
+                    "Location": 8,
+                    "Topic": 7
+                },
                 "relationship_types": {
                     "worksFor": 14,
                     "locatedIn": 12,
                     "mentions": 32,
-                    "relatedTo": 20,
-                },
+                    "relatedTo": 20
+                }
             }
 
             # Simulate AI/ML integration available
@@ -1593,7 +1612,7 @@ class TestHighLevelAPIAIML(unittest.TestCase):
                 entity_types=entity_types,
                 relationship_types=relationship_types,
                 max_entities=max_entities,
-                save_intermediate_results=True,
+                save_intermediate_results=True
             )
 
             # Verify
@@ -1611,12 +1630,12 @@ class TestHighLevelAPIAIML(unittest.TestCase):
             self.assertEqual(result["entity_types"]["Person"], 15)
             self.assertEqual(result["relationship_types"]["worksFor"], 14)
             mock_create_graph.assert_called_once()
-
+            
     def test_ai_create_knowledge_graph_failure(self):
         """Test error handling when creating a knowledge graph fails."""
         # Setup test data
         source_data_cid = "QmTestSourceDataCID"
-
+        
         # Test with AI/ML integration unavailable and simulation not allowed
         with patch.object(self.api, "ai_create_knowledge_graph") as mock_create_graph:
             mock_create_graph.return_value = {
@@ -1625,11 +1644,14 @@ class TestHighLevelAPIAIML(unittest.TestCase):
                 "timestamp": time.time(),
                 "error": "AI/ML integration not available and simulation not allowed",
                 "error_type": "IntegrationError",
-                "source_data_cid": source_data_cid,
+                "source_data_cid": source_data_cid
             }
 
             # Test with simulation not allowed
-            result = self.api.ai_create_knowledge_graph(source_data_cid, allow_simulation=False)
+            result = self.api.ai_create_knowledge_graph(
+                source_data_cid,
+                allow_simulation=False
+            )
 
             # Verify
             self.assertFalse(result["success"])
@@ -1638,7 +1660,7 @@ class TestHighLevelAPIAIML(unittest.TestCase):
             self.assertTrue("error" in result)
             self.assertTrue("error_type" in result)
             self.assertEqual(result["error_type"], "IntegrationError")
-
+            
         # Test with empty source_data_cid
         with patch.object(self.api, "ai_create_knowledge_graph") as mock_create_graph:
             mock_create_graph.return_value = {
@@ -1646,18 +1668,21 @@ class TestHighLevelAPIAIML(unittest.TestCase):
                 "operation": "ai_create_knowledge_graph",
                 "timestamp": time.time(),
                 "error": "Source data CID cannot be empty",
-                "error_type": "ValidationError",
+                "error_type": "ValidationError"
             }
 
             # Test with empty CID
-            result = self.api.ai_create_knowledge_graph("", graph_name="test_graph")
+            result = self.api.ai_create_knowledge_graph(
+                "",
+                graph_name="test_graph"
+            )
 
             # Verify
             self.assertFalse(result["success"])
             self.assertEqual(result["operation"], "ai_create_knowledge_graph")
             self.assertTrue("error" in result)
             self.assertEqual(result["error_type"], "ValidationError")
-
+            
         # Test with exception in implementation
         with patch.object(self.api, "ai_create_knowledge_graph") as mock_create_graph:
             mock_create_graph.return_value = {
@@ -1666,11 +1691,14 @@ class TestHighLevelAPIAIML(unittest.TestCase):
                 "timestamp": time.time(),
                 "error": "KnowledgeGraphManager initialization failed",
                 "error_type": "ImportError",
-                "source_data_cid": source_data_cid,
+                "source_data_cid": source_data_cid
             }
 
             # Test with AI/ML integration that throws an exception
-            result = self.api.ai_create_knowledge_graph(source_data_cid, graph_name="test_graph")
+            result = self.api.ai_create_knowledge_graph(
+                source_data_cid,
+                graph_name="test_graph"
+            )
 
             # Verify
             self.assertFalse(result["success"])
@@ -1678,7 +1706,7 @@ class TestHighLevelAPIAIML(unittest.TestCase):
             self.assertEqual(result["source_data_cid"], source_data_cid)
             self.assertTrue("error" in result)
             self.assertEqual(result["error_type"], "ImportError")
-
+        
     def test_ai_query_knowledge_graph(self):
         """Test querying knowledge graph."""
         # Setup test data

@@ -108,7 +108,7 @@ def validate_parameters(params: Dict[str, Any], spec: Dict[str, Any]) -> Dict[st
             choices = param_spec.get("choices")
             if choices is not None and value not in choices:
                 raise IPFSValidationError(
-                    f"Parameter '{param_name}' has invalid value. Must be one of: {choices}"
+                    f"Parameter '{param_name}' has invalid value. " f"Must be one of: {choices}"
                 )
 
             # Validate min/max for numbers
@@ -116,13 +116,13 @@ def validate_parameters(params: Dict[str, Any], spec: Dict[str, Any]) -> Dict[st
                 min_value = param_spec.get("min")
                 if min_value is not None and value < min_value:
                     raise IPFSValidationError(
-                        f"Parameter '{param_name}' is too small. Minimum value is {min_value}"
+                        f"Parameter '{param_name}' is too small. " f"Minimum value is {min_value}"
                     )
 
                 max_value = param_spec.get("max")
                 if max_value is not None and value > max_value:
                     raise IPFSValidationError(
-                        f"Parameter '{param_name}' is too large. Maximum value is {max_value}"
+                        f"Parameter '{param_name}' is too large. " f"Maximum value is {max_value}"
                     )
 
             # Add validated value to result

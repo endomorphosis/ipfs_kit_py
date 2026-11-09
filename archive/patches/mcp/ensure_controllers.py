@@ -550,38 +550,36 @@ CONTROLLER_FILES = {
     "storage_manager_controller.py": STORAGE_MANAGER_CONTROLLER_CONTENT,
 }
 
-
 def ensure_controller_files():
     """Create or update the essential controller files."""
     print("Creating essential controller files...")
-
+    
     for filename, content in CONTROLLER_FILES.items():
         file_path = CONTROLLERS_DIR / filename
-
+        
         # Check if file already exists
         if file_path.exists():
-            with open(file_path, "r") as f:
+            with open(file_path, 'r') as f:
                 existing_content = f.read()
-
+            
             # Skip if file already has the expected content
             if existing_content.strip() == content.strip():
                 print(f"File {filename} already has the correct content, skipping")
                 continue
-
+            
             # Create backup if file exists but has different content
             backup_path = file_path.with_suffix(".py.bak")
-            with open(backup_path, "w") as f:
+            with open(backup_path, 'w') as f:
                 f.write(existing_content)
                 print(f"Created backup at {backup_path}")
-
+        
         # Write the content
-        with open(file_path, "w") as f:
+        with open(file_path, 'w') as f:
             f.write(content)
-
+            
         print(f"Created/updated {filename}")
-
+    
     print("All controller files created successfully")
-
 
 if __name__ == "__main__":
     try:

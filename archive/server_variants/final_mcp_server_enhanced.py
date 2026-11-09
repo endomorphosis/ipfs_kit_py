@@ -32,8 +32,11 @@ from datetime import datetime
 # Configure comprehensive logging
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    handlers=[logging.FileHandler("final_mcp_server.log", mode="w"), logging.StreamHandler()],
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler("final_mcp_server.log", mode='w'),
+        logging.StreamHandler()
+    ]
 )
 logger = logging.getLogger("final-mcp")
 
@@ -50,38 +53,41 @@ request_count = 0
 # ENHANCED MOCK IPFS IMPLEMENTATION
 # ============================================================================
 
-
 class MockIPFSKit:
     """
     Enhanced Mock IPFS implementation for reliable testing.
     Provides all core IPFS operations with realistic behavior.
     """
-
+    
     def __init__(self):
         self.storage = {}
         self.pins = set()
-        self.stats = {"operations": 0, "storage_size": 0, "pin_count": 0}
+        self.stats = {
+            "operations": 0,
+            "storage_size": 0,
+            "pin_count": 0
+        }
         logger.info("🚀 MockIPFSKit initialized")
-
+    
     async def add(self, content: Union[str, bytes]) -> str:
         """Add content to mock IPFS storage"""
         try:
             if isinstance(content, str):
-                content = content.encode("utf-8")
-
+                content = content.encode('utf-8')
+            
             # Generate realistic CID
             cid = f"Qm{hashlib.sha256(content).hexdigest()[:44]}"
             self.storage[cid] = content
             self.stats["operations"] += 1
             self.stats["storage_size"] += len(content)
-
+            
             logger.info(f"✅ Added {len(content)} bytes -> {cid}")
             return cid
-
+            
         except Exception as e:
             logger.error(f"❌ Add operation failed: {e}")
             raise
-
+    
     async def cat(self, cid: str) -> bytes:
         """Retrieve content from mock IPFS storage"""
         try:
@@ -92,55 +98,53 @@ class MockIPFSKit:
                 return content
             else:
                 # Generate mock content for unknown CIDs (realistic behavior)
-                mock_content = f"Mock content for CID: {cid}\nGenerated at: {datetime.now().isoformat()}".encode(
-                    "utf-8"
-                )
+                mock_content = f"Mock content for CID: {cid}\nGenerated at: {datetime.now().isoformat()}".encode('utf-8')
                 logger.info(f"🔧 Generated mock content for unknown CID: {cid}")
                 return mock_content
-
+                
         except Exception as e:
             logger.error(f"❌ Cat operation failed for {cid}: {e}")
             raise
-
+    
     async def pin_add(self, cid: str) -> Dict[str, Any]:
         """Pin content in mock IPFS"""
         try:
             self.pins.add(cid)
             self.stats["operations"] += 1
             self.stats["pin_count"] = len(self.pins)
-
+            
             logger.info(f"📌 Pinned CID: {cid}")
             return {"Pins": [cid], "Progress": cid}
-
+            
         except Exception as e:
             logger.error(f"❌ Pin add failed for {cid}: {e}")
             raise
-
+    
     async def pin_rm(self, cid: str) -> Dict[str, Any]:
         """Unpin content from mock IPFS"""
         try:
             self.pins.discard(cid)
             self.stats["operations"] += 1
             self.stats["pin_count"] = len(self.pins)
-
+            
             logger.info(f"📌❌ Unpinned CID: {cid}")
             return {"Pins": [cid]}
-
+            
         except Exception as e:
             logger.error(f"❌ Pin remove failed for {cid}: {e}")
             raise
-
+    
     async def version(self) -> Dict[str, Any]:
         """Get mock IPFS version information"""
         return {
             "Version": "0.20.0-mock",
             "Commit": "mock-commit-final",
-            "Repo": "15",
+            "Repo": "15", 
             "System": "amd64/linux",
             "Golang": "go1.19.1",
-            "Server": f"ipfs_kit_py-{__version__}",
+            "Server": f"ipfs_kit_py-{__version__}"
         }
-
+    
     def get_stats(self) -> Dict[str, Any]:
         """Get storage statistics"""
         return {
@@ -148,9 +152,8 @@ class MockIPFSKit:
             "storage_size_bytes": self.stats["storage_size"],
             "pinned_count": self.stats["pin_count"],
             "stored_objects": len(self.storage),
-            "server_uptime": str(datetime.now() - server_start_time),
+            "server_uptime": str(datetime.now() - server_start_time)
         }
-
 
 # Global IPFS instance
 ipfs = MockIPFSKit()
@@ -165,17 +168,19 @@ try:
     from fastapi.responses import JSONResponse
     from pydantic import BaseModel, Field
     import uvicorn
-
+    
     # Enhanced request models
     class AddRequest(BaseModel):
         content: str = Field(..., description="Content to add to IPFS")
-
+        
         class Config:
-            json_schema_extra = {"example": {"content": "Hello, IPFS!"}}
-
+            json_schema_extra = {
+                "example": {"content": "Hello, IPFS!"}
+            }
+    
     class PinRequest(BaseModel):
         recursive: bool = Field(default=True, description="Pin recursively")
-
+    
     # Create FastAPI application with comprehensive configuration
     app = FastAPI(
         title="Final MCP Server",
@@ -183,9 +188,9 @@ try:
         version=__version__,
         docs_url="/docs",
         redoc_url="/redoc",
-        openapi_url="/openapi.json",
+        openapi_url="/openapi.json"
     )
-
+    
     # Add CORS middleware for cross-origin requests
     app.add_middleware(
         CORSMiddleware,
@@ -194,7 +199,7 @@ try:
         allow_methods=["*"],
         allow_headers=["*"],
     )
-
+    
     # Request counter middleware
     @app.middleware("http")
     async def count_requests(request: Request, call_next):
@@ -203,7 +208,7 @@ try:
         response = await call_next(request)
         response.headers["X-Request-Count"] = str(request_count)
         return response
-
+    
     # Error handler
     @app.exception_handler(Exception)
     async def global_exception_handler(request: Request, exc: Exception):
@@ -213,14 +218,14 @@ try:
             content={
                 "error": "Internal server error",
                 "message": str(exc),
-                "path": str(request.url.path),
-            },
+                "path": str(request.url.path)
+            }
         )
-
+    
     # ========================================================================
     # API ENDPOINTS
     # ========================================================================
-
+    
     @app.get("/", summary="Server Information")
     async def root():
         """Get server information and status"""
@@ -233,12 +238,12 @@ try:
             "requests_served": request_count,
             "endpoints": {
                 "health": "/health",
-                "tools": "/mcp/tools",
+                "tools": "/mcp/tools", 
                 "docs": "/docs",
-                "ipfs": "/ipfs/*",
-            },
+                "ipfs": "/ipfs/*"
+            }
         }
-
+    
     @app.get("/health", summary="Health Check")
     async def health():
         """Comprehensive health check endpoint"""
@@ -250,9 +255,12 @@ try:
             "uptime": str(datetime.now() - server_start_time),
             "ipfs_mock": True,
             "stats": stats,
-            "system": {"python_version": sys.version, "platform": sys.platform},
+            "system": {
+                "python_version": sys.version,
+                "platform": sys.platform
+            }
         }
-
+    
     @app.get("/mcp/tools", summary="List MCP Tools")
     async def list_tools():
         """List all available MCP tools"""
@@ -262,37 +270,37 @@ try:
                     "name": "ipfs_add",
                     "description": "Add content to IPFS",
                     "method": "POST",
-                    "endpoint": "/ipfs/add",
+                    "endpoint": "/ipfs/add"
                 },
                 {
-                    "name": "ipfs_cat",
+                    "name": "ipfs_cat", 
                     "description": "Get content from IPFS",
                     "method": "GET",
-                    "endpoint": "/ipfs/cat/{cid}",
+                    "endpoint": "/ipfs/cat/{cid}"
                 },
                 {
                     "name": "ipfs_pin_add",
-                    "description": "Pin content in IPFS",
+                    "description": "Pin content in IPFS", 
                     "method": "POST",
-                    "endpoint": "/ipfs/pin/add/{cid}",
+                    "endpoint": "/ipfs/pin/add/{cid}"
                 },
                 {
                     "name": "ipfs_pin_rm",
                     "description": "Unpin content in IPFS",
-                    "method": "DELETE",
-                    "endpoint": "/ipfs/pin/rm/{cid}",
+                    "method": "DELETE", 
+                    "endpoint": "/ipfs/pin/rm/{cid}"
                 },
                 {
                     "name": "ipfs_version",
                     "description": "Get IPFS version information",
                     "method": "GET",
-                    "endpoint": "/ipfs/version",
-                },
+                    "endpoint": "/ipfs/version"
+                }
             ],
             "total_tools": 5,
-            "server_version": __version__,
+            "server_version": __version__
         }
-
+    
     @app.post("/ipfs/add", summary="Add Content to IPFS")
     async def add_content(request: AddRequest):
         """Add content to IPFS and return CID"""
@@ -301,13 +309,13 @@ try:
             return {
                 "success": True,
                 "cid": cid,
-                "size": len(request.content.encode("utf-8")),
-                "timestamp": datetime.now().isoformat(),
+                "size": len(request.content.encode('utf-8')),
+                "timestamp": datetime.now().isoformat()
             }
         except Exception as e:
             logger.error(f"❌ Add content failed: {e}")
             raise HTTPException(status_code=500, detail=str(e))
-
+    
     @app.get("/ipfs/cat/{cid}", summary="Get Content from IPFS")
     async def get_content(cid: str):
         """Retrieve content from IPFS by CID"""
@@ -315,15 +323,15 @@ try:
             content = await ipfs.cat(cid)
             return {
                 "success": True,
-                "content": content.decode("utf-8", errors="replace"),
+                "content": content.decode('utf-8', errors='replace'),
                 "cid": cid,
                 "size": len(content),
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": datetime.now().isoformat()
             }
         except Exception as e:
             logger.error(f"❌ Get content failed: {e}")
             raise HTTPException(status_code=500, detail=str(e))
-
+    
     @app.post("/ipfs/pin/add/{cid}", summary="Pin Content")
     async def pin_content(cid: str, pin_request: PinRequest = PinRequest()):
         """Pin content in IPFS"""
@@ -334,12 +342,12 @@ try:
                 "result": result,
                 "cid": cid,
                 "recursive": pin_request.recursive,
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": datetime.now().isoformat()
             }
         except Exception as e:
             logger.error(f"❌ Pin content failed: {e}")
             raise HTTPException(status_code=500, detail=str(e))
-
+    
     @app.delete("/ipfs/pin/rm/{cid}", summary="Unpin Content")
     async def unpin_content(cid: str):
         """Remove pin from content in IPFS"""
@@ -349,22 +357,26 @@ try:
                 "success": True,
                 "result": result,
                 "cid": cid,
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": datetime.now().isoformat()
             }
         except Exception as e:
             logger.error(f"❌ Unpin content failed: {e}")
             raise HTTPException(status_code=500, detail=str(e))
-
+    
     @app.get("/ipfs/version", summary="Get IPFS Version")
     async def get_ipfs_version():
         """Get IPFS version information"""
         try:
             result = await ipfs.version()
-            return {"success": True, "version": result, "timestamp": datetime.now().isoformat()}
+            return {
+                "success": True,
+                "version": result,
+                "timestamp": datetime.now().isoformat()
+            }
         except Exception as e:
             logger.error(f"❌ Get version failed: {e}")
             raise HTTPException(status_code=500, detail=str(e))
-
+    
     @app.get("/stats", summary="Server Statistics")
     async def get_stats():
         """Get detailed server statistics"""
@@ -375,8 +387,8 @@ try:
                 "version": __version__,
                 "uptime": str(datetime.now() - server_start_time),
                 "requests_served": request_count,
-                "start_time": server_start_time.isoformat(),
-            },
+                "start_time": server_start_time.isoformat()
+            }
         }
 
 except ImportError as e:
@@ -388,7 +400,6 @@ except ImportError as e:
 # SIGNAL HANDLERS FOR GRACEFUL SHUTDOWN
 # ============================================================================
 
-
 def signal_handler(signum, frame):
     """Handle shutdown signals gracefully"""
     logger.info(f"🛑 Received signal {signum}, shutting down gracefully...")
@@ -398,14 +409,12 @@ def signal_handler(signum, frame):
         pid_file.unlink()
     sys.exit(0)
 
-
 signal.signal(signal.SIGINT, signal_handler)
 signal.signal(signal.SIGTERM, signal_handler)
 
 # ============================================================================
 # COMMAND-LINE INTERFACE
 # ============================================================================
-
 
 def main():
     """Main entry point with comprehensive CLI"""
@@ -420,26 +429,43 @@ Examples:
 
 Version: {__version__}
 Author: {__author__}
-        """,
+        """
     )
-
-    parser.add_argument("--host", default="0.0.0.0", help="Host to bind (default: 0.0.0.0)")
-    parser.add_argument("--port", type=int, default=9998, help="Port to bind (default: 9998)")
-    parser.add_argument("--debug", action="store_true", help="Enable debug logging")
-    parser.add_argument("--version", action="version", version=f"Final MCP Server {__version__}")
+    
+    parser.add_argument(
+        "--host", 
+        default="0.0.0.0", 
+        help="Host to bind (default: 0.0.0.0)"
+    )
+    parser.add_argument(
+        "--port", 
+        type=int, 
+        default=9998, 
+        help="Port to bind (default: 9998)"
+    )
+    parser.add_argument(
+        "--debug", 
+        action="store_true", 
+        help="Enable debug logging"
+    )
+    parser.add_argument(
+        "--version", 
+        action="version", 
+        version=f"Final MCP Server {__version__}"
+    )
     parser.add_argument(
         "--log-level",
         choices=["DEBUG", "INFO", "WARNING", "ERROR"],
         default="INFO",
-        help="Set logging level (default: INFO)",
+        help="Set logging level (default: INFO)"
     )
-
+    
     args = parser.parse_args()
-
+    
     # Configure logging level
     log_level = logging.DEBUG if args.debug else getattr(logging, args.log_level)
     logging.getLogger().setLevel(log_level)
-
+    
     # Startup banner
     print(f"""
 ╔══════════════════════════════════════════════════════════════╗
@@ -455,34 +481,34 @@ Author: {__author__}
 ║                                                              ║
 ╚══════════════════════════════════════════════════════════════╝
     """)
-
+    
     logger.info(f"🚀 Final MCP Server v{__version__} starting...")
     logger.info(f"📍 Binding to {args.host}:{args.port}")
     logger.info(f"🔍 Debug mode: {args.debug}")
-
+    
     if app is None:
         logger.error("❌ FastAPI not available - cannot start server")
         logger.error("💡 Install dependencies: pip install fastapi uvicorn pydantic")
         return 1
-
+    
     try:
         # Write PID file for process management
         pid_file = Path("final_mcp_server.pid")
         pid_file.write_text(str(os.getpid()))
         logger.info(f"📝 PID file written: {pid_file.absolute()}")
-
+        
         # Start the server
         logger.info("🎯 Server is ready to accept connections!")
-
+        
         uvicorn.run(
             app,
             host=args.host,
             port=args.port,
             log_level="debug" if args.debug else "info",
             access_log=True,
-            reload=args.debug,
+            reload=args.debug
         )
-
+        
     except KeyboardInterrupt:
         logger.info("⏹️ Server stopped by user")
         return 0
@@ -496,7 +522,6 @@ Author: {__author__}
         if pid_file.exists():
             pid_file.unlink()
             logger.info("🧹 Cleaned up PID file")
-
 
 if __name__ == "__main__":
     sys.exit(main())

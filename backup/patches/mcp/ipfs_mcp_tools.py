@@ -23,26 +23,24 @@ from typing import Dict, List, Any, Optional, Union, Tuple, Set, BinaryIO
 try:
     import fs_journal_tools
     import multi_backend_fs_integration
-
     HAS_EXTENSIONS = True
 except ImportError:
     HAS_EXTENSIONS = False
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
 
 # IPFS API configuration
 DEFAULT_API_URL = "/ip4/127.0.0.1/tcp/5001"
 
-
 def _get_ipfs_client():
     """Get an IPFS client instance"""
     try:
         import ipfshttpclient
-
         return ipfshttpclient.connect()
     except ImportError:
         logger.error("ipfshttpclient not installed. Install with: pip install ipfshttpclient")
@@ -50,7 +48,6 @@ def _get_ipfs_client():
     except Exception as e:
         logger.error(f"Error connecting to IPFS daemon: {e}")
         raise
-
 
 def _run_ipfs_command(command: List[str]) -> Tuple[bool, str, str]:
     """Run an IPFS command via subprocess and return result"""
@@ -66,24 +63,19 @@ def _run_ipfs_command(command: List[str]) -> Tuple[bool, str, str]:
         logger.error(f"Error executing IPFS command: {e}")
         return False, "", str(e)
 
-
 def register_tools(server) -> bool:
     """Register IPFS MCP tools with the MCP server"""
     logger.info("Registering IPFS MCP tools...")
 
     # Tool: Add content to IPFS
-    async def ipfs_add(
-        content: Union[str, bytes],
-        filename: Optional[str] = None,
-        wrap_with_directory: bool = False,
-        pin: bool = True,
-        only_hash: bool = False,
-    ):
+    async def ipfs_add(content: Union[str, bytes], filename: Optional[str] = None,
+                     wrap_with_directory: bool = False, pin: bool = True,
+                     only_hash: bool = False):
         """Add content to IPFS and return its content identifier (CID)"""
         try:
             # Handle string or bytes input
             if isinstance(content, str):
-                content_bytes = content.encode("utf-8")
+                content_bytes = content.encode('utf-8')
             else:
                 content_bytes = content
 
@@ -92,9 +84,7 @@ def register_tools(server) -> bool:
                 filename = f"file-{datetime.now().strftime('%Y%m%d%H%M%S')}"
 
             # Create a temporary file
-            with tempfile.NamedTemporaryFile(
-                prefix="ipfs-", suffix=f"-{filename}", delete=False
-            ) as temp_file:
+            with tempfile.NamedTemporaryFile(prefix="ipfs-", suffix=f"-{filename}", delete=False) as temp_file:
                 temp_path = temp_file.name
                 temp_file.write(content_bytes)
 
@@ -131,14 +121,14 @@ def register_tools(server) -> bool:
                             "cid": dir_cid,
                             "file_cid": file_cid,
                             "size": len(content_bytes),
-                            "wrapped": True,
+                            "wrapped": True
                         }
 
                 return {
                     "success": True,
                     "cid": cid,
                     "size": len(content_bytes),
-                    "wrapped": wrap_with_directory,
+                    "wrapped": wrap_with_directory
                 }
 
             finally:
@@ -174,14 +164,14 @@ def register_tools(server) -> bool:
                 return {"success": False, "error": stderr}
 
             # Encode content as base64 to handle binary data
-            content_bytes = stdout.encode("utf-8") if isinstance(stdout, str) else stdout
-            content_base64 = base64.b64encode(content_bytes).decode("utf-8")
+            content_bytes = stdout.encode('utf-8') if isinstance(stdout, str) else stdout
+            content_base64 = base64.b64encode(content_bytes).decode('utf-8')
 
             return {
                 "success": True,
                 "cid": cid,
                 "content_base64": content_base64,
-                "size": len(content_bytes),
+                "size": len(content_bytes)
             }
 
         except Exception as e:
@@ -204,7 +194,12 @@ def register_tools(server) -> bool:
             if not success:
                 return {"success": False, "error": stderr}
 
-            return {"success": True, "cid": cid, "pinned": True, "recursive": recursive}
+            return {
+                "success": True,
+                "cid": cid,
+                "pinned": True,
+                "recursive": recursive
+            }
 
         except Exception as e:
             logger.error(f"Error pinning content to IPFS: {e}")
@@ -226,7 +221,12 @@ def register_tools(server) -> bool:
             if not success:
                 return {"success": False, "error": stderr}
 
-            return {"success": True, "cid": cid, "unpinned": True, "recursive": recursive}
+            return {
+                "success": True,
+                "cid": cid,
+                "unpinned": True,
+                "recursive": recursive
+            }
 
         except Exception as e:
             logger.error(f"Error unpinning content from IPFS: {e}")
@@ -242,10 +242,7 @@ def register_tools(server) -> bool:
             if pin_type:
                 valid_types = ["direct", "recursive", "indirect", "all"]
                 if pin_type not in valid_types:
-                    return {
-                        "success": False,
-                        "error": f"Invalid pin type. Must be one of: {', '.join(valid_types)}",
-                    }
+                    return {"success": False, "error": f"Invalid pin type. Must be one of: {', '.join(valid_types)}"}
                 cmd.extend([f"--type={pin_type}"])
 
             if cid:
@@ -267,7 +264,10 @@ def register_tools(server) -> bool:
                 "success": True,
                 "pins": pins,
                 "count": len(pins),
-                "filter": {"cid": cid, "type": pin_type},
+                "filter": {
+                    "cid": cid,
+                    "type": pin_type
+                }
             }
 
         except Exception as e:
@@ -293,7 +293,11 @@ def register_tools(server) -> bool:
                     key, value = line.split(":", 1)
                     stats[key.strip()] = value.strip()
 
-            return {"success": True, "cid": cid, "stats": stats}
+            return {
+                "success": True,
+                "cid": cid,
+                "stats": stats
+            }
 
         except Exception as e:
             logger.error(f"Error getting IPFS object stats: {e}")
@@ -309,11 +313,14 @@ def register_tools(server) -> bool:
             if not success:
                 # If the CID is a file, ls will fail, so try file stat instead
                 if resolve_type:
-                    stat_success, stat_stdout, stat_stderr = _run_ipfs_command(
-                        ["object", "stat", cid]
-                    )
+                    stat_success, stat_stdout, stat_stderr = _run_ipfs_command(["object", "stat", cid])
                     if stat_success:
-                        return {"success": True, "cid": cid, "type": "file", "entries": []}
+                        return {
+                            "success": True,
+                            "cid": cid,
+                            "type": "file",
+                            "entries": []
+                        }
 
                 return {"success": False, "error": stderr}
 
@@ -327,7 +334,11 @@ def register_tools(server) -> bool:
 
                 parts = line.split()
                 if len(parts) >= 3:
-                    entry = {"cid": parts[0], "size": parts[1], "name": " ".join(parts[2:])}
+                    entry = {
+                        "cid": parts[0],
+                        "size": parts[1],
+                        "name": " ".join(parts[2:])
+                    }
                     entries.append(entry)
 
             return {
@@ -335,7 +346,7 @@ def register_tools(server) -> bool:
                 "cid": cid,
                 "type": "directory",
                 "entries": entries,
-                "count": len(entries),
+                "count": len(entries)
             }
 
         except Exception as e:
@@ -343,9 +354,8 @@ def register_tools(server) -> bool:
             return {"success": False, "error": str(e)}
 
     # Tool: IPFS Name Publish (IPNS)
-    async def ipfs_name_publish(
-        cid: str, key: Optional[str] = None, lifetime: str = "24h", ttl: Optional[str] = None
-    ):
+    async def ipfs_name_publish(cid: str, key: Optional[str] = None,
+                               lifetime: str = "24h", ttl: Optional[str] = None):
         """Publish an IPFS content identifier to IPNS"""
         try:
             # Build ipfs name publish command
@@ -375,7 +385,7 @@ def register_tools(server) -> bool:
                     "name": published_to,
                     "lifetime": lifetime,
                     "ttl": ttl,
-                    "key": key or "self",
+                    "key": key or "self"
                 }
             else:
                 return {"success": False, "error": "Failed to parse name publish output"}
@@ -411,7 +421,12 @@ def register_tools(server) -> bool:
             # Extract CID from path
             cid = path.replace("/ipfs/", "")
 
-            return {"success": True, "name": name, "path": path, "cid": cid}
+            return {
+                "success": True,
+                "name": name,
+                "path": path,
+                "cid": cid
+            }
 
         except Exception as e:
             logger.error(f"Error resolving IPNS name: {e}")
@@ -435,25 +450,25 @@ def register_tools(server) -> bool:
             if not success:
                 return {"success": False, "error": stderr}
 
-            return {"success": True, "path": path, "parents": parents}
+            return {
+                "success": True,
+                "path": path,
+                "parents": parents
+            }
 
         except Exception as e:
             logger.error(f"Error creating directory in MFS: {e}")
             return {"success": False, "error": str(e)}
 
     # Tool: IPFS MFS (Mutable File System) operations - write
-    async def ipfs_files_write(
-        path: str,
-        content: Union[str, bytes],
-        create: bool = True,
-        truncate: bool = True,
-        offset: Optional[int] = None,
-    ):
+    async def ipfs_files_write(path: str, content: Union[str, bytes],
+                              create: bool = True, truncate: bool = True,
+                              offset: Optional[int] = None):
         """Write content to a file in the IPFS Mutable File System (MFS)"""
         try:
             # Handle string or bytes input
             if isinstance(content, str):
-                content_bytes = content.encode("utf-8")
+                content_bytes = content.encode('utf-8')
             else:
                 content_bytes = content
 
@@ -489,7 +504,7 @@ def register_tools(server) -> bool:
                     "size": len(content_bytes),
                     "create": create,
                     "truncate": truncate,
-                    "offset": offset,
+                    "offset": offset
                 }
 
             finally:
@@ -525,14 +540,14 @@ def register_tools(server) -> bool:
                 return {"success": False, "error": stderr}
 
             # Encode content as base64 to handle binary data
-            content_bytes = stdout.encode("utf-8") if isinstance(stdout, str) else stdout
-            content_base64 = base64.b64encode(content_bytes).decode("utf-8")
+            content_bytes = stdout.encode('utf-8') if isinstance(stdout, str) else stdout
+            content_base64 = base64.b64encode(content_bytes).decode('utf-8')
 
             return {
                 "success": True,
                 "path": path,
                 "content_base64": content_base64,
-                "size": len(content_bytes),
+                "size": len(content_bytes)
             }
 
         except Exception as e:
@@ -577,14 +592,19 @@ def register_tools(server) -> bool:
                             "type": "directory" if mode.startswith("d") else "file",
                             "size": size,
                             "cid": cid,
-                            "mode": mode,
+                            "mode": mode
                         }
                         entries.append(entry)
                 else:
                     # Format without --long: just the name
                     entries.append({"name": line.strip()})
 
-            return {"success": True, "path": path, "entries": entries, "count": len(entries)}
+            return {
+                "success": True,
+                "path": path,
+                "entries": entries,
+                "count": len(entries)
+            }
 
         except Exception as e:
             logger.error(f"Error listing MFS directory: {e}")
@@ -608,7 +628,11 @@ def register_tools(server) -> bool:
             if not success:
                 return {"success": False, "error": stderr}
 
-            return {"success": True, "path": path, "recursive": recursive}
+            return {
+                "success": True,
+                "path": path,
+                "recursive": recursive
+            }
 
         except Exception as e:
             logger.error(f"Error removing from MFS: {e}")
@@ -644,7 +668,7 @@ def register_tools(server) -> bool:
                 "cid": cid,
                 "size": size,
                 "blocks": blocks,
-                "stats": stats,
+                "stats": stats
             }
 
         except Exception as e:
@@ -661,7 +685,11 @@ def register_tools(server) -> bool:
             if not success:
                 return {"success": False, "error": stderr}
 
-            return {"success": True, "source": source, "destination": dest}
+            return {
+                "success": True,
+                "source": source,
+                "destination": dest
+            }
 
         except Exception as e:
             logger.error(f"Error copying in MFS: {e}")
@@ -677,7 +705,11 @@ def register_tools(server) -> bool:
             if not success:
                 return {"success": False, "error": stderr}
 
-            return {"success": True, "source": source, "destination": dest}
+            return {
+                "success": True,
+                "source": source,
+                "destination": dest
+            }
 
         except Exception as e:
             logger.error(f"Error moving in MFS: {e}")
@@ -726,7 +758,7 @@ def register_tools(server) -> bool:
                 "daemon_running": True,
                 "id": id_info,
                 "bandwidth": bw_info,
-                "repo": repo_info,
+                "repo": repo_info
             }
 
         except Exception as e:
@@ -734,9 +766,8 @@ def register_tools(server) -> bool:
             return {"success": False, "error": str(e), "daemon_running": False}
 
     # Tool: Add local file to IPFS
-    async def ipfs_add_file(
-        file_path: str, wrap_with_directory: bool = False, pin: bool = True, only_hash: bool = False
-    ):
+    async def ipfs_add_file(file_path: str, wrap_with_directory: bool = False,
+                           pin: bool = True, only_hash: bool = False):
         """Add a local file to IPFS and return its content identifier (CID)"""
         try:
             # Check if file exists
@@ -775,14 +806,14 @@ def register_tools(server) -> bool:
                         "cid": dir_cid,
                         "file_cid": file_cid,
                         "file_path": file_path,
-                        "wrapped": True,
+                        "wrapped": True
                     }
 
             return {
                 "success": True,
                 "cid": cid,
                 "file_path": file_path,
-                "wrapped": wrap_with_directory,
+                "wrapped": wrap_with_directory
             }
 
         except Exception as e:
@@ -790,12 +821,8 @@ def register_tools(server) -> bool:
             return {"success": False, "error": str(e)}
 
     # Tool: Get content from IPFS and save to local file
-    async def ipfs_get(
-        cid: str,
-        output_dir: Optional[str] = None,
-        archive: bool = False,
-        compression_level: int = 6,
-    ):
+    async def ipfs_get(cid: str, output_dir: Optional[str] = None,
+                     archive: bool = False, compression_level: int = 6):
         """Get content from IPFS and save to a local file"""
         try:
             # Determine output directory
@@ -846,7 +873,7 @@ def register_tools(server) -> bool:
                     "output_path": output_path,
                     "type": file_type,
                     "size": size,
-                    "archive": archive,
+                    "archive": archive
                 }
             else:
                 return {"success": False, "error": f"Output path not found: {output_path}"}
@@ -897,7 +924,6 @@ def register_tools(server) -> bool:
     except Exception as e:
         logger.error(f"Error registering IPFS MCP tools: {e}")
         return False
-
 
 if __name__ == "__main__":
     logger.info("This module should be imported, not run directly.")

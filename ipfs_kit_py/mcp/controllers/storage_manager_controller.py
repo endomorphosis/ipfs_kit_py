@@ -18,15 +18,12 @@ from pydantic import BaseModel, Field
 # Import anyio with fallback
 try:
     import anyio
-
     HAS_ANYIO = True
 except ImportError:
     HAS_ANYIO = False
 
 # Add the parent directory to sys.path to allow importing mcp_error_handling
-sys.path.append(
-    os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-)
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
 from ipfs_kit_py.mcp import mcp_error_handling
 
 # Configure logger
@@ -74,7 +71,6 @@ def _run_async_from_sync(async_fn, *args, **kwargs):
 # Define Pydantic models for requests and responses
 class OperationResponse(BaseModel):
     """Base response model for operations."""
-
     success: bool = Field(..., description="Whether the operation was successful")
     operation_id: Optional[str] = Field(None, description="Unique identifier for this operation")
     duration_ms: Optional[float] = Field(
@@ -84,14 +80,12 @@ class OperationResponse(BaseModel):
 
 class ReplicationPolicyRequest(BaseModel):
     """Request model for applying replication policies to content."""
-
     content_id: str = Field(..., description="Content identifier (CID)")
     policy: Dict[str, Any] = Field(..., description="Replication policy configuration")
 
 
 class ReplicationPolicyResponse(OperationResponse):
     """Response model for replication policy application."""
-
     content_id: str = Field(..., description="Content identifier (CID)")
     source_backend: str = Field(..., description="Source backend name")
     backends_selected: List[str] = Field([], description="List of backends selected by the policy")
@@ -105,7 +99,6 @@ class ReplicationPolicyResponse(OperationResponse):
 
 class BackendStatusResponse(OperationResponse):
     """Response model for backend status information."""
-
     backend_name: str = Field(..., description="Name of the storage backend")
     is_available: bool = Field(..., description="Whether the backend is available")
     capabilities: List[str] = Field(
@@ -116,15 +109,15 @@ class BackendStatusResponse(OperationResponse):
 
 class AllBackendsStatusResponse(OperationResponse):
     """Response model for status of all storage backends."""
-
-    backends: Dict[str, Any] = Field({}, description="Status of each storage backend")
+    backends: Dict[str, Any] = Field(
+        {}, description="Status of each storage backend"
+    )
     available_count: int = Field(0, description="Number of available backends")
     total_count: int = Field(0, description="Total number of backends")
 
 
 class StorageTransferRequest(BaseModel):
     """Request model for transferring content between storage backends."""
-
     source_backend: str = Field(..., description="Source backend name")
     target_backend: str = Field(..., description="Target backend name")
     content_id: str = Field(..., description="Content identifier (CID)")
@@ -133,7 +126,6 @@ class StorageTransferRequest(BaseModel):
 
 class StorageTransferResponse(OperationResponse):
     """Response model for content transfer operations."""
-
     source_backend: str = Field(..., description="Source backend name")
     target_backend: str = Field(..., description="Target backend name")
     content_id: str = Field(..., description="Content identifier (CID)")
@@ -144,7 +136,6 @@ class StorageTransferResponse(OperationResponse):
 
 class ContentMigrationRequest(BaseModel):
     """Request model for migrating content between storage backends."""
-
     source_backend: str = Field(..., description="Source backend name")
     target_backend: str = Field(..., description="Target backend name")
     content_ids: List[str] = Field(..., description="List of content identifiers (CIDs) to migrate")
@@ -159,7 +150,6 @@ class ContentMigrationRequest(BaseModel):
 
 class ContentMigrationResponse(OperationResponse):
     """Response model for content migration operations."""
-
     source_backend: str = Field(..., description="Source backend name")
     target_backend: str = Field(..., description="Target backend name")
     content_count: int = Field(..., description="Number of content items in migration")
@@ -176,7 +166,6 @@ class StorageManagerController:
     Provides endpoints for managing multiple storage backends and
     transferring content between them.
     """
-
     def __init__(self, storage_manager):
         """
         Initialize the storage manager controller.
@@ -887,7 +876,7 @@ class StorageManagerController:
                 message_override=f"Source backend '{request.source_backend}' not found",
                 details={"backend_name": request.source_backend},
                 endpoint="/storage/migrate",
-                doc_category="storage",
+                doc_category="storage"
             )
 
         # Validate target backend
@@ -898,7 +887,7 @@ class StorageManagerController:
                 message_override=f"Target backend '{request.target_backend}' not found",
                 details={"backend_name": request.target_backend},
                 endpoint="/storage/migrate",
-                doc_category="storage",
+                doc_category="storage"
             )
 
         # Initialize result
@@ -1257,7 +1246,7 @@ class StorageManagerController:
                 message_override="Storage bridge not available for policy application",
                 details={"operation": "apply_replication_policy", "content_id": request.content_id},
                 endpoint="/storage/apply-policy",
-                doc_category="storage",
+                doc_category="storage"
             )
 
         # Apply the policy using storage bridge

@@ -20,32 +20,32 @@ def wait_for_locks(timeout=300):
         "/var/lib/dpkg/lock",
         "/var/lib/dpkg/lock-frontend",
         "/var/lib/apt/lists/lock",
-        "/var/cache/apt/archives/lock",
+        "/var/cache/apt/archives/lock"
     ]
-
+    
     print(f"Checking for package manager locks (timeout: {timeout}s)...")
     start_time = time.time()
-
+    
     while time.time() - start_time < timeout:
         locks_present = False
         for lock_file in lock_files:
             if os.path.exists(lock_file):
                 try:
                     # Try to check if file is locked
-                    with open(lock_file, "r"):
+                    with open(lock_file, 'r'):
                         pass
                 except (PermissionError, IOError):
                     locks_present = True
                     break
-
+        
         if not locks_present:
             print("✓ No locks detected")
             return True
-
+        
         elapsed = int(time.time() - start_time)
-        print(f"  Waiting for locks to be released... ({elapsed}/{timeout}s)", end="\r")
+        print(f"  Waiting for locks to be released... ({elapsed}/{timeout}s)", end='\r')
         time.sleep(5)
-
+    
     print(f"\n⚠ Timeout after {timeout}s, proceeding anyway")
     return False
 
@@ -61,7 +61,7 @@ def run_command(cmd, retries=3, retry_delay=5):
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
-                timeout=600,  # 10 minute timeout
+                timeout=600  # 10 minute timeout
             )
             print(result.stdout)
             return True
@@ -76,7 +76,7 @@ def run_command(cmd, retries=3, retry_delay=5):
             if attempt < retries:
                 print(f"Retrying in {retry_delay} seconds...")
                 time.sleep(retry_delay)
-
+    
     print(f"✗ Failed after {retries} attempts")
     return False
 
@@ -106,18 +106,18 @@ def install_dependencies():
     print("=" * 60)
     print("Safe Dependency Installer for ARM64/Multi-Architecture")
     print("=" * 60)
-
+    
     # Check Python version
     print(f"\nPython version: {sys.version}")
     print(f"Platform: {sys.platform}")
-
+    
     # Wait for package locks (if on Linux)
-    if sys.platform.startswith("linux"):
+    if sys.platform.startswith('linux'):
         if os.environ.get("IPFS_KIT_SKIP_LOCK_WAIT") == "1":
             print("Skipping package manager lock wait (IPFS_KIT_SKIP_LOCK_WAIT=1)")
         else:
             wait_for_locks()
-
+    
     python_cmd = sys.executable
     use_break_system = False
 
@@ -143,19 +143,9 @@ def install_dependencies():
 
     # Upgrade pip, setuptools, wheel
     print("\n1. Upgrading pip, setuptools, and wheel...")
-    if not run_command(
-        build_pip_command(
-            python_cmd,
-            "install",
-            "--upgrade",
-            "pip",
-            "setuptools",
-            "wheel",
-            break_system=use_break_system,
-        )
-    ):
+    if not run_command(build_pip_command(python_cmd, 'install', '--upgrade', 'pip', 'setuptools', 'wheel', break_system=use_break_system)):
         print("⚠ Failed to upgrade pip tools, continuing anyway...")
-
+    
     # Install main package
     print("\n2. Installing main package from GitHub main branch...")
     ipfs_kit_git = "git+https://github.com/endomorphosis/ipfs_kit_py.git@main"
@@ -163,62 +153,47 @@ def install_dependencies():
     ipfs_kit_direct_zip = f"ipfs_kit_py @ {ipfs_kit_zip}"
     ipfs_kit_direct_git = f"ipfs_kit_py @ {ipfs_kit_git}"
     installed_main = run_command(
-        build_pip_command(python_cmd, "install", ipfs_kit_direct_git, break_system=use_break_system)
+        build_pip_command(python_cmd, 'install', ipfs_kit_direct_git, break_system=use_break_system)
     )
     if not installed_main:
         print("⚠ Git main install failed, trying GitHub zip archive...")
         installed_main = run_command(
-            build_pip_command(
-                python_cmd, "install", ipfs_kit_direct_zip, break_system=use_break_system
-            )
+            build_pip_command(python_cmd, 'install', ipfs_kit_direct_zip, break_system=use_break_system)
         )
     if not installed_main:
         print("✗ Failed to install main package from GitHub main")
         return False
-
+    
     # Install libp2p extras
     print("\n3. Installing libp2p extras (with retries)...")
     extras_installed = run_command(
-        build_pip_command(python_cmd, "install", "-e", ".[libp2p]", break_system=use_break_system),
+        build_pip_command(python_cmd, 'install', '-e', '.[libp2p]', break_system=use_break_system),
         retries=3,
-        retry_delay=10,
+        retry_delay=10
     )
-
+    
     if not extras_installed:
         print("⚠ Failed to install libp2p extras")
         print("  Trying to install individual dependencies...")
-
+        
         # Try installing critical dependencies individually
         critical_deps = [
-            "protobuf>=3.20.0,<5.0.0",
-            "eth-hash[pycryptodome]>=0.3.3",
-            "eth-keys>=0.4.0",
-            "multiaddr>=0.0.9",
-            "multiformats>=0.2.0",
+            'protobuf>=3.20.0,<5.0.0',
+            'eth-hash[pycryptodome]>=0.3.3',
+            'eth-keys>=0.4.0',
+            'multiaddr>=0.0.9',
+            'multiformats>=0.2.0',
         ]
-
+        
         for dep in critical_deps:
             print(f"  Installing {dep}...")
-            run_command(
-                build_pip_command(python_cmd, "install", dep, break_system=use_break_system),
-                retries=2,
-            )
-
+            run_command(build_pip_command(python_cmd, 'install', dep, break_system=use_break_system), retries=2)
+    
     # Install test dependencies
     print("\n4. Installing test dependencies...")
-    test_deps = [
-        "pytest",
-        "pytest-anyio",
-        "pytest-cov",
-        "pytest-asyncio",
-        "pytest-trio",
-        "pytest-timeout",
-        "jsonpatch",
-    ]
+    test_deps = ['pytest', 'pytest-anyio', 'pytest-cov', 'pytest-asyncio', 'pytest-trio', 'pytest-timeout', 'jsonpatch']
     for dep in test_deps:
-        run_command(
-            build_pip_command(python_cmd, "install", dep, break_system=use_break_system), retries=2
-        )
+        run_command(build_pip_command(python_cmd, 'install', dep, break_system=use_break_system), retries=2)
 
     # Install optional integration dependencies (best effort)
     print("\n5. Installing optional integrations (best effort)...")
@@ -238,38 +213,13 @@ def install_dependencies():
     ]
     for dep in optional_deps:
         print(f"  Installing {dep['name']} from GitHub main...")
-        installed = run_command(
-            build_pip_command(
-                python_cmd,
-                "install",
-                dep["git"],
-                "--upgrade",
-                "--force-reinstall",
-                break_system=use_break_system,
-            ),
-            retries=2,
-        )
+        installed = run_command(build_pip_command(python_cmd, 'install', dep["git"], '--upgrade', '--force-reinstall', break_system=use_break_system), retries=2)
         if not installed and dep.get("zip"):
             print(f"  GitHub clone failed for {dep['name']}, trying zip archive...")
-            installed = run_command(
-                build_pip_command(
-                    python_cmd,
-                    "install",
-                    dep["zip"],
-                    "--upgrade",
-                    "--force-reinstall",
-                    break_system=use_break_system,
-                ),
-                retries=2,
-            )
+            installed = run_command(build_pip_command(python_cmd, 'install', dep["zip"], '--upgrade', '--force-reinstall', break_system=use_break_system), retries=2)
         if not installed:
             print(f"  GitHub install failed for {dep['name']}, trying PyPI as last resort...")
-            run_command(
-                build_pip_command(
-                    python_cmd, "install", dep["pip"], "--upgrade", break_system=use_break_system
-                ),
-                retries=2,
-            )
+            run_command(build_pip_command(python_cmd, 'install', dep["pip"], '--upgrade', break_system=use_break_system), retries=2)
 
     # Ensure upstream libp2p API compatibility (new_host) from GitHub main
     print("\n6. Ensuring libp2p is installed from GitHub main...")
@@ -277,9 +227,9 @@ def install_dependencies():
     run_command(
         build_pip_command(
             python_cmd,
-            "install",
-            "--upgrade",
-            "--force-reinstall",
+            'install',
+            '--upgrade',
+            '--force-reinstall',
             libp2p_git,
             break_system=use_break_system,
         ),
@@ -307,20 +257,18 @@ def install_dependencies():
         zip_extra = f"ipfs_kit_py[{extra}] @ {ipfs_kit_zip}"
         git_extra = f"ipfs_kit_py[{extra}] @ {ipfs_kit_git}"
         installed_extra = run_command(
-            build_pip_command(python_cmd, "install", zip_extra, break_system=use_break_system),
-            retries=2,
+            build_pip_command(python_cmd, 'install', zip_extra, break_system=use_break_system),
+            retries=2
         )
         if not installed_extra:
             installed_extra = run_command(
-                build_pip_command(python_cmd, "install", git_extra, break_system=use_break_system),
-                retries=2,
+                build_pip_command(python_cmd, 'install', git_extra, break_system=use_break_system),
+                retries=2
             )
         if not installed_extra:
             run_command(
-                build_pip_command(
-                    python_cmd, "install", "-e", f".[{extra}]", break_system=use_break_system
-                ),
-                retries=2,
+                build_pip_command(python_cmd, 'install', '-e', f'.[{extra}]', break_system=use_break_system),
+                retries=2
             )
 
     # Install additional optional dependencies detected from integration warnings
@@ -345,43 +293,41 @@ def install_dependencies():
         "paramiko",
     ]
     for pkg in optional_packages:
-        run_command(
-            build_pip_command(python_cmd, "install", pkg, break_system=use_break_system), retries=2
-        )
-
+        run_command(build_pip_command(python_cmd, 'install', pkg, break_system=use_break_system), retries=2)
+    
     # Verify installations
     print("\n9. Verifying installations...")
     print("-" * 60)
-
+    
     checks = [
-        ("ipfs_kit_py", "import ipfs_kit_py"),
-        ("cryptography", "from cryptography.fernet import Fernet"),
-        ("multiaddr", "import multiaddr"),
-        ("protobuf", "from google.protobuf import descriptor"),
-        ("eth_hash", "import eth_hash"),
-        ("eth_keys", "import eth_keys"),
-        ("ipfs_datasets_py", "import ipfs_datasets_py"),
-        ("ipfs_accelerate_py", "import ipfs_accelerate_py"),
+        ('ipfs_kit_py', 'import ipfs_kit_py'),
+        ('cryptography', 'from cryptography.fernet import Fernet'),
+        ('multiaddr', 'import multiaddr'),
+        ('protobuf', 'from google.protobuf import descriptor'),
+        ('eth_hash', 'import eth_hash'),
+        ('eth_keys', 'import eth_keys'),
+        ('ipfs_datasets_py', 'import ipfs_datasets_py'),
+        ('ipfs_accelerate_py', 'import ipfs_accelerate_py'),
     ]
-
+    
     success_count = 0
     for name, import_stmt in checks:
         try:
             subprocess.run(
-                [python_cmd, "-c", import_stmt],
+                [python_cmd, '-c', import_stmt],
                 check=True,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
-                timeout=10,
+                timeout=10
             )
             print(f"✓ {name}")
             success_count += 1
         except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
             print(f"✗ {name} (not available or import failed)")
-
+    
     print("-" * 60)
     print(f"Verification: {success_count}/{len(checks)} checks passed")
-
+    
     if success_count >= len(checks) - 2:  # Allow 2 optional deps to fail
         print("\n✓ Installation completed successfully!")
         return True
@@ -402,7 +348,6 @@ def main():
     except Exception as e:
         print(f"\n✗ Unexpected error: {e}")
         import traceback
-
         traceback.print_exc()
         sys.exit(1)
 

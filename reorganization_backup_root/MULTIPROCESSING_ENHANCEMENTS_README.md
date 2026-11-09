@@ -81,7 +81,7 @@ daemon_config = {
     "workers": {
         "health_workers": min(4, cpu_count),
         "pin_index_workers": min(2, cpu_count // 2),
-        "api_workers": min(32, cpu_count * 4),
+        "api_workers": min(32, cpu_count * 4)
     }
 }
 
@@ -90,14 +90,14 @@ server_config = {
     "uvicorn_workers": min(4, cpu_count),
     "vfs_workers": min(4, cpu_count),
     "backend_workers": min(2, cpu_count),
-    "route_workers": min(2, cpu_count),
+    "route_workers": min(2, cpu_count)
 }
 
 # CLI configuration
 cli_config = {
     "ipfs_workers": min(4, cpu_count),
     "backend_workers": min(2, cpu_count),
-    "io_threads": min(10, cpu_count * 2),
+    "io_threads": min(10, cpu_count * 2)
 }
 ```
 
@@ -209,19 +209,19 @@ stats = {
         "failed_requests": 50,
         "success_rate": 96.7,
         "avg_response_time": 0.125,
-        "requests_per_second": 25.0,
+        "requests_per_second": 25.0
     },
     "workers": {
         "health_workers": 4,
         "replication_worker": True,
         "log_worker": True,
-        "pin_workers": 2,
+        "pin_workers": 2
     },
     "pools": {
         "vfs_pool": {"active": 2, "max_workers": 4},
         "backend_pool": {"active": 1, "max_workers": 2},
-        "route_pool": {"active": 0, "max_workers": 2},
-    },
+        "route_pool": {"active": 0, "max_workers": 2}
+    }
 }
 ```
 
@@ -235,7 +235,7 @@ progress = {
     "progress": 75.0,
     "elapsed": 45.2,
     "eta": 15.1,
-    "success_rate": 93.3,
+    "success_rate": 93.3
 }
 ```
 

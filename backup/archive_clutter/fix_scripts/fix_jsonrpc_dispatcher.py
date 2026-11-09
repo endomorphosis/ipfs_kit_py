@@ -18,7 +18,6 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-
 def find_direct_mcp_server():
     """Find the direct_mcp_server.py file in the current directory or subdirectories."""
     direct_mcp_server = Path("direct_mcp_server.py")
@@ -32,7 +31,6 @@ def find_direct_mcp_server():
 
     return None
 
-
 def backup_file(file_path):
     """Create a backup of the file."""
     backup_path = f"{file_path}.bak"
@@ -40,22 +38,21 @@ def backup_file(file_path):
     logger.info(f"Created backup at {backup_path}")
     return backup_path
 
-
 def fix_dispatcher_issue(file_path):
     """Fix the dispatcher issue in the MCP server."""
-    with open(file_path, "r") as f:
+    with open(file_path, 'r') as f:
         content = f.read()
 
     # Check if Dispatcher class exists
-    if "class Dispatcher" in content:
+    if 'class Dispatcher' in content:
         # Add dispatch method if it doesn't exist
-        if "def dispatch(" not in content:
+        if 'def dispatch(' not in content:
             # Find the Dispatcher class
-            parts = content.split("class Dispatcher")
+            parts = content.split('class Dispatcher')
             if len(parts) > 1:
                 class_definition = parts[1]
                 # Find the end of the class definition
-                class_lines = class_definition.split("\n")
+                class_lines = class_definition.split('\n')
                 indentation = 0
 
                 # Find the indentation level
@@ -66,15 +63,11 @@ def fix_dispatcher_issue(file_path):
 
                 # Insert the dispatch method
                 dispatch_method = f"\n{' ' * indentation}def dispatch(self, request):\n"
-                dispatch_method += (
-                    f'{" " * (indentation + 4)}"""Dispatch method for JSON-RPC requests."""\n'
-                )
+                dispatch_method += f"{' ' * (indentation + 4)}\"\"\"Dispatch method for JSON-RPC requests.\"\"\"\n"
                 dispatch_method += f"{' ' * (indentation + 4)}if not isinstance(request, dict):\n"
                 dispatch_method += f"{' ' * (indentation + 8)}return {{'jsonrpc': '2.0', 'error': {{'code': -32600, 'message': 'Invalid Request'}}, 'id': None}}\n"
                 dispatch_method += f"{' ' * (indentation + 4)}method = request.get('method')\n"
-                dispatch_method += (
-                    f"{' ' * (indentation + 4)}params = request.get('params', {{}})\n"
-                )
+                dispatch_method += f"{' ' * (indentation + 4)}params = request.get('params', {{}})\n"
                 dispatch_method += f"{' ' * (indentation + 4)}req_id = request.get('id', None)\n"
                 dispatch_method += f"{' ' * (indentation + 4)}if not method:\n"
                 dispatch_method += f"{' ' * (indentation + 8)}return {{'jsonrpc': '2.0', 'error': {{'code': -32600, 'message': 'Invalid Request - method missing'}}, 'id': req_id}}\n"
@@ -86,9 +79,7 @@ def fix_dispatcher_issue(file_path):
                 dispatch_method += f"{' ' * (indentation + 8)}else:\n"
                 dispatch_method += f"{' ' * (indentation + 12)}return {{'jsonrpc': '2.0', 'error': {{'code': -32601, 'message': f'Method {{method}} not found'}}, 'id': req_id}}\n"
                 dispatch_method += f"{' ' * (indentation + 4)}except Exception as e:\n"
-                dispatch_method += (
-                    f"{' ' * (indentation + 8)}logger.error(f'Error dispatching request: {{e}}')\n"
-                )
+                dispatch_method += f"{' ' * (indentation + 8)}logger.error(f'Error dispatching request: {{e}}')\n"
                 dispatch_method += f"{' ' * (indentation + 8)}return {{'jsonrpc': '2.0', 'error': {{'code': -32603, 'message': str(e)}}, 'id': req_id}}\n"
 
                 # Find a good position to insert the method
@@ -105,11 +96,11 @@ def fix_dispatcher_issue(file_path):
                     class_lines.insert(class_end_index, dispatch_method)
 
                 # Reconstruct the class definition
-                parts[1] = "\n".join(class_lines)
-                updated_content = "class Dispatcher".join(parts)
+                parts[1] = '\n'.join(class_lines)
+                updated_content = 'class Dispatcher'.join(parts)
 
                 # Write the updated content back to the file
-                with open(file_path, "w") as f:
+                with open(file_path, 'w') as f:
                     f.write(updated_content)
 
                 logger.info("Added dispatch method to Dispatcher class")
@@ -124,25 +115,24 @@ def fix_dispatcher_issue(file_path):
         logger.error("Could not find Dispatcher class in the file")
         return False
 
-
 def fix_jsonrpc_handler(file_path):
     """Fix the JSON-RPC handler to use the dispatch method."""
-    with open(file_path, "r") as f:
+    with open(file_path, 'r') as f:
         content = f.read()
 
     # Check if the JSON-RPC handler exists
-    if "async def jsonrpc_handler" in content:
+    if 'async def jsonrpc_handler' in content:
         # Check if it's already using dispatch
-        if ".dispatch(" not in content and "dispatch(" not in content:
+        if '.dispatch(' not in content and 'dispatch(' not in content:
             # Replace the handler implementation
-            lines = content.split("\n")
+            lines = content.split('\n')
             handler_start = None
             handler_end = None
             indentation = 0
 
             # Find the handler
             for i, line in enumerate(lines):
-                if "async def jsonrpc_handler" in line:
+                if 'async def jsonrpc_handler' in line:
                     handler_start = i
                     indentation = len(line) - len(line.lstrip())
                     break
@@ -162,7 +152,7 @@ def fix_jsonrpc_handler(file_path):
                     # Create the new handler
                     new_handler = []
                     new_handler.append(lines[handler_start])  # Keep the function signature
-                    base_indent = " " * (indentation + 4)
+                    base_indent = ' ' * (indentation + 4)
 
                     # Add the implementation
                     new_handler.append(f"{base_indent}try:")
@@ -172,20 +162,14 @@ def fix_jsonrpc_handler(file_path):
                     new_handler.append(f"{base_indent}except json.JSONDecodeError:")
                     new_handler.append(f"{base_indent}    return JSONResponse({{")
                     new_handler.append(f"{base_indent}        'jsonrpc': '2.0',")
-                    new_handler.append(
-                        f"{base_indent}        'error': {{'code': -32700, 'message': 'Parse error'}},"
-                    )
+                    new_handler.append(f"{base_indent}        'error': {{'code': -32700, 'message': 'Parse error'}},")
                     new_handler.append(f"{base_indent}        'id': None")
                     new_handler.append(f"{base_indent}    }}, status_code=400)")
                     new_handler.append(f"{base_indent}except Exception as e:")
-                    new_handler.append(
-                        f"{base_indent}    logger.error(f'Error handling JSON-RPC request: {{e}}')"
-                    )
+                    new_handler.append(f"{base_indent}    logger.error(f'Error handling JSON-RPC request: {{e}}')")
                     new_handler.append(f"{base_indent}    return JSONResponse({{")
                     new_handler.append(f"{base_indent}        'jsonrpc': '2.0',")
-                    new_handler.append(
-                        f"{base_indent}        'error': {{'code': -32603, 'message': str(e)}},"
-                    )
+                    new_handler.append(f"{base_indent}        'error': {{'code': -32603, 'message': str(e)}},")
                     new_handler.append(f"{base_indent}        'id': None")
                     new_handler.append(f"{base_indent}    }}, status_code=500)")
 
@@ -193,8 +177,8 @@ def fix_jsonrpc_handler(file_path):
                     lines[handler_start:handler_end] = new_handler
 
                     # Write the updated content back to the file
-                    with open(file_path, "w") as f:
-                        f.write("\n".join(lines))
+                    with open(file_path, 'w') as f:
+                        f.write('\n'.join(lines))
 
                     logger.info("Updated JSON-RPC handler to use dispatch method")
                     return True
@@ -208,30 +192,28 @@ def fix_jsonrpc_handler(file_path):
         logger.error("Could not find JSON-RPC handler in the file")
         return False
 
-
 def ensure_json_import(file_path):
     """Ensure that the json module is imported."""
-    with open(file_path, "r") as f:
+    with open(file_path, 'r') as f:
         content = f.read()
 
-    if "import json" not in content:
+    if 'import json' not in content:
         # Add the import
-        lines = content.split("\n")
+        lines = content.split('\n')
         for i, line in enumerate(lines):
-            if line.startswith("import ") or line.startswith("from "):
-                lines.insert(i, "import json")
+            if line.startswith('import ') or line.startswith('from '):
+                lines.insert(i, 'import json')
                 break
 
         # Write the updated content back to the file
-        with open(file_path, "w") as f:
-            f.write("\n".join(lines))
+        with open(file_path, 'w') as f:
+            f.write('\n'.join(lines))
 
         logger.info("Added json import")
         return True
     else:
         logger.info("json module already imported")
         return True
-
 
 def main():
     """Main function."""
@@ -272,7 +254,6 @@ def main():
     logger.info("  2. Start the server again: ./start_enhanced_mcp_server.sh")
 
     return 0
-
 
 if __name__ == "__main__":
     sys.exit(main())

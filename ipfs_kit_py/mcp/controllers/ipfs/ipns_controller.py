@@ -15,7 +15,6 @@ import ipfs_ipns_operations
 # Configure logger
 logger = logging.getLogger(__name__)
 
-
 class IPNSController:
     """
     Controller for IPNS operations.
@@ -176,7 +175,9 @@ class IPNSController:
             return result
         except Exception as e:
             logger.error(f"Error listing IPNS keys: {str(e)}")
-            raise HTTPException(status_code=500, detail=f"Error listing IPNS keys: {str(e)}")
+            raise HTTPException(
+                status_code=500, detail=f"Error listing IPNS keys: {str(e)}"
+            )
 
     async def create_key(
         self,
@@ -211,7 +212,9 @@ class IPNSController:
             return result
         except Exception as e:
             logger.error(f"Error creating IPNS key: {str(e)}")
-            raise HTTPException(status_code=500, detail=f"Error creating IPNS key: {str(e)}")
+            raise HTTPException(
+                status_code=500, detail=f"Error creating IPNS key: {str(e)}"
+            )
 
     async def import_key(
         self,
@@ -246,7 +249,9 @@ class IPNSController:
             return result
         except Exception as e:
             logger.error(f"Error importing IPNS key: {str(e)}")
-            raise HTTPException(status_code=500, detail=f"Error importing IPNS key: {str(e)}")
+            raise HTTPException(
+                status_code=500, detail=f"Error importing IPNS key: {str(e)}"
+            )
 
     async def export_key(
         self,
@@ -275,7 +280,9 @@ class IPNSController:
             return result
         except Exception as e:
             logger.error(f"Error exporting IPNS key: {str(e)}")
-            raise HTTPException(status_code=500, detail=f"Error exporting IPNS key: {str(e)}")
+            raise HTTPException(
+                status_code=500, detail=f"Error exporting IPNS key: {str(e)}"
+            )
 
     async def rename_key(
         self,
@@ -304,7 +311,9 @@ class IPNSController:
             return result
         except Exception as e:
             logger.error(f"Error renaming IPNS key: {str(e)}")
-            raise HTTPException(status_code=500, detail=f"Error renaming IPNS key: {str(e)}")
+            raise HTTPException(
+                status_code=500, detail=f"Error renaming IPNS key: {str(e)}"
+            )
 
     async def remove_key(self, name: str = Body(...)) -> Dict[str, Any]:
         """
@@ -322,7 +331,9 @@ class IPNSController:
             return result
         except Exception as e:
             logger.error(f"Error removing IPNS key: {str(e)}")
-            raise HTTPException(status_code=500, detail=f"Error removing IPNS key: {str(e)}")
+            raise HTTPException(
+                status_code=500, detail=f"Error removing IPNS key: {str(e)}"
+            )
 
     async def rotate_key(
         self,
@@ -354,7 +365,9 @@ class IPNSController:
             return result
         except Exception as e:
             logger.error(f"Error rotating IPNS key: {str(e)}")
-            raise HTTPException(status_code=500, detail=f"Error rotating IPNS key: {str(e)}")
+            raise HTTPException(
+                status_code=500, detail=f"Error rotating IPNS key: {str(e)}"
+            )
 
     async def get_key_metrics(self) -> Dict[str, Any]:
         """
@@ -369,7 +382,9 @@ class IPNSController:
             return result
         except Exception as e:
             logger.error(f"Error getting key metrics: {str(e)}")
-            raise HTTPException(status_code=500, detail=f"Error getting key metrics: {str(e)}")
+            raise HTTPException(
+                status_code=500, detail=f"Error getting key metrics: {str(e)}"
+            )
 
     async def publish(
         self,
@@ -404,7 +419,9 @@ class IPNSController:
             return result
         except Exception as e:
             logger.error(f"Error publishing IPNS name: {str(e)}")
-            raise HTTPException(status_code=500, detail=f"Error publishing IPNS name: {str(e)}")
+            raise HTTPException(
+                status_code=500, detail=f"Error publishing IPNS name: {str(e)}"
+            )
 
     async def resolve(
         self,
@@ -436,7 +453,9 @@ class IPNSController:
             return result
         except Exception as e:
             logger.error(f"Error resolving IPNS name: {str(e)}")
-            raise HTTPException(status_code=500, detail=f"Error resolving IPNS name: {str(e)}")
+            raise HTTPException(
+                status_code=500, detail=f"Error resolving IPNS name: {str(e)}"
+            )
 
     async def republish(
         self,
@@ -462,7 +481,9 @@ class IPNSController:
             return result
         except Exception as e:
             logger.error(f"Error republishing IPNS record: {str(e)}")
-            raise HTTPException(status_code=500, detail=f"Error republishing IPNS record: {str(e)}")
+            raise HTTPException(
+                status_code=500, detail=f"Error republishing IPNS record: {str(e)}"
+            )
 
     async def get_records(self) -> Dict[str, Any]:
         """
@@ -477,7 +498,9 @@ class IPNSController:
             return result
         except Exception as e:
             logger.error(f"Error getting IPNS records: {str(e)}")
-            raise HTTPException(status_code=500, detail=f"Error getting IPNS records: {str(e)}")
+            raise HTTPException(
+                status_code=500, detail=f"Error getting IPNS records: {str(e)}"
+            )
 
     async def get_ipns_metrics(self) -> Dict[str, Any]:
         """
@@ -495,7 +518,9 @@ class IPNSController:
             return all_metrics
         except Exception as e:
             logger.error(f"Error getting IPNS metrics: {str(e)}")
-            raise HTTPException(status_code=500, detail=f"Error getting IPNS metrics: {str(e)}")
+            raise HTTPException(
+                status_code=500, detail=f"Error getting IPNS metrics: {str(e)}"
+            )
 
     async def get_metrics(self) -> Dict[str, Any]:
         """
@@ -510,4 +535,6 @@ class IPNSController:
             return result
         except Exception as e:
             logger.error(f"Error getting all IPNS metrics: {str(e)}")
-            raise HTTPException(status_code=500, detail=f"Error getting all IPNS metrics: {str(e)}")
+            raise HTTPException(
+                status_code=500, detail=f"Error getting all IPNS metrics: {str(e)}"
+            )

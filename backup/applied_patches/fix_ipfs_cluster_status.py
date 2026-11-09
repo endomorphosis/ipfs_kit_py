@@ -2,7 +2,6 @@
 """
 Update IPFS controller to handle cluster daemon status checks.
 """
-
 import os
 import sys
 import logging
@@ -12,10 +11,10 @@ import re
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger("fix_ipfs_cluster_status")
-
 
 def update_ipfs_controller():
     """Update the IPFS controller to properly handle cluster daemon status checks."""
@@ -97,7 +96,7 @@ def update_ipfs_controller():
                         }
                 else:
                     # Standard IPFS daemon check
-                    result = self.ipfs_model.check_daemon_status(daemon_type)""",
+                    result = self.ipfs_model.check_daemon_status(daemon_type)"""
     )
 
     # Write the updated content back to the file
@@ -107,7 +106,6 @@ def update_ipfs_controller():
     logger.info(f"Updated IPFS controller to handle cluster daemon status checks")
 
     return True
-
 
 def check_ipfs_cluster_modules():
     """
@@ -128,10 +126,8 @@ def check_ipfs_cluster_modules():
 
             # Modify content to replace class and method names
             follow_content = service_content.replace("ipfs_cluster_service", "ipfs_cluster_follow")
-            follow_content = follow_content.replace(
-                'status_cmd = ["ipfs-cluster-service", "status"]',
-                'status_cmd = ["ipfs-cluster-follow", "status"]',
-            )
+            follow_content = follow_content.replace("status_cmd = [\"ipfs-cluster-service\", \"status\"]",
+                                                 "status_cmd = [\"ipfs-cluster-follow\", \"status\"]")
 
             # Write to the follow module file
             with open(cluster_follow_path, "w") as f:
@@ -153,7 +149,8 @@ def check_ipfs_cluster_modules():
             # Replace the status method name if appropriate
             if "def ipfs_cluster_service_status(" in follow_content:
                 follow_content = follow_content.replace(
-                    "def ipfs_cluster_service_status(", "def ipfs_cluster_follow_status("
+                    "def ipfs_cluster_service_status(",
+                    "def ipfs_cluster_follow_status("
                 )
 
                 # Write the updated content
@@ -168,7 +165,6 @@ def check_ipfs_cluster_modules():
         else:
             logger.info("ipfs_cluster_follow.py already has the required status method")
             return True
-
 
 if __name__ == "__main__":
     logger.info("Updating IPFS controller to handle cluster daemon status...")

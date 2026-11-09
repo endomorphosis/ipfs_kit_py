@@ -283,9 +283,7 @@ def test_perform_with_retry_fail(ipfs_py_instance):
 
     # Act
     result = ipfs_py_instance.perform_with_retry(
-        mock_function,
-        max_retries=3,
-        backoff_factor=0.01,  # Small backoff for test speed
+        mock_function, max_retries=3, backoff_factor=0.01  # Small backoff for test speed
     )
 
     # Assert
