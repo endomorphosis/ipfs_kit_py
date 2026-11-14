@@ -14,8 +14,11 @@ import shutil
 from pathlib import Path
 
 # Configure logging
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger(__name__)
+
 
 def backup_file(file_path: str) -> bool:
     """Create a backup of the specified file"""
@@ -28,24 +31,25 @@ def backup_file(file_path: str) -> bool:
         logger.error(f"Failed to create backup: {e}")
         return False
 
+
 def patch_mcp_server():
     """Patch direct_mcp_server.py to add our tools at startup"""
     mcp_server_path = "direct_mcp_server.py"
-    
+
     # Check if file exists
     if not os.path.exists(mcp_server_path):
         logger.error(f"File not found: {mcp_server_path}")
         return False
-    
+
     # Create backup
     if not backup_file(mcp_server_path):
         return False
-    
+
     try:
         # Read the file
-        with open(mcp_server_path, 'r') as f:
+        with open(mcp_server_path, "r") as f:
             content = f.read()
-        
+
         # Import statements to add
         imports_to_add = """
 # FS Journal and Multi-Backend imports
@@ -58,18 +62,15 @@ except ImportError:
     logger.warning("FS Journal or Multi-Backend integration not available")
     FS_JOURNAL_AVAILABLE = False
 """
-        
+
         # Add imports after existing imports
         import_section_end = "from mcp_error_handling import format_error_response"
         if import_section_end in content:
-            content = content.replace(
-                import_section_end,
-                f"{import_section_end}\n{imports_to_add}"
-            )
+            content = content.replace(import_section_end, f"{import_section_end}\n{imports_to_add}")
         else:
             logger.warning("Import section not found, adding imports at the beginning")
             content = imports_to_add + content
-        
+
         # Add initialization code in the initialize_server method
         init_code = """
         # Initialize FS Journal and Multi-Backend integration
@@ -92,57 +93,66 @@ except ImportError:
                 logger.error(f"Failed to initialize FS Journal and Multi-Backend tools: {e}")
         
 """
-        
+
         # Find the initialize_server method
         initialize_pattern = r"def initialize_server\(self.*?\):"
         initialize_match = re.search(initialize_pattern, content)
-        
+
         if initialize_match:
             # Find the end of the method's first block (indented code)
             method_start = initialize_match.end()
-            next_line_start = content.find('\n', method_start) + 1
-            
+            next_line_start = content.find("\n", method_start) + 1
+
             # Look for the first indented line
             indented_line_match = re.search(r"\n( +)", content[next_line_start:])
             if indented_line_match:
                 indentation = indented_line_match.group(1)
-                
+
                 # Format the init code with the proper indentation
-                formatted_init_code = init_code.replace('\n        ', f'\n{indentation}')
-                
+                formatted_init_code = init_code.replace("\n        ", f"\n{indentation}")
+
                 # Find a good position to insert the code (after controllers are initialized)
                 insert_marker = "# Initialize controllers"
                 marker_pos = content.find(insert_marker, next_line_start)
-                
+
                 if marker_pos > 0:
                     # Find the end of the controllers initialization section
-                    controllers_section_end = content.find('\n\n', marker_pos)
+                    controllers_section_end = content.find("\n\n", marker_pos)
                     if controllers_section_end > 0:
                         # Insert the initialization code after the controllers section
                         content = (
-                            content[:controllers_section_end] + 
-                            "\n\n" + indentation + "# Initialize FS Journal and Multi-Backend integration" +
-                            formatted_init_code +
-                            content[controllers_section_end:]
+                            content[:controllers_section_end]
+                            + "\n\n"
+                            + indentation
+                            + "# Initialize FS Journal and Multi-Backend integration"
+                            + formatted_init_code
+                            + content[controllers_section_end:]
                         )
                     else:
-                        logger.warning("Could not find end of controllers section, adding at the end of the method")
+                        logger.warning(
+                            "Could not find end of controllers section, adding at the end of the method"
+                        )
                         # Find the end of the method
-                        method_end = content.find('\n\n', next_line_start)
+                        method_end = content.find("\n\n", next_line_start)
                         if method_end > 0:
                             content = (
-                                content[:method_end] + 
-                                "\n\n" + indentation + "# Initialize FS Journal and Multi-Backend integration" +
-                                formatted_init_code +
-                                content[method_end:]
+                                content[:method_end]
+                                + "\n\n"
+                                + indentation
+                                + "# Initialize FS Journal and Multi-Backend integration"
+                                + formatted_init_code
+                                + content[method_end:]
                             )
                 else:
-                    logger.warning("Controllers initialization marker not found, adding at the beginning of the method")
+                    logger.warning(
+                        "Controllers initialization marker not found, adding at the beginning of the method"
+                    )
                     content = (
-                        content[:next_line_start] + 
-                        indentation + "# Initialize FS Journal and Multi-Backend integration" +
-                        formatted_init_code +
-                        content[next_line_start:]
+                        content[:next_line_start]
+                        + indentation
+                        + "# Initialize FS Journal and Multi-Backend integration"
+                        + formatted_init_code
+                        + content[next_line_start:]
                     )
             else:
                 logger.error("Could not determine indentation in initialize_server method")
@@ -150,17 +160,17 @@ except ImportError:
         else:
             logger.error("initialize_server method not found")
             return False
-        
+
         # Write the modified content back to the file
-        with open(mcp_server_path, 'w') as f:
+        with open(mcp_server_path, "w") as f:
             f.write(content)
-        
+
         logger.info(f"Successfully patched {mcp_server_path}")
         return True
-    
+
     except Exception as e:
         logger.error(f"Error patching MCP server: {e}")
-        
+
         # Restore from backup
         backup_path = f"{mcp_server_path}.bak"
         if os.path.exists(backup_path):
@@ -169,15 +179,16 @@ except ImportError:
                 logger.info(f"Restored {mcp_server_path} from backup")
             except Exception as restore_err:
                 logger.error(f"Failed to restore from backup: {restore_err}")
-        
+
         return False
+
 
 def create_updated_startup_script():
     """Create an updated startup script that uses the patched server"""
     script_path = "start_ipfs_mcp_complete.sh"
-    
+
     try:
-        with open(script_path, 'w') as f:
+        with open(script_path, "w") as f:
             f.write("""#!/bin/bash
 # Start the MCP server with full IPFS Kit, FS Journal and Multi-Backend integration
 
@@ -217,7 +228,7 @@ else
   exit 1
 fi
 """)
-        
+
         # Make the script executable
         os.chmod(script_path, 0o755)
         logger.info(f"Created startup script: {script_path}")
@@ -226,12 +237,13 @@ fi
         logger.error(f"Failed to create startup script: {e}")
         return False
 
+
 def create_example_usage_script():
     """Create an example script to demonstrate the usage of our integration"""
     script_path = "example_ipfs_fs_usage.py"
-    
+
     try:
-        with open(script_path, 'w') as f:
+        with open(script_path, "w") as f:
             f.write("""#!/usr/bin/env python3
 \"\"\"
 Example IPFS FS Usage
@@ -331,7 +343,7 @@ async def main():
 if __name__ == "__main__":
     anyio.run(main)
 """)
-        
+
         # Make the script executable
         os.chmod(script_path, 0o755)
         logger.info(f"Created example usage script: {script_path}")
@@ -340,23 +352,24 @@ if __name__ == "__main__":
         logger.error(f"Failed to create example usage script: {e}")
         return False
 
+
 def main():
     """Main function to patch the MCP server"""
     logger.info("Starting MCP integration patch...")
-    
+
     # Patch the MCP server
     if not patch_mcp_server():
         logger.error("Failed to patch MCP server")
         return 1
-    
+
     # Create updated startup script
     if not create_updated_startup_script():
         logger.warning("Failed to create startup script")
-    
+
     # Create example usage script
     if not create_example_usage_script():
         logger.warning("Failed to create example usage script")
-    
+
     logger.info("""
 ✅ MCP integration patch completed
 
@@ -372,6 +385,7 @@ The integration adds:
 - Data format conversion (JSON, Parquet, Arrow)
 """)
     return 0
+
 
 if __name__ == "__main__":
     sys.exit(main())

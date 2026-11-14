@@ -7,10 +7,11 @@ import os
 
 SERVER_PATH = "/home/barberb/ipfs_kit_py/docs/mcp-python-sdk/src/mcp/server/lowlevel/server.py"
 
+
 def fix_server_file():
     """Fix the server.py file directly by replacing the problematic section."""
     try:
-        with open(SERVER_PATH, 'r') as f:
+        with open(SERVER_PATH, "r") as f:
             content = f.read()
 
         # Identify the section to replace
@@ -52,7 +53,7 @@ def fix_server_file():
         new_content = content[:start_pos] + corrected_section + content[end_pos:]
 
         # Write the fixed content back to the file
-        with open(SERVER_PATH, 'w') as f:
+        with open(SERVER_PATH, "w") as f:
             f.write(new_content)
 
         print("✅ Fixed server.py file with proper indentation")
@@ -60,6 +61,7 @@ def fix_server_file():
     except Exception as e:
         print(f"❌ Error fixing server.py: {e}")
         return False
+
 
 if __name__ == "__main__":
     if not os.path.exists(SERVER_PATH):

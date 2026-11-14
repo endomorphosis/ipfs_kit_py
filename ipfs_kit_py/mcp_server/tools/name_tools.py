@@ -1,4 +1,5 @@
 """IPNS naming tool group (publish / resolve)."""
+
 from __future__ import annotations
 
 import uuid

@@ -26,37 +26,35 @@ from ipfs_kit_py.storage_wal import (
     BackendHealthMonitor,
     OperationType,
     OperationStatus,
-    BackendType
+    BackendType,
 )
 
 # Only import FastAPI components if available
 try:
     from ipfs_kit_py.api import app
-    from ipfs_kit_py.wal_api_anyio import (
-        wal_router,
-        register_wal_api,
-        get_wal_instance
-    )
+    from ipfs_kit_py.wal_api_anyio import wal_router, register_wal_api, get_wal_instance
+
     FASTAPI_AVAILABLE = True
 except ImportError:
     FASTAPI_AVAILABLE = False
 
+
 @unittest.skipIf(not FASTAPI_AVAILABLE, "FastAPI not available")
 class TestWALAPIAnyIO(unittest.TestCase):
     """Test cases for the WAL API endpoints with AnyIO support."""
-    
+
     def setUp(self):
         """Set up test environment before each test."""
         # Create a mock WAL with test operations
         self.mock_wal = MagicMock(spec=StorageWriteAheadLog)
-        
+
         # Mock health monitor
         self.mock_health_monitor = MagicMock(spec=BackendHealthMonitor)
         self.mock_health_monitor.is_backend_available.return_value = True
         # Add check_interval attribute that was missing
         self.mock_health_monitor.check_interval = 60
         self.mock_wal.health_monitor = self.mock_health_monitor
-        
+
         # Setup WAL config
         self.mock_wal.base_path = "/tmp/test_wal"
         self.mock_wal.partition_size = 1000
@@ -64,11 +62,11 @@ class TestWALAPIAnyIO(unittest.TestCase):
         self.mock_wal.retry_delay = 60
         self.mock_wal.archive_completed = True
         self.mock_wal.process_interval = 5
-        
+
         # Mock app state and create test client
         app.state.wal = self.mock_wal
         self.client = TestClient(app)
-        
+
         # Setup mock operations
         self.operations = [
             {
@@ -81,7 +79,7 @@ class TestWALAPIAnyIO(unittest.TestCase):
                 "parameters": {"cid": "QmTest1"},
                 "result": {"success": True, "cid": "QmTest1"},
                 "error": None,
-                "retry_count": 0
+                "retry_count": 0,
             },
             {
                 "operation_id": "op2",
@@ -93,7 +91,7 @@ class TestWALAPIAnyIO(unittest.TestCase):
                 "parameters": {"cid": "QmTest2"},
                 "result": None,
                 "error": None,
-                "retry_count": 0
+                "retry_count": 0,
             },
             {
                 "operation_id": "op3",
@@ -105,8 +103,8 @@ class TestWALAPIAnyIO(unittest.TestCase):
                 "parameters": {"cid": "QmTest3"},
                 "result": None,
                 "error": "IPFS daemon connection failed",
-                "retry_count": 2
-            }
+                "retry_count": 2,
+            },
         ]
         # Setup WAL operation mocks
         # Make sure both get_all_operations and get_operations (used in the API) return our operations
@@ -119,18 +117,18 @@ class TestWALAPIAnyIO(unittest.TestCase):
                 if op["operation_id"] == operation_id:
                     return op
             return None
-            
+
         self.mock_wal.get_operation.side_effect = mock_get_operation
-        
+
         # Mock update_operation_status to return True
         self.mock_wal.update_operation_status.return_value = True
-        
+
         # Mock delete_operation to return True
         self.mock_wal.delete_operation.return_value = True
-        
+
         # Mock process_pending_operations to avoid errors
         self.mock_wal.process_pending_operations.return_value = {"success": True, "processed": 1}
-    
+
     def test_list_operations(self):
         """Test listing WAL operations."""
         response = self.client.get("/api/v0/wal/operations")
@@ -164,7 +162,7 @@ class TestWALAPIAnyIO(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         data = response.json()
         self.assertEqual(len(data["operations"]), 2)
-    
+
     def test_get_operation_status(self):
         """Test getting a specific WAL operation."""
         # Test existing operation
@@ -174,12 +172,12 @@ class TestWALAPIAnyIO(unittest.TestCase):
         self.assertTrue(data["success"])
         self.assertEqual(data["operation"], "get_operation")
         self.assertEqual(data["operation_data"]["operation_id"], "op1")
-        
+
         # Test non-existent operation
         self.mock_wal.get_operation.return_value = None
         response = self.client.get("/api/v0/wal/operations/non-existent")
         self.assertEqual(response.status_code, 404)
-    
+
     def test_retry_operation(self):
         """Test retrying a failed WAL operation."""
         # Test retrying a failed operation
@@ -190,21 +188,21 @@ class TestWALAPIAnyIO(unittest.TestCase):
         self.assertEqual(data["operation"], "retry_operation")
         self.assertEqual(data["operation_id"], "op3")
         self.assertEqual(data["new_status"], "pending")
-        
+
         # Verify that update_operation_status was called
         self.mock_wal.update_operation_status.assert_called()
-        
+
         # Test retrying a non-failed operation
         response = self.client.post("/api/v0/wal/operations/op1/retry")
         self.assertEqual(response.status_code, 400)
-        
+
         # Test retrying a non-existent operation
         self.mock_wal.get_operation.return_value = None
         response = self.client.post("/api/v0/wal/operations/non-existent/retry")
         self.assertEqual(response.status_code, 404)
-    
-    @patch('anyio.create_task_group')
-    @patch('anyio.create_memory_object_stream')
+
+    @patch("anyio.create_task_group")
+    @patch("anyio.create_memory_object_stream")
     def test_get_metrics(self, mock_create_stream, mock_create_task_group):
         """Test getting WAL metrics with AnyIO task groups."""
         # Setup mock task group and streams for AnyIO
@@ -212,46 +210,48 @@ class TestWALAPIAnyIO(unittest.TestCase):
         mock_task_group.__aenter__ = AsyncMock(return_value=mock_task_group)
         mock_task_group.__aexit__ = AsyncMock(return_value=None)
         mock_create_task_group.return_value = mock_task_group
-        
+
         # Mock stream
         mock_send_stream = MagicMock()
         mock_receive_stream = MagicMock()
         mock_receive_stream.__aenter__ = AsyncMock(return_value=mock_receive_stream)
         mock_receive_stream.__aexit__ = AsyncMock(return_value=None)
         mock_receive_stream.__aiter__ = AsyncMock(return_value=mock_receive_stream)
-        
+
         # Make __anext__ return different values and then StopAsyncIteration
-        mock_receive_stream.__anext__ = AsyncMock(side_effect=[
-            ("total", 3),
-            ("pending", 1),
-            ("completed", 1),
-            ("failed", 1),
-            ("backend_status", {BackendType.IPFS.value: True}),
-            StopAsyncIteration()
-        ])
-        
+        mock_receive_stream.__anext__ = AsyncMock(
+            side_effect=[
+                ("total", 3),
+                ("pending", 1),
+                ("completed", 1),
+                ("failed", 1),
+                ("backend_status", {BackendType.IPFS.value: True}),
+                StopAsyncIteration(),
+            ]
+        )
+
         mock_create_stream.return_value = (mock_send_stream, mock_receive_stream)
-        
+
         # Setup operation count mocks
         self.mock_wal.get_all_operations.side_effect = [
             self.operations,  # Total
             [self.operations[1]],  # Pending
             [self.operations[0]],  # Completed
-            [self.operations[2]]   # Failed
+            [self.operations[2]],  # Failed
         ]
-        
+
         # Test endpoint
         response = self.client.get("/api/v0/wal/metrics")
         self.assertEqual(response.status_code, 200)
         data = response.json()
         self.assertTrue(data["success"])
         self.assertEqual(data["operation"], "get_metrics")
-        
+
         # Verify backend status
         self.assertIn("backend_status", data)
         self.assertIn(BackendType.IPFS.value, data["backend_status"])
         self.assertTrue(data["backend_status"][BackendType.IPFS.value])
-    
+
     def test_get_config(self):
         """Test getting WAL configuration."""
         response = self.client.get("/api/v0/wal/config")
@@ -259,7 +259,7 @@ class TestWALAPIAnyIO(unittest.TestCase):
         data = response.json()
         self.assertTrue(data["success"])
         self.assertEqual(data["operation"], "get_config")
-        
+
         # Verify configuration values
         config = data["config"]
         self.assertEqual(config["base_path"], "/tmp/test_wal")
@@ -269,29 +269,25 @@ class TestWALAPIAnyIO(unittest.TestCase):
         self.assertTrue(config["archive_completed"])
         self.assertEqual(config["process_interval"], 5)
         self.assertTrue(config["enable_health_monitoring"])
-    
+
     def test_update_config(self):
         """Test updating WAL configuration."""
-        new_config = {
-            "max_retries": 10,
-            "retry_delay": 30,
-            "archive_completed": False
-        }
-        
+        new_config = {"max_retries": 10, "retry_delay": 30, "archive_completed": False}
+
         response = self.client.post("/api/v0/wal/config", json=new_config)
         self.assertEqual(response.status_code, 200)
         data = response.json()
         self.assertTrue(data["success"])
-        
+
         # Verify config was updated
         config = data["config"]
         self.assertEqual(config["max_retries"], 10)
         self.assertEqual(config["retry_delay"], 30)
         self.assertFalse(config["archive_completed"])
-        
+
         # Skip the warning check since it's not being generated by the test setup
         # This would need a more comprehensive update to the test infrastructure to fix properly
-    
+
     def test_delete_operation(self):
         """Test deleting a WAL operation."""
         # Test deleting an existing operation
@@ -301,19 +297,20 @@ class TestWALAPIAnyIO(unittest.TestCase):
         self.assertTrue(data["success"])
         self.assertEqual(data["operation"], "delete_operation")
         self.assertEqual(data["operation_id"], "op1")
-        
+
         # Verify delete_operation was called
         self.mock_wal.delete_operation.assert_called_with("op1")
-        
+
         # Test deleting a non-existent operation
         self.mock_wal.get_operation.return_value = None
         response = self.client.delete("/api/v0/wal/operations/non-existent")
         self.assertEqual(response.status_code, 404)
-        
+
         # Test failure to delete
         self.mock_wal.delete_operation.return_value = False
         response = self.client.delete("/api/v0/wal/operations/op2")
         self.assertEqual(response.status_code, 500)
-        
+
+
 if __name__ == "__main__":
     unittest.main()

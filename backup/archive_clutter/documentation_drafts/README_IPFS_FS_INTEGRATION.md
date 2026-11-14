@@ -88,11 +88,11 @@ journal = FSJournal("/path/to/base/dir")
 journal.track_path("/path/to/track")
 
 # Record an operation
-journal.record_operation(FSOperation(
-    operation_type=FSOperationType.WRITE,
-    path="/path/to/file.txt",
-    metadata={"size": 1024}
-))
+journal.record_operation(
+    FSOperation(
+        operation_type=FSOperationType.WRITE, path="/path/to/file.txt", metadata={"size": 1024}
+    )
+)
 
 # Get operation history
 history = journal.get_history("/path/to/file.txt")
@@ -126,15 +126,14 @@ FS Journal and IPFS-FS Bridge tools can be used through the MCP server API:
 import requests
 
 # Get operation history
-response = requests.post("http://127.0.0.1:3000/mcpserver/use-tool", json={
-    "server_name": "direct-ipfs-kit-mcp",
-    "tool_name": "fs_journal_get_history",
-    "arguments": {
-        "ctx": "test",
-        "path": "/path/to/file.txt",
-        "limit": 10
-    }
-})
+response = requests.post(
+    "http://127.0.0.1:3000/mcpserver/use-tool",
+    json={
+        "server_name": "direct-ipfs-kit-mcp",
+        "tool_name": "fs_journal_get_history",
+        "arguments": {"ctx": "test", "path": "/path/to/file.txt", "limit": 10},
+    },
+)
 history = response.json()
 ```
 

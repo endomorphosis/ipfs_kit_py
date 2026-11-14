@@ -44,6 +44,7 @@ class AuthenticationService:
     This service implements the Advanced Authentication & Authorization requirement
     from the MCP roadmap.
     """
+
     def __init__(
         self,
         secret_key: str,

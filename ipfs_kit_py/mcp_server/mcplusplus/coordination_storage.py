@@ -25,7 +25,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Iterator, Mapping, Optional, Protocol, Tuple
 
-
 PROFILE_G_PREFIX = "mcp++/profile-g/"
 COORDINATION_ARCHIVE_SCHEMA = "mcp++/coordination-index-archive@1"
 DAEMON_HEALTH_SCHEMA = "mcp++/coordination/daemon-health@1"
@@ -89,14 +88,21 @@ class RetentionPolicy:
     expired_health_ms: int = 24 * 60 * 60 * 1000
 
     def __post_init__(self) -> None:
-        if min(self.terminal_claim_ms, self.expired_lease_ms, self.expired_health_ms) < 0:
+        if (
+            min(self.terminal_claim_ms, self.expired_lease_ms, self.expired_health_ms)
+            < 0
+        ):
             raise ValueError("retention durations must be non-negative")
 
 
 def _canonical_json(value: Mapping[str, Any]) -> bytes:
     try:
         return json.dumps(
-            value, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False
+            value,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+            allow_nan=False,
         ).encode("utf-8")
     except (TypeError, ValueError) as exc:
         raise ValueError(f"artifact is not canonical JSON: {exc}") from exc
@@ -118,7 +124,9 @@ def cid_for_bytes(data: bytes, codec: str = "dag-json") -> str:
     if codec_code is None:
         raise ValueError(f"unsupported CID codec: {codec}")
     digest = hashlib.sha256(data).digest()
-    binary = _varint(1) + _varint(codec_code) + _varint(0x12) + _varint(len(digest)) + digest
+    binary = (
+        _varint(1) + _varint(codec_code) + _varint(0x12) + _varint(len(digest)) + digest
+    )
     return "b" + base64.b32encode(binary).decode("ascii").lower().rstrip("=")
 
 
@@ -151,7 +159,9 @@ def validate_transport_cid(cid: object) -> str:
     try:
         if not isinstance(cid, str) or len(cid) < 10 or cid[0] != "b":
             raise ValueError
-        if any(character not in "abcdefghijklmnopqrstuvwxyz234567" for character in cid[1:]):
+        if any(
+            character not in "abcdefghijklmnopqrstuvwxyz234567" for character in cid[1:]
+        ):
             raise ValueError
         padded = cid[1:].upper() + "=" * ((8 - len(cid[1:]) % 8) % 8)
         data = base64.b32decode(padded)
@@ -161,7 +171,12 @@ def validate_transport_cid(cid: object) -> str:
         codec_code, offset = _read_canonical_varint(data, offset)
         multihash_code, offset = _read_canonical_varint(data, offset)
         digest_length, offset = _read_canonical_varint(data, offset)
-        if version != 1 or multihash_code != 0x12 or digest_length != 32 or len(data) != offset + digest_length:
+        if (
+            version != 1
+            or multihash_code != 0x12
+            or digest_length != 32
+            or len(data) != offset + digest_length
+        ):
             raise ValueError
         return {0x55: "raw", 0x0129: "dag-json"}[codec_code]
     except (IndexError, ValueError, KeyError, TypeError, base64.binascii.Error) as exc:
@@ -236,9 +251,16 @@ class IPFSHeliaBlockBackend:
                 result = client.put(cid, data)
         elif hasattr(client, "block") and hasattr(client.block, "put"):
             result = client.block.put(data, format=codec, mhtype="sha2-256")
-        elif hasattr(client, "dag") and hasattr(client.dag, "put") and codec == "dag-json":
+        elif (
+            hasattr(client, "dag")
+            and hasattr(client.dag, "put")
+            and codec == "dag-json"
+        ):
             result = client.dag.put(
-                json.loads(data.decode("utf-8")), store_codec="dag-json", input_codec="dag-json", hash="sha2-256"
+                json.loads(data.decode("utf-8")),
+                store_codec="dag-json",
+                input_codec="dag-json",
+                hash="sha2-256",
             )
         elif hasattr(client, "add_bytes") and codec == "raw":
             result = client.add_bytes(data)
@@ -253,9 +275,13 @@ class IPFSHeliaBlockBackend:
             try:
                 validate_transport_cid(returned)
             except ValueError as exc:
-                raise ArtifactIntegrityError(f"backend returned a non-canonical CID: {returned}") from exc
+                raise ArtifactIntegrityError(
+                    f"backend returned a non-canonical CID: {returned}"
+                ) from exc
             if returned != cid:
-                raise ArtifactIntegrityError(f"backend returned {returned}, expected {cid}")
+                raise ArtifactIntegrityError(
+                    f"backend returned {returned}, expected {cid}"
+                )
         return result
 
     def load_block(self, cid: str) -> bytes:
@@ -276,7 +302,9 @@ class IPFSHeliaBlockBackend:
             return result.encode("utf-8")
         if isinstance(result, (bytes, bytearray, memoryview)):
             return bytes(result)
-        if isinstance(result, Mapping) and isinstance(result.get("data"), (bytes, bytearray, memoryview)):
+        if isinstance(result, Mapping) and isinstance(
+            result.get("data"), (bytes, bytearray, memoryview)
+        ):
             return bytes(result["data"])
         raise TypeError("IPFS/Helia client returned non-byte block data")
 
@@ -305,7 +333,8 @@ class DurableCoordinationStore:
         self.blocks_dir.mkdir(parents=True, exist_ok=True)
         self.backend = (
             backend
-            if backend is None or (hasattr(backend, "store_block") and hasattr(backend, "load_block"))
+            if backend is None
+            or (hasattr(backend, "store_block") and hasattr(backend, "load_block"))
             else IPFSHeliaBlockBackend(backend)
         )
         self.retention = retention or RetentionPolicy()
@@ -323,7 +352,9 @@ class DurableCoordinationStore:
         self._connection = self._open_database()
         # A missing/recreated index next to existing blocks is recovered
         # automatically. Operators can also request an explicit full rebuild.
-        indexed = int(self._connection.execute("SELECT COUNT(*) FROM artifacts").fetchone()[0])
+        indexed = int(
+            self._connection.execute("SELECT COUNT(*) FROM artifacts").fetchone()[0]
+        )
         has_blocks = next(self.blocks_dir.glob("*/*.json"), None) is not None
         # Verify every immutable block on reopen.  Rebuild only when the
         # generic index is absent or the authoritative root-transition chain
@@ -342,14 +373,18 @@ class DurableCoordinationStore:
             # Immutable blocks, not SQLite, are authoritative. Preserve the bad
             # file for diagnosis and recreate a clean index on startup.
             if self.db_path.exists():
-                corrupt = self.db_path.with_name(f"{self.db_path.name}.corrupt-{int(time.time() * 1000)}")
+                corrupt = self.db_path.with_name(
+                    f"{self.db_path.name}.corrupt-{int(time.time() * 1000)}"
+                )
                 self.db_path.replace(corrupt)
             for suffix in ("-wal", "-shm"):
                 Path(f"{self.db_path}{suffix}").unlink(missing_ok=True)
             return self._connect_database()
 
     def _connect_database(self) -> sqlite3.Connection:
-        connection = sqlite3.connect(str(self.db_path), timeout=30, check_same_thread=False)
+        connection = sqlite3.connect(
+            str(self.db_path), timeout=30, check_same_thread=False
+        )
         try:
             connection.row_factory = sqlite3.Row
             connection.execute("PRAGMA journal_mode=WAL")
@@ -363,8 +398,7 @@ class DurableCoordinationStore:
 
     @classmethod
     def _create_schema(cls, connection: sqlite3.Connection) -> None:
-        connection.executescript(
-            """
+        connection.executescript("""
             CREATE TABLE IF NOT EXISTS metadata (key TEXT PRIMARY KEY, value TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS artifacts (
               cid TEXT PRIMARY KEY, kind TEXT NOT NULL, schema_uri TEXT NOT NULL,
@@ -411,10 +445,10 @@ class DurableCoordinationStore:
             );
             CREATE INDEX IF NOT EXISTS state_root_transitions_namespace_revision
               ON state_root_transitions(namespace, new_revision);
-            """
-        )
+            """)
         connection.execute(
-            "INSERT OR REPLACE INTO metadata(key,value) VALUES('version',?)", (str(cls.DB_VERSION),)
+            "INSERT OR REPLACE INTO metadata(key,value) VALUES('version',?)",
+            (str(cls.DB_VERSION),),
         )
         connection.commit()
 
@@ -451,7 +485,10 @@ class DurableCoordinationStore:
 
         for _, data in self._iter_local_blocks():
             try:
-                if json.loads(data.decode("utf-8")).get("schema") == STATE_ROOT_TRANSITION_SCHEMA:
+                if (
+                    json.loads(data.decode("utf-8")).get("schema")
+                    == STATE_ROOT_TRANSITION_SCHEMA
+                ):
                     return True
             except (AttributeError, UnicodeDecodeError, json.JSONDecodeError):
                 # The full verifier below handles corrupt blocks when a
@@ -487,7 +524,9 @@ class DurableCoordinationStore:
             if existing != data:
                 raise ArtifactIntegrityError(f"immutable block collision for {cid}")
             return False
-        temporary = path.with_name(f".{path.name}.{os.getpid()}.{threading.get_ident()}.tmp")
+        temporary = path.with_name(
+            f".{path.name}.{os.getpid()}.{threading.get_ident()}.tmp"
+        )
         try:
             with temporary.open("xb") as stream:
                 stream.write(data)
@@ -526,7 +565,9 @@ class DurableCoordinationStore:
         if expected_cid is not None:
             validate_transport_cid(expected_cid)
             if expected_cid != cid:
-                raise ArtifactIntegrityError(f"artifact CID {cid} does not match expected {expected_cid}")
+                raise ArtifactIntegrityError(
+                    f"artifact CID {cid} does not match expected {expected_cid}"
+                )
         stored_at = int(self._clock_ms())
         with self._lock:
             created = self._write_block(cid, data)
@@ -566,7 +607,9 @@ class DurableCoordinationStore:
             if path.exists():
                 existing = path.read_bytes()
                 if existing != data:
-                    raise ArtifactIntegrityError(f"immutable raw block collision for {cid}")
+                    raise ArtifactIntegrityError(
+                        f"immutable raw block collision for {cid}"
+                    )
                 return cid
             temporary = path.with_name(
                 f".{path.name}.{os.getpid()}.{threading.get_ident()}.tmp"
@@ -584,12 +627,20 @@ class DurableCoordinationStore:
                     os.close(directory_fd)
             except FileExistsError:
                 if path.read_bytes() != data:
-                    raise ArtifactIntegrityError(f"immutable raw block collision for {cid}")
+                    raise ArtifactIntegrityError(
+                        f"immutable raw block collision for {cid}"
+                    )
             finally:
                 temporary.unlink(missing_ok=True)
         return cid
 
-    def put_profile_g(self, kind: str, artifact: Mapping[str, Any], *, expected_cid: Optional[str] = None) -> Dict[str, Any]:
+    def put_profile_g(
+        self,
+        kind: str,
+        artifact: Mapping[str, Any],
+        *,
+        expected_cid: Optional[str] = None,
+    ) -> Dict[str, Any]:
         """Store a canonical Profile G artifact and verify its declared kind."""
 
         actual_kind = _artifact_kind(artifact)
@@ -654,15 +705,23 @@ class DurableCoordinationStore:
         """Validate the deliberately small namespace grammar used by root rows."""
 
         if not isinstance(namespace, str) or not namespace or len(namespace) > 255:
-            raise ValueError("namespace must be a non-empty normalized string up to 255 characters")
+            raise ValueError(
+                "namespace must be a non-empty normalized string up to 255 characters"
+            )
         if namespace != namespace.strip() or "//" in namespace:
             raise ValueError("namespace must be normalized")
         for segment in namespace.split("/"):
             if not segment or len(segment) > 63:
                 raise ValueError("namespace contains an invalid segment")
-            if segment[0] not in "abcdefghijklmnopqrstuvwxyz0123456789" or segment[-1] not in "abcdefghijklmnopqrstuvwxyz0123456789":
+            if (
+                segment[0] not in "abcdefghijklmnopqrstuvwxyz0123456789"
+                or segment[-1] not in "abcdefghijklmnopqrstuvwxyz0123456789"
+            ):
                 raise ValueError("namespace contains an invalid segment")
-            if any(character not in "abcdefghijklmnopqrstuvwxyz0123456789._-" for character in segment):
+            if any(
+                character not in "abcdefghijklmnopqrstuvwxyz0123456789._-"
+                for character in segment
+            ):
                 raise ValueError("namespace contains an invalid segment")
         return namespace
 
@@ -670,9 +729,15 @@ class DurableCoordinationStore:
     def _operation_id(operation_id: str) -> str:
         if not isinstance(operation_id, str) or not (1 <= len(operation_id) <= 128):
             raise ValueError("operation_id must be a normalized identifier")
-        if operation_id[0] not in "abcdefghijklmnopqrstuvwxyz0123456789" or operation_id[-1] not in "abcdefghijklmnopqrstuvwxyz0123456789":
+        if (
+            operation_id[0] not in "abcdefghijklmnopqrstuvwxyz0123456789"
+            or operation_id[-1] not in "abcdefghijklmnopqrstuvwxyz0123456789"
+        ):
             raise ValueError("operation_id must be a normalized identifier")
-        if any(character not in "abcdefghijklmnopqrstuvwxyz0123456789._:-" for character in operation_id):
+        if any(
+            character not in "abcdefghijklmnopqrstuvwxyz0123456789._:-"
+            for character in operation_id
+        ):
             raise ValueError("operation_id must be a normalized identifier")
         return operation_id
 
@@ -698,9 +763,16 @@ class DurableCoordinationStore:
         return revision, expected_root_cid
 
     @staticmethod
-    def _root_snapshot_from_row(namespace: str, row: Optional[sqlite3.Row]) -> Dict[str, Any]:
+    def _root_snapshot_from_row(
+        namespace: str, row: Optional[sqlite3.Row]
+    ) -> Dict[str, Any]:
         if row is None:
-            return {"namespace": namespace, "root_cid": None, "revision": 0, "transition_cid": None}
+            return {
+                "namespace": namespace,
+                "root_cid": None,
+                "revision": 0,
+                "transition_cid": None,
+            }
         root_cid = row["root_cid"]
         transition_cid = row["transition_cid"]
         if root_cid is not None:
@@ -727,7 +799,8 @@ class DurableCoordinationStore:
         """
 
         root_row = connection.execute(
-            "SELECT root_cid,revision,transition_cid FROM state_roots WHERE namespace=?", (namespace,)
+            "SELECT root_cid,revision,transition_cid FROM state_roots WHERE namespace=?",
+            (namespace,),
         ).fetchone()
         transition_rows = connection.execute(
             "SELECT * FROM state_root_transitions WHERE namespace=? "
@@ -751,48 +824,73 @@ class DurableCoordinationStore:
                 if _codec_from_cid(transition_cid) != "dag-json":
                     raise ValueError("state root transition has a non-dag-json CID")
                 artifact_row = connection.execute(
-                    "SELECT kind,schema_uri,codec,byte_length FROM artifacts WHERE cid=?", (transition_cid,)
+                    "SELECT kind,schema_uri,codec,byte_length FROM artifacts WHERE cid=?",
+                    (transition_cid,),
                 ).fetchone()
                 if artifact_row is None:
                     raise ValueError("state root transition is absent from artifacts")
                 if (
                     artifact_row["kind"] != _artifact_kind(self.get(transition_cid))
-                    or
-                    artifact_row["schema_uri"] != STATE_ROOT_TRANSITION_SCHEMA
+                    or artifact_row["schema_uri"] != STATE_ROOT_TRANSITION_SCHEMA
                     or artifact_row["codec"] != "dag-json"
                 ):
-                    raise ValueError("state root transition has inconsistent artifact metadata")
+                    raise ValueError(
+                        "state root transition has inconsistent artifact metadata"
+                    )
                 data = self.get_bytes(transition_cid)
                 if artifact_row["byte_length"] != len(data):
-                    raise ValueError("state root transition has inconsistent artifact length")
+                    raise ValueError(
+                        "state root transition has inconsistent artifact length"
+                    )
                 fields = self._state_root_transition_fields(self.get(transition_cid))
                 row_fields = (
-                    "namespace", "operation_id", "expected_root_cid", "expected_revision",
-                    "new_root_cid", "new_revision", "created_at_ms",
+                    "namespace",
+                    "operation_id",
+                    "expected_root_cid",
+                    "expected_revision",
+                    "new_root_cid",
+                    "new_revision",
+                    "created_at_ms",
                 )
                 if any(row[name] != fields[name] for name in row_fields):
-                    raise ValueError("state root transition index does not match its block")
+                    raise ValueError(
+                        "state root transition index does not match its block"
+                    )
                 if (fields["expected_root_cid"], fields["expected_revision"]) != (
-                    predecessor["root_cid"], predecessor["revision"]
+                    predecessor["root_cid"],
+                    predecessor["revision"],
                 ):
-                    raise ValueError("state root transition breaks its predecessor chain")
+                    raise ValueError(
+                        "state root transition breaks its predecessor chain"
+                    )
                 # Reading every successor makes a missing or corrupt earlier
                 # root fail even when a later transition is otherwise intact.
                 self.get_bytes(fields["new_root_cid"])
                 predecessor = {
-                    "root_cid": fields["new_root_cid"], "revision": fields["new_revision"],
+                    "root_cid": fields["new_root_cid"],
+                    "revision": fields["new_revision"],
                     "transition_cid": transition_cid,
                 }
 
-            if (snapshot["root_cid"], snapshot["revision"], snapshot["transition_cid"]) != (
-                predecessor["root_cid"], predecessor["revision"], predecessor["transition_cid"]
+            if (
+                snapshot["root_cid"],
+                snapshot["revision"],
+                snapshot["transition_cid"],
+            ) != (
+                predecessor["root_cid"],
+                predecessor["revision"],
+                predecessor["transition_cid"],
             ):
                 raise ValueError("root row does not match its indexed transition chain")
             return snapshot
         except (ArtifactIntegrityError, ArtifactNotFound) as exc:
-            raise ArtifactIntegrityError(f"state root {namespace!r} has invalid immutable evidence: {exc}") from exc
+            raise ArtifactIntegrityError(
+                f"state root {namespace!r} has invalid immutable evidence: {exc}"
+            ) from exc
         except (KeyError, TypeError, ValueError, sqlite3.DatabaseError) as exc:
-            raise ArtifactIntegrityError(f"state root {namespace!r} has invalid indexed evidence: {exc}") from exc
+            raise ArtifactIntegrityError(
+                f"state root {namespace!r} has invalid indexed evidence: {exc}"
+            ) from exc
 
     def current_state_root(self, namespace: str) -> Dict[str, Any]:
         """Return a namespace's current root; absent namespaces begin at revision zero."""
@@ -808,7 +906,10 @@ class DurableCoordinationStore:
             rows = self._connection.execute(
                 "SELECT namespace,root_cid,revision,transition_cid FROM state_roots ORDER BY namespace"
             ).fetchall()
-            return [self._verified_indexed_state_root(row["namespace"], self._connection) for row in rows]
+            return [
+                self._verified_indexed_state_root(row["namespace"], self._connection)
+                for row in rows
+            ]
 
     def root_transitions(self, namespace: Optional[str] = None) -> list[Dict[str, Any]]:
         """List indexed root transitions, optionally for one namespace."""
@@ -874,26 +975,41 @@ class DurableCoordinationStore:
                     if same_request:
                         connection.rollback()
                         return {
-                            "status": "unchanged", "before": before, "after": before,
-                            "transition_cid": None, "reason_code": "idempotent_replay",
-                            "local_durable": True, "replicated": False,
+                            "status": "unchanged",
+                            "before": before,
+                            "after": before,
+                            "transition_cid": None,
+                            "reason_code": "idempotent_replay",
+                            "local_durable": True,
+                            "replicated": False,
                         }
                     connection.rollback()
                     return {
-                        "status": "conflict", "before": before, "after": before,
-                        "transition_cid": None, "reason_code": "operation_id_reused",
-                        "local_durable": True, "replicated": False,
+                        "status": "conflict",
+                        "before": before,
+                        "after": before,
+                        "transition_cid": None,
+                        "reason_code": "operation_id_reused",
+                        "local_durable": True,
+                        "replicated": False,
                     }
                 # Verify the successor only after replay/reuse resolution,
                 # but before the expectation can publish it.
                 self.get_bytes(new_root_cid)
                 self._interrupt_root_cas("after_expectation_verification")
-                if before["revision"] != expected_revision or before["root_cid"] != expected_root_cid:
+                if (
+                    before["revision"] != expected_revision
+                    or before["root_cid"] != expected_root_cid
+                ):
                     connection.rollback()
                     return {
-                        "status": "conflict", "before": before, "after": before,
-                        "transition_cid": None, "reason_code": "stale_expectation",
-                        "local_durable": True, "replicated": False,
+                        "status": "conflict",
+                        "before": before,
+                        "after": before,
+                        "transition_cid": None,
+                        "reason_code": "stale_expectation",
+                        "local_durable": True,
+                        "replicated": False,
                     }
 
                 transition = {
@@ -913,14 +1029,29 @@ class DurableCoordinationStore:
                 kind = _artifact_kind(transition)
                 connection.execute(
                     "INSERT OR IGNORE INTO artifacts VALUES(?,?,?,?,?,?)",
-                    (transition_cid, kind, STATE_ROOT_TRANSITION_SCHEMA, "dag-json", len(data), transition["created_at_ms"]),
+                    (
+                        transition_cid,
+                        kind,
+                        STATE_ROOT_TRANSITION_SCHEMA,
+                        "dag-json",
+                        len(data),
+                        transition["created_at_ms"],
+                    ),
                 )
                 connection.execute(
                     """INSERT INTO state_root_transitions
                        (transition_cid,namespace,operation_id,expected_root_cid,expected_revision,
                         new_root_cid,new_revision,created_at_ms) VALUES(?,?,?,?,?,?,?,?)""",
-                    (transition_cid, namespace, operation_id, expected_root_cid, expected_revision,
-                     new_root_cid, expected_revision + 1, transition["created_at_ms"]),
+                    (
+                        transition_cid,
+                        namespace,
+                        operation_id,
+                        expected_root_cid,
+                        expected_revision,
+                        new_root_cid,
+                        expected_revision + 1,
+                        transition["created_at_ms"],
+                    ),
                 )
                 connection.execute(
                     """INSERT INTO state_roots(namespace,root_cid,revision,transition_cid) VALUES(?,?,?,?)
@@ -929,8 +1060,12 @@ class DurableCoordinationStore:
                     (namespace, new_root_cid, expected_revision + 1, transition_cid),
                 )
                 self._interrupt_root_cas("after_transition_indexing")
-                after = {"namespace": namespace, "root_cid": new_root_cid,
-                         "revision": expected_revision + 1, "transition_cid": transition_cid}
+                after = {
+                    "namespace": namespace,
+                    "root_cid": new_root_cid,
+                    "revision": expected_revision + 1,
+                    "transition_cid": transition_cid,
+                }
                 self._interrupt_root_cas("before_sqlite_commit")
                 connection.commit()
                 self._interrupt_root_cas("after_sqlite_commit")
@@ -938,9 +1073,13 @@ class DurableCoordinationStore:
                 connection.rollback()
                 raise
         return {
-            "status": "updated", "before": before, "after": after,
-            "transition_cid": transition_cid, "reason_code": "updated",
-            "local_durable": True, "replicated": False,
+            "status": "updated",
+            "before": before,
+            "after": after,
+            "transition_cid": transition_cid,
+            "reason_code": "updated",
+            "local_durable": True,
+            "replicated": False,
         }
 
     # These short aliases make the storage primitive convenient for the later
@@ -949,7 +1088,11 @@ class DurableCoordinationStore:
     compare_and_swap_root = compare_and_swap_state_root
 
     def _index_artifact(
-        self, connection: sqlite3.Connection, cid: str, kind: str, artifact: Mapping[str, Any]
+        self,
+        connection: sqlite3.Connection,
+        cid: str,
+        kind: str,
+        artifact: Mapping[str, Any],
     ) -> None:
         if kind == "TaskClaim":
             connection.execute(
@@ -959,10 +1102,16 @@ class DurableCoordinationStore:
                    VALUES(?,?,?,?,?,?,?,?,COALESCE((SELECT state FROM claims WHERE claim_cid=?),'pending'),
                           (SELECT resolution_cid FROM claims WHERE claim_cid=?))""",
                 (
-                    cid, _require_string(artifact, "task_cid"), _require_string(artifact, "proposal_cid"),
-                    _require_string(artifact, "claimant_did"), _require_integer(artifact, "logical_epoch", 1),
-                    _require_integer(artifact, "requested_lease_ms", 1), _require_integer(artifact, "attempt", 1),
-                    _require_integer(artifact, "created_at_ms"), cid, cid,
+                    cid,
+                    _require_string(artifact, "task_cid"),
+                    _require_string(artifact, "proposal_cid"),
+                    _require_string(artifact, "claimant_did"),
+                    _require_integer(artifact, "logical_epoch", 1),
+                    _require_integer(artifact, "requested_lease_ms", 1),
+                    _require_integer(artifact, "attempt", 1),
+                    _require_integer(artifact, "created_at_ms"),
+                    cid,
+                    cid,
                 ),
             )
         elif kind == "ClaimResolution":
@@ -970,18 +1119,31 @@ class DurableCoordinationStore:
         elif kind in ("NeighborhoodRecord", "DaemonHealth"):
             self._index_health(connection, cid, kind, artifact)
 
-    def _state_root_transition_fields(self, artifact: Mapping[str, Any]) -> Dict[str, Any]:
+    def _state_root_transition_fields(
+        self, artifact: Mapping[str, Any]
+    ) -> Dict[str, Any]:
         """Validate the closed immutable transition wire record for rebuilding."""
 
         required = {
-            "schema", "namespace", "operation_id", "expected_root_cid", "expected_revision",
-            "new_root_cid", "new_revision", "created_at_ms",
+            "schema",
+            "namespace",
+            "operation_id",
+            "expected_root_cid",
+            "expected_revision",
+            "new_root_cid",
+            "new_revision",
+            "created_at_ms",
         }
-        if set(artifact) != required or artifact.get("schema") != STATE_ROOT_TRANSITION_SCHEMA:
+        if (
+            set(artifact) != required
+            or artifact.get("schema") != STATE_ROOT_TRANSITION_SCHEMA
+        ):
             raise ValueError("state root transition has an invalid schema or fields")
         namespace = self._root_namespace(artifact["namespace"])
         operation_id = self._operation_id(artifact["operation_id"])
-        expected_revision = self._root_revision(artifact["expected_revision"], "expected_revision")
+        expected_revision = self._root_revision(
+            artifact["expected_revision"], "expected_revision"
+        )
         new_revision = self._root_revision(artifact["new_revision"], "new_revision")
         created_at_ms = self._root_revision(artifact["created_at_ms"], "created_at_ms")
         expected_root_cid = artifact["expected_root_cid"]
@@ -990,14 +1152,22 @@ class DurableCoordinationStore:
         new_root_cid = artifact["new_root_cid"]
         _codec_from_cid(new_root_cid)
         if new_revision != expected_revision + 1 or expected_root_cid == new_root_cid:
-            raise ValueError("state root transition has an invalid revision or successor")
+            raise ValueError(
+                "state root transition has an invalid revision or successor"
+            )
         return {
-            "namespace": namespace, "operation_id": operation_id, "expected_root_cid": expected_root_cid,
-            "expected_revision": expected_revision, "new_root_cid": new_root_cid,
-            "new_revision": new_revision, "created_at_ms": created_at_ms,
+            "namespace": namespace,
+            "operation_id": operation_id,
+            "expected_root_cid": expected_root_cid,
+            "expected_revision": expected_revision,
+            "new_root_cid": new_root_cid,
+            "new_revision": new_revision,
+            "created_at_ms": created_at_ms,
         }
 
-    def _index_resolution(self, connection: sqlite3.Connection, cid: str, artifact: Mapping[str, Any]) -> None:
+    def _index_resolution(
+        self, connection: sqlite3.Connection, cid: str, artifact: Mapping[str, Any]
+    ) -> None:
         task_cid = _require_string(artifact, "task_cid")
         outcome = _require_string(artifact, "outcome")
         accepted = artifact.get("accepted_claim_cid")
@@ -1014,10 +1184,23 @@ class DurableCoordinationStore:
                    ORDER BY logical_epoch DESC,fencing_token DESC LIMIT 1""",
                 (task_cid,),
             ).fetchone()
-            if current is not None and (epoch, token) <= (current["logical_epoch"], current["fencing_token"]):
+            if current is not None and (epoch, token) <= (
+                current["logical_epoch"],
+                current["fencing_token"],
+            ):
                 connection.execute(
                     "INSERT OR REPLACE INTO leases VALUES(?,?,?,?,?,?,?,?,?)",
-                    (cid, task_cid, accepted, epoch, token, expires, "stale", 0, created),
+                    (
+                        cid,
+                        task_cid,
+                        accepted,
+                        epoch,
+                        token,
+                        expires,
+                        "stale",
+                        0,
+                        created,
+                    ),
                 )
                 return
             connection.execute(
@@ -1035,29 +1218,46 @@ class DurableCoordinationStore:
                 (cid, task_cid, accepted, epoch, token, expires, outcome, 1, created),
             )
             connection.execute(
-                "UPDATE claims SET state='accepted', resolution_cid=? WHERE claim_cid=?", (cid, accepted)
+                "UPDATE claims SET state='accepted', resolution_cid=? WHERE claim_cid=?",
+                (cid, accepted),
             )
             considered = artifact.get("considered_claim_cids", [])
             for claim_cid in considered if isinstance(considered, list) else []:
                 if claim_cid != accepted:
                     connection.execute(
-                        "UPDATE claims SET state='conflict', resolution_cid=? WHERE claim_cid=?", (cid, claim_cid)
+                        "UPDATE claims SET state='conflict', resolution_cid=? WHERE claim_cid=?",
+                        (cid, claim_cid),
                     )
         else:
-            connection.execute("UPDATE leases SET active=0, outcome=? WHERE task_cid=? AND active=1", (outcome, task_cid))
+            connection.execute(
+                "UPDATE leases SET active=0, outcome=? WHERE task_cid=? AND active=1",
+                (outcome, task_cid),
+            )
             for claim_cid in artifact.get("considered_claim_cids", []):
                 connection.execute(
-                    "UPDATE claims SET state=?, resolution_cid=? WHERE claim_cid=?", (outcome, cid, claim_cid)
+                    "UPDATE claims SET state=?, resolution_cid=? WHERE claim_cid=?",
+                    (outcome, cid, claim_cid),
                 )
 
     def _index_health(
-        self, connection: sqlite3.Connection, cid: str, kind: str, artifact: Mapping[str, Any]
+        self,
+        connection: sqlite3.Connection,
+        cid: str,
+        kind: str,
+        artifact: Mapping[str, Any],
     ) -> None:
         peer = _require_string(artifact, "peer_did")
-        observed = int(artifact.get("observed_at_ms", artifact.get("valid_from_ms", artifact.get("created_at_ms", 0))))
+        observed = int(
+            artifact.get(
+                "observed_at_ms",
+                artifact.get("valid_from_ms", artifact.get("created_at_ms", 0)),
+            )
+        )
         expires = _require_integer(artifact, "expires_at_ms", 1)
         capacity = _require_integer(artifact, "capacity_millionths")
-        status = str(artifact.get("status", "healthy" if capacity > 0 else "unavailable"))
+        status = str(
+            artifact.get("status", "healthy" if capacity > 0 else "unavailable")
+        )
         connection.execute(
             "INSERT OR REPLACE INTO daemon_health VALUES(?,?,?,?,?,?,?)",
             (cid, peer, status, observed, expires, capacity, kind),
@@ -1069,8 +1269,16 @@ class DurableCoordinationStore:
         value = dict(record)
         value.setdefault("schema", DAEMON_HEALTH_SCHEMA)
         required = (
-            "peer_did", "status", "observed_at_ms", "expires_at_ms", "capacity_millionths",
-            "resource_classes", "health_evidence_cid", "signer_did", "signature_alg", "signature",
+            "peer_did",
+            "status",
+            "observed_at_ms",
+            "expires_at_ms",
+            "capacity_millionths",
+            "resource_classes",
+            "health_evidence_cid",
+            "signer_did",
+            "signature_alg",
+            "signature",
         )
         missing = [name for name in required if name not in value]
         if missing:
@@ -1087,7 +1295,9 @@ class DurableCoordinationStore:
     def _rows(cursor: sqlite3.Cursor) -> list[Dict[str, Any]]:
         return [dict(row) for row in cursor.fetchall()]
 
-    def claims(self, task_cid: str, *, include_terminal: bool = True) -> list[Dict[str, Any]]:
+    def claims(
+        self, task_cid: str, *, include_terminal: bool = True
+    ) -> list[Dict[str, Any]]:
         sql = "SELECT * FROM claims WHERE task_cid=?"
         parameters: list[Any] = [task_cid]
         if not include_terminal:
@@ -1096,7 +1306,9 @@ class DurableCoordinationStore:
         with self._lock:
             return self._rows(self._connection.execute(sql, parameters))
 
-    def active_lease(self, task_cid: str, *, at_ms: Optional[int] = None) -> Optional[Dict[str, Any]]:
+    def active_lease(
+        self, task_cid: str, *, at_ms: Optional[int] = None
+    ) -> Optional[Dict[str, Any]]:
         now = int(self._clock_ms() if at_ms is None else at_ms)
         with self._lock, self._connection:
             self._connection.execute(
@@ -1106,7 +1318,8 @@ class DurableCoordinationStore:
                 (now,),
             )
             self._connection.execute(
-                "UPDATE leases SET active=0, outcome='expired' WHERE active=1 AND expires_at_ms<=?", (now,)
+                "UPDATE leases SET active=0, outcome='expired' WHERE active=1 AND expires_at_ms<=?",
+                (now,),
             )
             row = self._connection.execute(
                 """SELECT leases.*, claims.claimant_did FROM leases
@@ -1117,7 +1330,9 @@ class DurableCoordinationStore:
             ).fetchone()
             return dict(row) if row else None
 
-    def daemon_health(self, peer_did: Optional[str] = None, *, at_ms: Optional[int] = None) -> list[Dict[str, Any]]:
+    def daemon_health(
+        self, peer_did: Optional[str] = None, *, at_ms: Optional[int] = None
+    ) -> list[Dict[str, Any]]:
         now = int(self._clock_ms() if at_ms is None else at_ms)
         sql = "SELECT * FROM daemon_health WHERE expires_at_ms>?"
         params: list[Any] = [now]
@@ -1136,17 +1351,30 @@ class DurableCoordinationStore:
         lease_before = now - self.retention.expired_lease_ms
         health_before = now - self.retention.expired_health_ms
         with self._lock:
-            claims = self._rows(self._connection.execute(
-                "SELECT * FROM claims WHERE state NOT IN ('pending','accepted') AND created_at_ms<=?", (claim_before,)
-            ))
-            leases = self._rows(self._connection.execute(
-                "SELECT * FROM leases WHERE active=0 AND expires_at_ms<=?", (lease_before,)
-            ))
-            health = self._rows(self._connection.execute(
-                "SELECT * FROM daemon_health WHERE expires_at_ms<=?", (health_before,)
-            ))
+            claims = self._rows(
+                self._connection.execute(
+                    "SELECT * FROM claims WHERE state NOT IN ('pending','accepted') AND created_at_ms<=?",
+                    (claim_before,),
+                )
+            )
+            leases = self._rows(
+                self._connection.execute(
+                    "SELECT * FROM leases WHERE active=0 AND expires_at_ms<=?",
+                    (lease_before,),
+                )
+            )
+            health = self._rows(
+                self._connection.execute(
+                    "SELECT * FROM daemon_health WHERE expires_at_ms<=?",
+                    (health_before,),
+                )
+            )
         if not (claims or leases or health):
-            return {"compacted": False, "reason": "no_eligible_index_rows", "row_count": 0}
+            return {
+                "compacted": False,
+                "reason": "no_eligible_index_rows",
+                "row_count": 0,
+            }
         artifact = {
             "schema": COORDINATION_ARCHIVE_SCHEMA,
             "created_at_ms": now,
@@ -1159,17 +1387,28 @@ class DurableCoordinationStore:
             "claims": claims,
             "leases": leases,
             "daemon_health": health,
-            "artifact_cids": sorted({
-                *(row["claim_cid"] for row in claims),
-                *(row["resolution_cid"] for row in leases),
-                *(row["health_cid"] for row in health),
-            }),
+            "artifact_cids": sorted(
+                {
+                    *(row["claim_cid"] for row in claims),
+                    *(row["resolution_cid"] for row in leases),
+                    *(row["health_cid"] for row in health),
+                }
+            ),
         }
         stored = self.put(artifact)
         with self._lock, self._connection:
-            self._connection.executemany("DELETE FROM claims WHERE claim_cid=?", [(row["claim_cid"],) for row in claims])
-            self._connection.executemany("DELETE FROM leases WHERE resolution_cid=?", [(row["resolution_cid"],) for row in leases])
-            self._connection.executemany("DELETE FROM daemon_health WHERE health_cid=?", [(row["health_cid"],) for row in health])
+            self._connection.executemany(
+                "DELETE FROM claims WHERE claim_cid=?",
+                [(row["claim_cid"],) for row in claims],
+            )
+            self._connection.executemany(
+                "DELETE FROM leases WHERE resolution_cid=?",
+                [(row["resolution_cid"],) for row in leases],
+            )
+            self._connection.executemany(
+                "DELETE FROM daemon_health WHERE health_cid=?",
+                [(row["health_cid"],) for row in health],
+            )
             self._connection.execute(
                 "INSERT OR REPLACE INTO index_archives VALUES(?,?,?)",
                 (stored["cid"], now, len(claims) + len(leases) + len(health)),
@@ -1212,22 +1451,34 @@ class DurableCoordinationStore:
 
         snapshots: Dict[str, Dict[str, Any]] = {}
         operations: set[tuple[str, str]] = set()
-        for cid, fields in sorted(root_transitions, key=lambda item: (
-            item[1]["namespace"], item[1]["new_revision"], item[0]
-        )):
+        for cid, fields in sorted(
+            root_transitions,
+            key=lambda item: (item[1]["namespace"], item[1]["new_revision"], item[0]),
+        ):
             operation = (fields["namespace"], fields["operation_id"])
             if operation in operations:
-                raise ArtifactIntegrityError(f"duplicate state root operation {operation!r}")
+                raise ArtifactIntegrityError(
+                    f"duplicate state root operation {operation!r}"
+                )
             operations.add(operation)
-            before = snapshots.get(fields["namespace"], {
-                "root_cid": None, "revision": 0, "transition_cid": None,
-            })
+            before = snapshots.get(
+                fields["namespace"],
+                {
+                    "root_cid": None,
+                    "revision": 0,
+                    "transition_cid": None,
+                },
+            )
             if (before["root_cid"], before["revision"]) != (
-                fields["expected_root_cid"], fields["expected_revision"]
+                fields["expected_root_cid"],
+                fields["expected_revision"],
             ):
-                raise ArtifactIntegrityError(f"state root transition {cid} breaks its namespace chain")
+                raise ArtifactIntegrityError(
+                    f"state root transition {cid} breaks its namespace chain"
+                )
             snapshots[fields["namespace"]] = {
-                "root_cid": fields["new_root_cid"], "revision": fields["new_revision"],
+                "root_cid": fields["new_root_cid"],
+                "revision": fields["new_revision"],
                 "transition_cid": cid,
             }
         return root_transitions, snapshots
@@ -1273,7 +1524,10 @@ class DurableCoordinationStore:
         if set(actual_roots) != set(snapshots):
             return False
         return all(
-            all(actual_roots[namespace][field] == value for field, value in snapshot.items())
+            all(
+                actual_roots[namespace][field] == value
+                for field, value in snapshot.items()
+            )
             for namespace, snapshot in snapshots.items()
         )
 
@@ -1301,7 +1555,10 @@ class DurableCoordinationStore:
                         if cid_for_bytes(data, _codec_from_cid(cid)) != cid:
                             raise ArtifactIntegrityError("CID mismatch")
                         value = json.loads(data.decode("utf-8"))
-                        if not isinstance(value, dict) or _canonical_json(value) != data:
+                        if (
+                            not isinstance(value, dict)
+                            or _canonical_json(value) != data
+                        ):
                             raise ArtifactIntegrityError("non-canonical JSON")
                         _artifact_kind(value)
                         verified.append((cid, value, data))
@@ -1310,21 +1567,35 @@ class DurableCoordinationStore:
                         if len(errors) < MAX_RECOVERY_ERRORS:
                             errors.append({"cid": cid, "error": str(exc)})
                 if errors:
-                    suffix = "" if corrupt_count == len(errors) else f" (showing first {len(errors)} of {corrupt_count})"
-                    raise ArtifactIntegrityError(f"coordination recovery found corrupt blocks{suffix}: {errors}")
+                    suffix = (
+                        ""
+                        if corrupt_count == len(errors)
+                        else f" (showing first {len(errors)} of {corrupt_count})"
+                    )
+                    raise ArtifactIntegrityError(
+                        f"coordination recovery found corrupt blocks{suffix}: {errors}"
+                    )
                 root_transitions, snapshots = self._reconstructed_root_chain(verified)
-                root_indexes_match = self._root_indexes_match(connection, root_transitions, snapshots)
+                root_indexes_match = self._root_indexes_match(
+                    connection, root_transitions, snapshots
+                )
                 self._last_root_indexes_match = root_indexes_match
                 self._root_recovery_metrics["root_index_verifications"] += 1
                 if not rebuild:
                     connection.commit()
                     return {
-                        "verified_blocks": len(verified), "rebuilt": False, "errors": [],
+                        "verified_blocks": len(verified),
+                        "rebuilt": False,
+                        "errors": [],
                     }
 
-                deleted_root_rows = int(connection.execute("SELECT COUNT(*) FROM state_roots").fetchone()[0])
+                deleted_root_rows = int(
+                    connection.execute("SELECT COUNT(*) FROM state_roots").fetchone()[0]
+                )
                 deleted_transition_rows = int(
-                    connection.execute("SELECT COUNT(*) FROM state_root_transitions").fetchone()[0]
+                    connection.execute(
+                        "SELECT COUNT(*) FROM state_root_transitions"
+                    ).fetchone()[0]
                 )
                 self._connection.execute("DELETE FROM claims")
                 self._connection.execute("DELETE FROM leases")
@@ -1335,59 +1606,97 @@ class DurableCoordinationStore:
                 self._connection.execute("DELETE FROM artifacts")
                 # Creation order is stable so claims precede resolutions in the
                 # normal case. A second resolution pass handles arbitrary scans.
-                ordered = sorted(verified, key=lambda row: (int(row[1].get("created_at_ms", 0)), row[0]))
+                ordered = sorted(
+                    verified,
+                    key=lambda row: (int(row[1].get("created_at_ms", 0)), row[0]),
+                )
                 for cid, value, data in ordered:
                     kind = _artifact_kind(value)
                     self._connection.execute(
                         "INSERT INTO artifacts VALUES(?,?,?,?,?,?)",
-                        (cid, kind, str(value["schema"]), _codec_from_cid(cid), len(data), int(value.get("created_at_ms", 0))),
+                        (
+                            cid,
+                            kind,
+                            str(value["schema"]),
+                            _codec_from_cid(cid),
+                            len(data),
+                            int(value.get("created_at_ms", 0)),
+                        ),
                     )
                     if kind != "ClaimResolution":
                         self._index_artifact(self._connection, cid, kind, value)
                 for cid, value, _ in ordered:
                     if _artifact_kind(value) == "ClaimResolution":
-                        self._index_artifact(self._connection, cid, "ClaimResolution", value)
+                        self._index_artifact(
+                            self._connection, cid, "ClaimResolution", value
+                        )
                 for cid, value, _ in ordered:
                     if _artifact_kind(value) == "CoordinationArchive":
-                        row_count = sum(len(value.get(name, [])) for name in ("claims", "leases", "daemon_health"))
+                        row_count = sum(
+                            len(value.get(name, []))
+                            for name in ("claims", "leases", "daemon_health")
+                        )
                         self._connection.executemany(
                             "DELETE FROM claims WHERE claim_cid=?",
                             [(row["claim_cid"],) for row in value.get("claims", [])],
                         )
                         self._connection.executemany(
                             "DELETE FROM leases WHERE resolution_cid=?",
-                            [(row["resolution_cid"],) for row in value.get("leases", [])],
+                            [
+                                (row["resolution_cid"],)
+                                for row in value.get("leases", [])
+                            ],
                         )
                         self._connection.executemany(
                             "DELETE FROM daemon_health WHERE health_cid=?",
-                            [(row["health_cid"],) for row in value.get("daemon_health", [])],
+                            [
+                                (row["health_cid"],)
+                                for row in value.get("daemon_health", [])
+                            ],
                         )
                         self._connection.execute(
                             "INSERT OR REPLACE INTO index_archives VALUES(?,?,?)",
                             (cid, int(value.get("created_at_ms", 0)), row_count),
                         )
                 root_index_mutations = (
-                    deleted_root_rows + deleted_transition_rows + len(root_transitions) + len(snapshots)
+                    deleted_root_rows
+                    + deleted_transition_rows
+                    + len(root_transitions)
+                    + len(snapshots)
                 )
                 for cid, fields in root_transitions:
                     self._connection.execute(
                         """INSERT INTO state_root_transitions
                            (transition_cid,namespace,operation_id,expected_root_cid,expected_revision,
                             new_root_cid,new_revision,created_at_ms) VALUES(?,?,?,?,?,?,?,?)""",
-                        (cid, fields["namespace"], fields["operation_id"], fields["expected_root_cid"],
-                         fields["expected_revision"], fields["new_root_cid"], fields["new_revision"],
-                         fields["created_at_ms"]),
+                        (
+                            cid,
+                            fields["namespace"],
+                            fields["operation_id"],
+                            fields["expected_root_cid"],
+                            fields["expected_revision"],
+                            fields["new_root_cid"],
+                            fields["new_revision"],
+                            fields["created_at_ms"],
+                        ),
                     )
                 for namespace, snapshot in snapshots.items():
                     self._connection.execute(
                         "INSERT INTO state_roots(namespace,root_cid,revision,transition_cid) VALUES(?,?,?,?)",
-                        (namespace, snapshot["root_cid"], snapshot["revision"], snapshot["transition_cid"]),
+                        (
+                            namespace,
+                            snapshot["root_cid"],
+                            snapshot["revision"],
+                            snapshot["transition_cid"],
+                        ),
                     )
                 connection.commit()
                 # Session metrics describe committed index work only.  A
                 # rollback may have executed statements, but it did not make
                 # any root-index mutation durable or visible.
-                self._root_recovery_metrics["root_index_rebuild_mutations"] += root_index_mutations
+                self._root_recovery_metrics[
+                    "root_index_rebuild_mutations"
+                ] += root_index_mutations
             except Exception:
                 connection.rollback()
                 raise
@@ -1396,12 +1705,24 @@ class DurableCoordinationStore:
     def status(self) -> Dict[str, Any]:
         with self._lock:
             counts = {
-                table: int(self._connection.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0])
-                for table in ("artifacts", "claims", "leases", "daemon_health", "index_archives")
+                table: int(
+                    self._connection.execute(
+                        f"SELECT COUNT(*) FROM {table}"
+                    ).fetchone()[0]
+                )
+                for table in (
+                    "artifacts",
+                    "claims",
+                    "leases",
+                    "daemon_health",
+                    "index_archives",
+                )
             }
         return {
             "storage_dir": str(self.root),
-            "backend": type(self.backend).__name__ if self.backend is not None else None,
+            "backend": (
+                type(self.backend).__name__ if self.backend is not None else None
+            ),
             "counts": counts,
             "artifact_retention": "permanent",
             "index_retention": self.retention.__dict__.copy(),

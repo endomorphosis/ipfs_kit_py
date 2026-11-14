@@ -11,6 +11,7 @@ Runtime binding (RuntimeP2pAdapter@1 / kit side):
   * Fail-closed on oversized / truncated / invalid frames
   * Transport success is not application success
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field

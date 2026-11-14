@@ -2,16 +2,17 @@
 """
 Standalone dashboard launcher - creates the dashboard without importing the module
 """
+
 import sys
 import os
 import uvicorn
 from pathlib import Path
 
 # Add current directory to Python path for imports
-sys.path.insert(0, os.path.abspath('.'))
+sys.path.insert(0, os.path.abspath("."))
 
 # Set environment variables for the dashboard
-os.environ['IPFS_KIT_DATA_DIR'] = os.path.expanduser('~/.ipfs_kit')
+os.environ["IPFS_KIT_DATA_DIR"] = os.path.expanduser("~/.ipfs_kit")
 
 # Try importing all the required components directly
 try:
@@ -31,17 +32,18 @@ try:
     import time
     import glob
     from pathlib import Path
-    
+
     print("✅ All imports successful")
-    
+
 except ImportError as e:
     print(f"❌ Import error: {e}")
     sys.exit(1)
 
+
 def create_simple_dashboard():
     """Create a minimal FastAPI dashboard for testing."""
     app = FastAPI(title="IPFS Kit Dashboard", version="1.0.0")
-    
+
     # Add CORS middleware
     app.add_middleware(
         CORSMiddleware,
@@ -50,10 +52,11 @@ def create_simple_dashboard():
         allow_methods=["*"],
         allow_headers=["*"],
     )
-    
+
     @app.get("/")
     async def root():
-        return HTMLResponse("""
+        return HTMLResponse(
+            """
         <!DOCTYPE html>
         <html>
         <head>
@@ -71,30 +74,28 @@ def create_simple_dashboard():
                 <h2 class="success">✅ Dashboard is running!</h2>
                 <p class="info">This is a direct uvicorn-launched instance bypassing package cache issues.</p>
                 <p><strong>Data Directory:</strong> ~/.ipfs_kit/</p>
-                <p><strong>Server Time:</strong> """ + datetime.now().strftime("%Y-%m-%d %H:%M:%S") + """</p>
+                <p><strong>Server Time:</strong> """
+            + datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            + """</p>
             </div>
         </body>
         </html>
-        """)
-    
+        """
+        )
+
     @app.get("/api/health")
     async def health():
         return {"status": "healthy", "timestamp": datetime.now().isoformat()}
-    
+
     return app
+
 
 if __name__ == "__main__":
     print("🔧 Creating simple dashboard for testing...")
-    
+
     app = create_simple_dashboard()
-    
+
     print("🚀 Starting dashboard on http://127.0.0.1:8085")
     print("🛑 Press Ctrl+C to stop")
-    
-    uvicorn.run(
-        app,
-        host="127.0.0.1",
-        port=8085,
-        reload=False,
-        log_level="info"
-    )
+
+    uvicorn.run(app, host="127.0.0.1", port=8085, reload=False, log_level="info")

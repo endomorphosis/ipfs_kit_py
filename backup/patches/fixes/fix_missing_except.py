@@ -9,8 +9,11 @@ import logging
 import re
 
 # Configure logging
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger(__name__)
+
 
 def fix_missing_except():
     """Add the missing except block for the try in handle_jsonrpc"""
@@ -32,7 +35,7 @@ def fix_missing_except():
                 # Insert the except block after this line
                 except_block = "    except Exception as e:\n        logger.error(f\"JSON-RPC request handling error: {e}\")\n        return JSONResponse({\n            'jsonrpc': '2.0',\n            'error': {'code': -32603, 'message': f'Internal error: {str(e)}'},\n            'id': req_id if 'req_id' in locals() else None\n        })\n\n"
                 lines.insert(i + 1, except_block)
-                logger.info(f"Added missing except block at line {i+1}")
+                logger.info(f"Added missing except block at line {i + 1}")
                 break
         else:
             logger.error("Could not find insertion point for except block")
@@ -49,6 +52,7 @@ def fix_missing_except():
         logger.error(f"Error fixing missing except block: {e}")
         return False
 
+
 def main():
     """Main function"""
     logger.info("Starting to fix missing except block...")
@@ -61,6 +65,7 @@ def main():
     logger.info("\n✅ Successfully fixed missing except block")
     logger.info("You can now run the server with './restart_mcp_with_tools.sh'")
     return 0
+
 
 if __name__ == "__main__":
     sys.exit(main())

@@ -47,7 +47,9 @@ class GraphRAGSearchEngine:
         try:
             self.engine = _graphrag.GraphRAGSearchEngine(**kwargs)
         except Exception as exc:
-            logger.error("Failed to bind canonical GraphRAGSearchEngine: %s", exc, exc_info=True)
+            logger.error(
+                "Failed to bind canonical GraphRAGSearchEngine: %s", exc, exc_info=True
+            )
             self.engine = None
             raise GraphRAGEngineUnavailable(
                 "GraphRAG engine failed to initialize; MCP refuses success/no-op"

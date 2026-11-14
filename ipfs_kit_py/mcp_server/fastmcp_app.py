@@ -11,6 +11,7 @@ Usage:
     app = FastMCP("ipfs_kit_py-mcpplusplus")
     register_fastmcp(app)
 """
+
 from __future__ import annotations
 
 from typing import Any, Dict, List
@@ -59,6 +60,7 @@ def register_fastmcp(
                 if "result" in response:
                     return response["result"]
                 return {"status": "error", "error": response["error"]}
+
             return _handler
 
         handler = _make(category, tool)
@@ -72,6 +74,7 @@ def register_fastmcp(
 def build_app(name: str = "ipfs_kit_py-mcpplusplus") -> Any:
     """Construct a FastMCP app with all tools registered. Requires the mcp pkg."""
     from mcp.server import FastMCP  # type: ignore
+
     app = FastMCP(name)
     register_fastmcp(app)
     return app

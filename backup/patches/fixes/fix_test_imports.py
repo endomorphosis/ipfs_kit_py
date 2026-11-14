@@ -24,46 +24,51 @@ original_import = builtins.__import__
 
 # List of problematic modules that should be mocked
 MOCK_MODULES = [
-    'libp2p.tools.pubsub',
-    'libp2p.kademlia',
-    'libp2p.network.stream.net_stream_interface',
-    'libp2p.typing',
-    'fastapi',
-    'libp2p.tools.constants',
-    'ipfs_kit_py.mcp.models.mcp_discovery_model',
-    'ipfs_kit_py.mcp.controllers.mcp_discovery_controller',
-    'ipfs_kit_py.mcp.models.libp2p_model',
-    'storacha_storage',
-    'huggingface_storage',
-    'enhanced_s3_storage',
-    'mcp_auth',
-    'mcp_extensions',
-    'mcp_monitoring'
+    "libp2p.tools.pubsub",
+    "libp2p.kademlia",
+    "libp2p.network.stream.net_stream_interface",
+    "libp2p.typing",
+    "fastapi",
+    "libp2p.tools.constants",
+    "ipfs_kit_py.mcp.models.mcp_discovery_model",
+    "ipfs_kit_py.mcp.controllers.mcp_discovery_controller",
+    "ipfs_kit_py.mcp.models.libp2p_model",
+    "storacha_storage",
+    "huggingface_storage",
+    "enhanced_s3_storage",
+    "mcp_auth",
+    "mcp_extensions",
+    "mcp_monitoring",
 ]
 
 # Modules that need special handling with attributes
 SPECIAL_MOCK_MODULES = {
-    'ipfs_kit_py.lotus_kit': ['LOTUS_KIT_AVAILABLE', 'lotus_kit'],
-    'ipfs_kit_py.mcp.controllers.webrtc_controller_anyio': ['StreamRequest'],
-    'ipfs_kit_py.mcp.controllers.webrtc_dashboard_controller_anyio': ['create_webrtc_dashboard_router_anyio'],
-    'ipfs_kit_py.mcp.controllers.storage.huggingface_controller_anyio': ['HuggingFaceRepoCreationRequest'],
-    'ipfs_kit_py.mcp.controllers.storage.lassie_controller': ['FetchCIDRequest'],
-    'ipfs_kit_py.mcp.controllers.storage_manager_controller_anyio': ['ReplicationPolicyResponse'],
-    'ipfs_dag_operations': ['DAGOperations', 'IPLDFormat'],
-    'ipfs_dht_operations': ['DHTOperations', 'DHTRecord'],
-    'ipfs_ipns_operations': ['IPNSOperations', 'IPNSRecord']
+    "ipfs_kit_py.lotus_kit": ["LOTUS_KIT_AVAILABLE", "lotus_kit"],
+    "ipfs_kit_py.mcp.controllers.webrtc_controller_anyio": ["StreamRequest"],
+    "ipfs_kit_py.mcp.controllers.webrtc_dashboard_controller_anyio": [
+        "create_webrtc_dashboard_router_anyio"
+    ],
+    "ipfs_kit_py.mcp.controllers.storage.huggingface_controller_anyio": [
+        "HuggingFaceRepoCreationRequest"
+    ],
+    "ipfs_kit_py.mcp.controllers.storage.lassie_controller": ["FetchCIDRequest"],
+    "ipfs_kit_py.mcp.controllers.storage_manager_controller_anyio": ["ReplicationPolicyResponse"],
+    "ipfs_dag_operations": ["DAGOperations", "IPLDFormat"],
+    "ipfs_dht_operations": ["DHTOperations", "DHTRecord"],
+    "ipfs_ipns_operations": ["IPNSOperations", "IPNSRecord"],
 }
 
 # Paths that should be redirected
 PATH_REDIRECTS = {
-    'ipfs_kit_py.mcp_server': 'ipfs_kit_py.mcp',
-    'ipfs_kit_py.mcp_server.server_bridge': 'ipfs_kit_py.mcp.server_bridge',
-    'ipfs_kit_py.mcp_server.models': 'ipfs_kit_py.mcp.models',
-    'ipfs_kit_py.mcp_server.controllers': 'ipfs_kit_py.mcp.controllers'
+    "ipfs_kit_py.mcp_server": "ipfs_kit_py.mcp",
+    "ipfs_kit_py.mcp_server.server_bridge": "ipfs_kit_py.mcp.server_bridge",
+    "ipfs_kit_py.mcp_server.models": "ipfs_kit_py.mcp.models",
+    "ipfs_kit_py.mcp_server.controllers": "ipfs_kit_py.mcp.controllers",
 }
 
 # Mock cache to avoid creating the same mock multiple times
 mock_cache = {}
+
 
 def create_mock_module(name, attributes=None):
     """Create a mock module with optional attributes."""
@@ -84,12 +89,13 @@ def create_mock_module(name, attributes=None):
     sys.modules[name] = mock_module
     return mock_module
 
+
 def patched_import(name, globals=None, locals=None, fromlist=(), level=0):
     """
     Patched import function that handles missing modules gracefully.
     """
     # Bypass mocking and unmock storage_manager modules
-    if name.startswith('ipfs_kit_py.mcp.storage_manager'):
+    if name.startswith("ipfs_kit_py.mcp.storage_manager"):
         sys.modules.pop(name, None)
         return original_import(name, globals, locals, fromlist, level)
 
@@ -116,8 +122,8 @@ def patched_import(name, globals=None, locals=None, fromlist=(), level=0):
         return original_import(name, globals, locals, fromlist, level)
     except ImportError as e:
         # If it contains a dot, try to create parent modules
-        if '.' in name:
-            parts = name.split('.')
+        if "." in name:
+            parts = name.split(".")
             # Create parent modules
             parent = parts[0]
             for i in range(1, len(parts)):
@@ -132,13 +138,14 @@ def patched_import(name, globals=None, locals=None, fromlist=(), level=0):
             # Add fromlist attributes if needed
             if fromlist:
                 for attr in fromlist:
-                    if attr != '':
+                    if attr != "":
                         setattr(module, attr, MagicMock())
 
             return module
         else:
             # For direct imports, create a basic mock
             return create_mock_module(name)
+
 
 # Fix SystemExit in test files
 def patch_sys_exit():
@@ -148,13 +155,14 @@ def patch_sys_exit():
     original_exit = sys.exit
 
     def patched_exit(code=0):
-        if 'pytest' in sys.modules:
+        if "pytest" in sys.modules:
             logger.warning(f"Ignoring sys.exit({code}) call in test")
             return None
         return original_exit(code)
 
     sys.exit = patched_exit
     logger.info("Patched sys.exit to prevent pytest termination")
+
 
 # Apply the patches
 logger.info("Applying import patches...")

@@ -14,14 +14,16 @@ from datetime import datetime
 
 # Configuration
 SERVER_PATH = "/home/barberb/ipfs_kit_py/final_mcp_server.py"
-BACKUP_PATH = f"/home/barberb/ipfs_kit_py/final_mcp_server.py.bak.{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+BACKUP_PATH = (
+    f"/home/barberb/ipfs_kit_py/final_mcp_server.py.bak.{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+)
 
 # Create a backup of the original file
 shutil.copy2(SERVER_PATH, BACKUP_PATH)
 print(f"Created backup at {BACKUP_PATH}")
 
 # Read the original file
-with open(SERVER_PATH, 'r') as f:
+with open(SERVER_PATH, "r") as f:
     content = f.read()
 
 # Modify the import section to catch and handle the multihash error
@@ -42,15 +44,19 @@ except ImportError:
 """
 
 # Find the end of the imports section
-import_section_end = re.search(r'# --- Early Setup: Logging and Path ---', content)
+import_section_end = re.search(r"# --- Early Setup: Logging and Path ---", content)
 if import_section_end:
     # Insert the fix just before this line
-    content = content[:import_section_end.start()] + multihash_fix + content[import_section_end.start():]
-    
+    content = (
+        content[: import_section_end.start()]
+        + multihash_fix
+        + content[import_section_end.start() :]
+    )
+
     # Write the modified content back
-    with open(SERVER_PATH, 'w') as f:
+    with open(SERVER_PATH, "w") as f:
         f.write(content)
-    
+
     print("Successfully added multihash.FuncReg fix to the server script")
 else:
     print("Could not find a suitable place to insert the fix")

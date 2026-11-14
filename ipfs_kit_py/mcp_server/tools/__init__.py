@@ -4,6 +4,7 @@
 consumed by the hierarchical tool manager (MCP), the CLI, and the JS SDK
 generator, so no surface maintains its own copy.
 """
+
 from __future__ import annotations
 
 import re
@@ -26,7 +27,9 @@ async def iroh_diagnostics(
     """
     from .iroh_tools import iroh_diagnostics as managed_iroh_diagnostics
 
-    return await managed_iroh_diagnostics(instance=instance, format=format, persist=persist)
+    return await managed_iroh_diagnostics(
+        instance=instance, format=format, persist=persist
+    )
 
 
 def _load_tool_groups() -> Dict[str, Dict[str, Callable[..., Awaitable]]]:
@@ -195,14 +198,35 @@ MCP_REST_ROUTES: Dict[tuple[str, str], str] = {
 # ``action`` is a named capture used only by the method template.
 MCP_REST_ROUTE_PATTERNS: tuple[tuple[str, str, str, str, bool], ...] = (
     ("GET", r"/mcp/goals/(?P<goal_cid>[^/]+)$", "mcp++/goals/get", "goal_cid", False),
-    ("POST", r"/mcp/goals/(?P<goal_cid>[^/]+)/(?P<action>decompose|select)$",
-     "mcp++/goals/{action}", "goal_cid", False),
+    (
+        "POST",
+        r"/mcp/goals/(?P<goal_cid>[^/]+)/(?P<action>decompose|select)$",
+        "mcp++/goals/{action}",
+        "goal_cid",
+        False,
+    ),
     ("GET", r"/mcp/tasks/(?P<task_cid>[^/]+)$", "mcp++/tasks/get", "task_cid", False),
-    ("GET", r"/mcp/schedule/status/(?P<task_cid>[^/]+)$", "mcp++/schedule/status", "task_cid", False),
-    ("POST", r"/mcp/schedule/claims/(?P<claim_cid>[^/]+)/(?P<action>renew|release)$",
-     "mcp++/schedule/{action}", "claim_cid", False),
-    ("GET", r"/mcp/agent-supervisor/receipts/(?P<receipt_ids>[^/]+)$",
-     "agent_supervisor.receipts.read", "receipt_ids", True),
+    (
+        "GET",
+        r"/mcp/schedule/status/(?P<task_cid>[^/]+)$",
+        "mcp++/schedule/status",
+        "task_cid",
+        False,
+    ),
+    (
+        "POST",
+        r"/mcp/schedule/claims/(?P<claim_cid>[^/]+)/(?P<action>renew|release)$",
+        "mcp++/schedule/{action}",
+        "claim_cid",
+        False,
+    ),
+    (
+        "GET",
+        r"/mcp/agent-supervisor/receipts/(?P<receipt_ids>[^/]+)$",
+        "agent_supervisor.receipts.read",
+        "receipt_ids",
+        True,
+    ),
 )
 
 # Canonical MCP++ profile names are advertised only when their capability flag
@@ -225,7 +249,9 @@ def resolve_tool_route(name: str) -> tuple[str, str] | None:
         return None
     category, separator, tool = name.partition("/")
     if separator:
-        return (category, tool) if tool and tool in TOOL_GROUPS.get(category, {}) else None
+        return (
+            (category, tool) if tool and tool in TOOL_GROUPS.get(category, {}) else None
+        )
     matches = [category for category, tools in TOOL_GROUPS.items() if name in tools]
     return (matches[0], name) if len(matches) == 1 else None
 
@@ -241,12 +267,20 @@ def resolve_mcp_route(method: str) -> str | None:
     return None
 
 
-def resolve_rest_route(http_method: str, path: str) -> tuple[str, Dict[str, Any]] | None:
+def resolve_rest_route(
+    http_method: str, path: str
+) -> tuple[str, Dict[str, Any]] | None:
     """Resolve an HTTP endpoint to its registry-backed RPC method and params."""
     method = MCP_REST_ROUTES.get((http_method.upper(), path))
     if method is not None:
         return method, {}
-    for verb, pattern, method_template, parameter, list_value in MCP_REST_ROUTE_PATTERNS:
+    for (
+        verb,
+        pattern,
+        method_template,
+        parameter,
+        list_value,
+    ) in MCP_REST_ROUTE_PATTERNS:
         if verb != http_method.upper():
             continue
         match = re.fullmatch(pattern, path)
@@ -260,11 +294,14 @@ def resolve_rest_route(http_method: str, path: str) -> tuple[str, Dict[str, Any]
 
 def supported_mcpp_profiles(capabilities: Dict[str, Any]) -> list[str]:
     """Return canonical profile identifiers supported by this runtime."""
-    profiles = capabilities.get("profiles", {}) if isinstance(capabilities, dict) else {}
+    profiles = (
+        capabilities.get("profiles", {}) if isinstance(capabilities, dict) else {}
+    )
     if not isinstance(profiles, dict):
         return []
     return [
-        name for name, requirements in MCP_PROFILE_REGISTRY
+        name
+        for name, requirements in MCP_PROFILE_REGISTRY
         if all(profiles.get(requirement) is True for requirement in requirements)
     ]
 
@@ -313,7 +350,6 @@ from .operation_adapter import (  # noqa: E402
     strip_transport_fields,
 )
 from .manager import MCPToolManager, build_tool_manager  # noqa: E402
-
 
 __all__ = [
     "TOOL_GROUPS",

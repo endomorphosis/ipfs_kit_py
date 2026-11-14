@@ -30,11 +30,8 @@ from typing import Dict, List, Any, Optional, Union, Callable
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler("final_mcp_server.log"),
-        logging.StreamHandler()
-    ]
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[logging.FileHandler("final_mcp_server.log"), logging.StreamHandler()],
 )
 logger = logging.getLogger("final-mcp")
 
@@ -51,6 +48,7 @@ initialization_event = anyio.Event()
 registered_tools = {}
 tool_implementations = {}
 available_extensions = {}
+
 
 # Add necessary paths for module imports
 def setup_python_paths():
@@ -78,6 +76,7 @@ def setup_python_paths():
     # Return True if successful
     return True
 
+
 # Import required modules - this is done after setting up paths
 def import_required_modules():
     """Import required modules after setting up paths."""
@@ -100,7 +99,7 @@ def import_required_modules():
         # Create FastMCP server
         server = FastMCP(
             name=f"final-mcp-server",
-            instructions="Unified MCP server with comprehensive IPFS tool coverage"
+            instructions="Unified MCP server with comprehensive IPFS tool coverage",
         )
 
         logger.info("Successfully imported required modules and created server instance")
@@ -108,6 +107,7 @@ def import_required_modules():
     except ImportError as e:
         logger.error(f"Failed to import required modules: {e}")
         return False
+
 
 # Tool registration functions
 def register_all_tools():
@@ -137,13 +137,17 @@ def register_all_tools():
         logger.error(traceback.format_exc())
         return False
 
+
 def register_ipfs_tools():
     """Register IPFS tools using unified_ipfs_tools."""
     try:
         import unified_ipfs_tools
+
         logger.info("Using unified_ipfs_tools for IPFS tool registration")
         result = unified_ipfs_tools.register_all_ipfs_tools(server)
-        logger.info(f"Registered IPFS tools using unified_ipfs_tools: {len(result) if isinstance(result, list) else result}")
+        logger.info(
+            f"Registered IPFS tools using unified_ipfs_tools: {len(result) if isinstance(result, list) else result}"
+        )
         return True
     except Exception as e:
         logger.error(f"Error registering IPFS tools using unified_ipfs_tools: {e}")
@@ -154,9 +158,12 @@ def register_ipfs_tools():
     """Register IPFS tools using unified_ipfs_tools."""
     try:
         import unified_ipfs_tools
+
         logger.info("Using unified_ipfs_tools for IPFS tool registration")
         result = unified_ipfs_tools.register_all_ipfs_tools(server)
-        logger.info(f"Registered IPFS tools using unified_ipfs_tools: {len(result) if isinstance(result, list) else result}")
+        logger.info(
+            f"Registered IPFS tools using unified_ipfs_tools: {len(result) if isinstance(result, list) else result}"
+        )
         return True
     except Exception as e:
         logger.error(f"Error registering IPFS tools using unified_ipfs_tools: {e}")
@@ -188,6 +195,7 @@ def register_ipfs_tools():
         logger.error(traceback.format_exc())
         return False
 
+
 def register_ipfs_fs_tools():
     """Register IPFS-FS bridge tools."""
     try:
@@ -213,13 +221,17 @@ def register_ipfs_fs_tools():
         logger.error(traceback.format_exc())
         return False
 
+
 def register_additional_tools():
     """Register any additional tools not covered by the specialized modules."""
     try:
         # This is where you would register any additional tools
         # For now, we'll just register a simple health check tool
 
-        @server.tool(name="health_check", description="Check the health of the MCP server and IPFS components")
+        @server.tool(
+            name="health_check",
+            description="Check the health of the MCP server and IPFS components",
+        )
         async def health_check(ctx: Context):
             """Check the health of the MCP server and IPFS components."""
             await ctx.info("Checking server health...")
@@ -232,9 +244,9 @@ def register_additional_tools():
                 },
                 "tools": {
                     "registered_count": len(server._tools),
-                    "tool_names": list(server._tools.keys())
+                    "tool_names": list(server._tools.keys()),
                 },
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
             }
 
             await ctx.info("Health check completed successfully")
@@ -247,59 +259,61 @@ def register_additional_tools():
         logger.error(traceback.format_exc())
         return False
 
+
 # Server endpoint handlers
 async def homepage(request):
     """Handle the homepage request."""
     tool_names = list(server._tools.keys()) if hasattr(server, "_tools") else []
 
-    return JSONResponse({
-        "message": "Final MCP Server is running",
-        "version": __version__,
-        "port": PORT,
-        "uptime_seconds": (datetime.now() - server_start_time).total_seconds(),
-        "registered_tools_count": len(tool_names),
-        "registered_tools": tool_names,
-        "endpoints": {
-            "/": "Home page with server information",
-            "/health": "Health check endpoint",
-            "/initialize": "Client initialization endpoint",
-            "/mcp": "MCP SSE connection endpoint",
-            "/jsonrpc": "JSON-RPC endpoint"
+    return JSONResponse(
+        {
+            "message": "Final MCP Server is running",
+            "version": __version__,
+            "port": PORT,
+            "uptime_seconds": (datetime.now() - server_start_time).total_seconds(),
+            "registered_tools_count": len(tool_names),
+            "registered_tools": tool_names,
+            "endpoints": {
+                "/": "Home page with server information",
+                "/health": "Health check endpoint",
+                "/initialize": "Client initialization endpoint",
+                "/mcp": "MCP SSE connection endpoint",
+                "/jsonrpc": "JSON-RPC endpoint",
+            },
         }
-    })
+    )
+
 
 async def health_endpoint(request):
     """Health check endpoint for the MCP server"""
     tool_names = list(server._tools.keys()) if hasattr(server, "_tools") else []
 
-    return JSONResponse({
-        "status": "healthy",
-        "version": __version__,
-        "uptime_seconds": (datetime.now() - server_start_time).total_seconds(),
-        "registered_tools_count": len(tool_names),
-        "timestamp": datetime.now().isoformat()
-    })
+    return JSONResponse(
+        {
+            "status": "healthy",
+            "version": __version__,
+            "uptime_seconds": (datetime.now() - server_start_time).total_seconds(),
+            "registered_tools_count": len(tool_names),
+            "timestamp": datetime.now().isoformat(),
+        }
+    )
+
 
 async def initialize_endpoint(request):
     """Initialize endpoint for clients."""
     tool_names = list(server._tools.keys()) if hasattr(server, "_tools") else []
 
-    return JSONResponse({
-        "server_info": {
-            "name": "Final MCP Server",
-            "version": __version__,
-            "status": "ready"
-        },
-        "capabilities": {
-            "tools": tool_names,
-            "jsonrpc": True,
-            "ipfs": True,
-            "streaming": True
+    return JSONResponse(
+        {
+            "server_info": {"name": "Final MCP Server", "version": __version__, "status": "ready"},
+            "capabilities": {"tools": tool_names, "jsonrpc": True, "ipfs": True, "streaming": True},
         }
-    })
+    )
+
 
 # JSON-RPC implementation
 jsonrpc_dispatcher = None
+
 
 def setup_jsonrpc():
     """Set up JSON-RPC dispatcher and handlers."""
@@ -313,11 +327,7 @@ def setup_jsonrpc():
         @jsonrpc_dispatcher.add_method
         async def ping(**kwargs):
             """Simple ping method to test JSON-RPC connection."""
-            return {
-                "status": "ok",
-                "server": "final-mcp",
-                "timestamp": datetime.now().isoformat()
-            }
+            return {"status": "ok", "server": "final-mcp", "timestamp": datetime.now().isoformat()}
 
         @jsonrpc_dispatcher.add_method
         async def initialize(client_info=None, **kwargs):
@@ -329,13 +339,8 @@ def setup_jsonrpc():
             return {
                 "server": "final-mcp",
                 "version": __version__,
-                "capabilities": {
-                    "streaming": True,
-                    "jsonrpc": True,
-                    "tooling": True,
-                    "ipfs": True
-                },
-                "tools": tool_names
+                "capabilities": {"streaming": True, "jsonrpc": True, "tooling": True, "ipfs": True},
+                "tools": tool_names,
             }
 
         @jsonrpc_dispatcher.add_method
@@ -351,12 +356,17 @@ def setup_jsonrpc():
         logger.error(traceback.format_exc())
         return False
 
+
 async def handle_jsonrpc(request):
     """Handle JSON-RPC requests."""
     if jsonrpc_dispatcher is None:
         return JSONResponse(
-            {"jsonrpc": "2.0", "error": {"code": -32603, "message": "JSON-RPC not initialized"}, "id": None},
-            status_code=500
+            {
+                "jsonrpc": "2.0",
+                "error": {"code": -32603, "message": "JSON-RPC not initialized"},
+                "id": None,
+            },
+            status_code=500,
         )
 
     try:
@@ -373,11 +383,13 @@ async def handle_jsonrpc(request):
 
         return JSONResponse(
             {"jsonrpc": "2.0", "error": {"code": -32603, "message": str(e)}, "id": None},
-            status_code=500
+            status_code=500,
         )
+
 
 # Main entry point
 server_start_time = datetime.now()
+
 
 def main():
     """Main entry point for the server."""
@@ -425,13 +437,15 @@ def main():
     # Set up routes
     from starlette.routing import Route
 
-    app.routes.extend([
-        Route("/", endpoint=homepage),
-        Route("/health", endpoint=health_endpoint),
-        Route("/initialize", endpoint=initialize_endpoint),
-        Route("/jsonrpc", endpoint=handle_jsonrpc, methods=["POST"]),
-        Route("/api/v0/jsonrpc", endpoint=handle_jsonrpc, methods=["POST"]),
-    ])
+    app.routes.extend(
+        [
+            Route("/", endpoint=homepage),
+            Route("/health", endpoint=health_endpoint),
+            Route("/initialize", endpoint=initialize_endpoint),
+            Route("/jsonrpc", endpoint=handle_jsonrpc, methods=["POST"]),
+            Route("/api/v0/jsonrpc", endpoint=handle_jsonrpc, methods=["POST"]),
+        ]
+    )
 
     # Register startup and shutdown handlers
     @app.on_event("startup")
@@ -458,6 +472,7 @@ def main():
     uvicorn.run(app, host=args.host, port=PORT, log_level="debug" if args.debug else "info")
 
     return 0
+
 
 if __name__ == "__main__":
     sys.exit(main())

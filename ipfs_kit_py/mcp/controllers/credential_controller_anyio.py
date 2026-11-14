@@ -131,13 +131,13 @@ class CredentialControllerAnyIO:
     @staticmethod
     def get_backend():
         """
-import sys
-import os
-# Add the parent directory to sys.path to allow importing mcp_error_handling
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
-import mcp_error_handling
+        import sys
+        import os
+        # Add the parent directory to sys.path to allow importing mcp_error_handling
+        sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
+        import mcp_error_handling
 
-Get the current async backend being used."""
+        Get the current async backend being used."""
         try:
             return sniffio.current_async_library()
         except sniffio.AsyncLibraryNotFoundError:
@@ -172,7 +172,7 @@ Get the current async backend being used."""
                 code="INVALID_REQUEST",
                 message_override=f"Unsupported service: {credential_request.service}. Supported services: {' '.join(supported_services)}",
                 endpoint="/api/v0/credential_anyio",
-                doc_category="api"
+                doc_category="api",
             )
 
         try:
@@ -182,7 +182,7 @@ Get the current async backend being used."""
                 await self.credential_manager.add_credential(
                     service=credential_request.service,
                     name=credential_request.name,
-                    values=credential_request.values
+                    values=credential_request.values,
                 )
             else:
                 # Run synchronous method in a thread
@@ -190,7 +190,7 @@ Get the current async backend being used."""
                     self.credential_manager.add_credential,
                     service=credential_request.service,
                     name=credential_request.name,
-                    values=credential_request.values
+                    values=credential_request.values,
                 )
 
             return {
@@ -198,7 +198,7 @@ Get the current async backend being used."""
                 "operation": "add_credential",
                 "service": credential_request.service,
                 "name": credential_request.name,
-                "timestamp": time.time()
+                "timestamp": time.time(),
             }
 
         except Exception as e:
@@ -207,7 +207,7 @@ Get the current async backend being used."""
                 code="INTERNAL_ERROR",
                 message_override=str(e),
                 endpoint="/api/v0/credential_anyio",
-                doc_category="api"
+                doc_category="api",
             )
 
     async def list_credentials(self, service: Optional[str] = None):
@@ -245,7 +245,7 @@ Get the current async backend being used."""
                 "success": True,
                 "credentials": credentials,
                 "count": len(credentials),
-                "timestamp": time.time()
+                "timestamp": time.time(),
             }
 
         except Exception as e:
@@ -255,7 +255,7 @@ Get the current async backend being used."""
                 "credentials": [],
                 "count": 0,
                 "timestamp": time.time(),
-                "error": str(e)
+                "error": str(e),
             }
 
     async def add_s3_credentials(self, credential_request: S3CredentialRequest):
@@ -273,7 +273,7 @@ Get the current async backend being used."""
         # Convert S3 credentials to generic format
         values = {
             "aws_access_key_id": credential_request.aws_access_key_id,
-            "aws_secret_access_key": credential_request.aws_secret_access_key
+            "aws_secret_access_key": credential_request.aws_secret_access_key,
         }
 
         # Add optional fields if present
@@ -295,7 +295,7 @@ Get the current async backend being used."""
                     self.credential_manager.add_credential,
                     service="s3",
                     name=credential_request.name,
-                    values=values
+                    values=values,
                 )
 
             return {
@@ -303,7 +303,7 @@ Get the current async backend being used."""
                 "operation": "add_s3_credential",
                 "service": "s3",
                 "name": credential_request.name,
-                "timestamp": time.time()
+                "timestamp": time.time(),
             }
 
         except Exception as e:
@@ -312,7 +312,7 @@ Get the current async backend being used."""
                 code="INTERNAL_ERROR",
                 message_override=str(e),
                 endpoint="/api/v0/credential_anyio",
-                doc_category="api"
+                doc_category="api",
             )
 
     async def add_storacha_credentials(self, credential_request: StorachaCredentialRequest):
@@ -347,7 +347,7 @@ Get the current async backend being used."""
                     self.credential_manager.add_credential,
                     service="storacha",
                     name=credential_request.name,
-                    values=values
+                    values=values,
                 )
 
             return {
@@ -355,7 +355,7 @@ Get the current async backend being used."""
                 "operation": "add_storacha_credential",
                 "service": "storacha",
                 "name": credential_request.name,
-                "timestamp": time.time()
+                "timestamp": time.time(),
             }
 
         except Exception as e:
@@ -364,7 +364,7 @@ Get the current async backend being used."""
                 code="INTERNAL_ERROR",
                 message_override=str(e),
                 endpoint="/api/v0/credential_anyio",
-                doc_category="api"
+                doc_category="api",
             )
 
     async def add_filecoin_credentials(self, credential_request: FilecoinCredentialRequest):
@@ -403,7 +403,7 @@ Get the current async backend being used."""
                     self.credential_manager.add_credential,
                     service="filecoin",
                     name=credential_request.name,
-                    values=values
+                    values=values,
                 )
 
             return {
@@ -411,7 +411,7 @@ Get the current async backend being used."""
                 "operation": "add_filecoin_credential",
                 "service": "filecoin",
                 "name": credential_request.name,
-                "timestamp": time.time()
+                "timestamp": time.time(),
             }
 
         except Exception as e:
@@ -420,7 +420,7 @@ Get the current async backend being used."""
                 code="INTERNAL_ERROR",
                 message_override=str(e),
                 endpoint="/api/v0/credential_anyio",
-                doc_category="api"
+                doc_category="api",
             )
 
     async def add_ipfs_credentials(self, credential_request: IPFSCredentialRequest):
@@ -452,7 +452,7 @@ Get the current async backend being used."""
                 code="INVALID_REQUEST",
                 message_override="At least one credential field (identity, api_address, or cluster_secret) must be provided",
                 endpoint="/api/v0/credential_anyio",
-                doc_category="api"
+                doc_category="api",
             )
 
         try:
@@ -468,7 +468,7 @@ Get the current async backend being used."""
                     self.credential_manager.add_credential,
                     service="ipfs",
                     name=credential_request.name,
-                    values=values
+                    values=values,
                 )
 
             return {
@@ -476,7 +476,7 @@ Get the current async backend being used."""
                 "operation": "add_ipfs_credential",
                 "service": "ipfs",
                 "name": credential_request.name,
-                "timestamp": time.time()
+                "timestamp": time.time(),
             }
 
         except Exception as e:
@@ -485,7 +485,7 @@ Get the current async backend being used."""
                 code="INTERNAL_ERROR",
                 message_override=str(e),
                 endpoint="/api/v0/credential_anyio",
-                doc_category="api"
+                doc_category="api",
             )
 
     async def remove_credential(self, service: str, name: str):
@@ -509,9 +509,7 @@ Get the current async backend being used."""
             else:
                 # Run synchronous method in a thread
                 await anyio.to_thread.run_sync(
-                    self.credential_manager.remove_credential,
-                    service=service,
-                    name=name
+                    self.credential_manager.remove_credential, service=service, name=name
                 )
 
             return {
@@ -519,7 +517,7 @@ Get the current async backend being used."""
                 "operation": "remove_credential",
                 "service": service,
                 "name": name,
-                "timestamp": time.time()
+                "timestamp": time.time(),
             }
 
         except Exception as e:
@@ -528,5 +526,5 @@ Get the current async backend being used."""
                 code="INTERNAL_ERROR",
                 message_override=str(e),
                 endpoint="/api/v0/credential_anyio",
-                doc_category="api"
+                doc_category="api",
             )

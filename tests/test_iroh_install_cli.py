@@ -251,10 +251,7 @@ def test_module_cli_is_path_independent_and_login_shell_discoverable(tmp_path: P
     assert direct.returncode == 0, direct.stderr
     assert json.loads(direct.stdout)["installed"] is False
 
-    command = (
-        f"{python} -m ipfs_kit_py.iroh_install_cli inspect "
-        f"--bin-dir {tmp_path} --json"
-    )
+    command = f"{python} -m ipfs_kit_py.iroh_install_cli inspect --bin-dir {tmp_path} --json"
     login = subprocess.run(
         ["/bin/bash", "-lc", command],
         cwd=root,
@@ -268,7 +265,5 @@ def test_module_cli_is_path_independent_and_login_shell_discoverable(tmp_path: P
 
 
 def test_console_script_is_declared() -> None:
-    pyproject = (Path(__file__).resolve().parents[1] / "pyproject.toml").read_text(
-        encoding="utf-8"
-    )
+    pyproject = (Path(__file__).resolve().parents[1] / "pyproject.toml").read_text(encoding="utf-8")
     assert 'ipfs-kit-iroh = "ipfs_kit_py.iroh_install_cli:main"' in pyproject

@@ -5,6 +5,7 @@ hierarchical meta-tools. Transports: stdio (default), HTTP via Hypercorn+Trio,
 and optional libp2p P2P. Runtime is anyio (trio backend), so all surfaces share
 one async core.
 """
+
 from __future__ import annotations
 
 import json
@@ -35,6 +36,18 @@ SERVER_INFO = {"name": "ipfs_kit_py-mcpplusplus", "version": "0.1.0"}
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def _profile_g_rest_binding(
+    http_method: str, path: str
+) -> tuple[str, Dict[str, Any]] | None:
+    """Keep the legacy Profile G helper backed by the shared route registry."""
+    if not isinstance(http_method, str) or not isinstance(path, str):
+        return None
+    binding = resolve_rest_route(http_method, path)
+    if binding is None or resolve_mcp_route(binding[0]) != "profile_g":
+        return None
+    return binding
 
 
 class MCPServer:
@@ -98,7 +111,10 @@ class MCPServer:
             )
         )
         from .agent_supervisor_receipts import AgentSupervisorReceiptResolver
-        self._agent_supervisor_receipts = receipt_resolver or AgentSupervisorReceiptResolver()
+
+        self._agent_supervisor_receipts = (
+            receipt_resolver or AgentSupervisorReceiptResolver()
+        )
 
     async def handle(self, msg: Dict[str, Any]):
         method = msg.get("method")
@@ -118,13 +134,16 @@ class MCPServer:
             return {"jsonrpc": "2.0", "id": mid, "result": result}
         except Exception as e:
             from .mcplusplus.profile_g_transport import ERROR_NUMBERS
+
             wire_code = ERROR_NUMBERS.get(getattr(e, "code", ""), -32000)
             error = {"code": wire_code, "message": str(e)}
             if getattr(e, "code", None):
                 error["data"] = e.data()
             return {"jsonrpc": "2.0", "id": mid, "error": error}
 
-    async def _route(self, method: str, params: Dict[str, Any], notification: bool = False) -> Any:
+    async def _route(
+        self, method: str, params: Dict[str, Any], notification: bool = False
+    ) -> Any:
         route = resolve_mcp_route(method or "")
         if notification or route == "notification":
             # Known MCP lifecycle notifications (initialized, cancelled, …) are
@@ -140,14 +159,22 @@ class MCPServer:
             capability_map["profiles"] = profile_capabilities
             profiles = supported_mcpp_profiles(capability_map)
             experimental = {"mcp++": capability_map}
-            if requested.get("mcp++/event-dag") is True and "mcp++/event-dag" in profiles:
+            if (
+                requested.get("mcp++/event-dag") is True
+                and "mcp++/event-dag" in profiles
+            ):
                 experimental["mcp++/event-dag"] = True
-            if requested.get("mcp++/risk-scheduling") is True and "mcp++/risk-scheduling" in profiles:
+            if (
+                requested.get("mcp++/risk-scheduling") is True
+                and "mcp++/risk-scheduling" in profiles
+            ):
                 from .mcplusplus.profile_g_transport import get_dispatcher
+
                 experimental["mcp++/risk-scheduling"] = get_dispatcher().metadata
             profile_metadata = {
                 "agent_supervisor.receipts.read": {
-                    "owner": "ipfs_kit_py", "access": "read",
+                    "owner": "ipfs_kit_py",
+                    "access": "read",
                     "transports": ["mcp", "mcp++", "libp2p"],
                 },
             }
@@ -157,7 +184,9 @@ class MCPServer:
             else:
                 profile_metadata["mcp++/deontic-policy"] = {
                     "provider": type(self.policy_provider).__name__,
-                    "available": bool(getattr(self.policy_provider, "available", False)),
+                    "available": bool(
+                        getattr(self.policy_provider, "available", False)
+                    ),
                     "fail_closed": True,
                 }
             if "mcp++/event-dag" in profiles:
@@ -174,6 +203,7 @@ class MCPServer:
             }
         if route == "tools_list":
             from .agent_supervisor_receipts import descriptor
+
             return {"tools": [*self.tm.all_tool_schemas(), descriptor()]}
         if route == "interfaces":
             return {"interfaces": self._interface_descriptors()}
@@ -183,20 +213,39 @@ class MCPServer:
             frontier = self._dag.frontier()
             return {**frontier, "count": self._dag.history(limit=1)["count"]}
         if route == "ucan":
-            if self.ucan_ledger is None or not bool(getattr(self.ucan_ledger, "available", False)):
-                return {"allowed": False, "valid": False, "reason": "ledger_unavailable"}
-            if self.ucan_verifier is None or not callable(getattr(self.ucan_verifier, "verify", None)):
-                return {"allowed": False, "valid": False, "reason": "ucan_verifier_unavailable"}
+            if self.ucan_ledger is None or not bool(
+                getattr(self.ucan_ledger, "available", False)
+            ):
+                return {
+                    "allowed": False,
+                    "valid": False,
+                    "reason": "ledger_unavailable",
+                }
+            if self.ucan_verifier is None or not callable(
+                getattr(self.ucan_verifier, "verify", None)
+            ):
+                return {
+                    "allowed": False,
+                    "valid": False,
+                    "reason": "ucan_verifier_unavailable",
+                }
             try:
                 verified = self.ucan_verifier.verify(
-                    params.get("chain") or params.get("delegations") or params.get("ucans") or params.get("token"),
+                    params.get("chain")
+                    or params.get("delegations")
+                    or params.get("ucans")
+                    or params.get("token"),
                     expected_resource=params.get("resource"),
                     expected_ability=params.get("ability"),
                     expected_audience=params.get("actor"),
                     request_bounds=params.get("request_bounds") or {},
                 )
             except Exception:
-                return {"allowed": False, "valid": False, "reason": "ucan_verification_unavailable"}
+                return {
+                    "allowed": False,
+                    "valid": False,
+                    "reason": "ucan_verification_unavailable",
+                }
             receipt = getattr(verified, "to_receipt", None)
             if callable(receipt):
                 return receipt()
@@ -209,22 +258,27 @@ class MCPServer:
             if not bool(getattr(self.policy_provider, "available", False)):
                 raise AuthorizationDenied("policy_provider_unavailable")
             try:
-                return dict(self.policy_provider.evaluate(
-                    actor=params.get("actor", "anonymous"),
-                    action=params.get("action") or params.get("tool") or "",
-                    resource=params.get("resource"),
-                    policy=params.get("policy"),
-                    policy_text=params.get("policy_text"),
-                    evaluated_at=params.get("evaluated_at"),
-                    intent_cid=params.get("intent_cid"),
-                    request_zkp_certificate=bool(params.get("request_zkp_certificate", True)),
-                ))
+                return dict(
+                    self.policy_provider.evaluate(
+                        actor=params.get("actor", "anonymous"),
+                        action=params.get("action") or params.get("tool") or "",
+                        resource=params.get("resource"),
+                        policy=params.get("policy"),
+                        policy_text=params.get("policy_text"),
+                        evaluated_at=params.get("evaluated_at"),
+                        intent_cid=params.get("intent_cid"),
+                        request_zkp_certificate=bool(
+                            params.get("request_zkp_certificate", True)
+                        ),
+                    )
+                )
             except AuthorizationDenied:
                 raise
             except Exception as exc:
                 raise AuthorizationDenied("policy_provider_unavailable") from exc
         if route == "profile_g":
             from .mcplusplus.profile_g_transport import get_dispatcher
+
             return get_dispatcher().dispatch(method, params)
         if route == "tools_call":
             name = params.get("name", "")
@@ -242,7 +296,9 @@ class MCPServer:
                 if name == "agent_supervisor.receipts.read":
                     receipt_params = dict(args)
                     if params.get("correlation_id") is not None:
-                        receipt_params.setdefault("correlation_id", params["correlation_id"])
+                        receipt_params.setdefault(
+                            "correlation_id", params["correlation_id"]
+                        )
                     result = self._agent_supervisor_receipts.read(receipt_params)
                 else:
                     self._repair_minimal_ipfs_backend()
@@ -253,6 +309,7 @@ class MCPServer:
                     result = await self.tm.dispatch(category, tool, args)
                 if params.get("profile_b"):
                     from .mcplusplus import artifacts
+
                     recent_events = self._dag.history(limit=1)["events"]
                     parents = [recent_events[0]["event_cid"]] if recent_events else []
                     meta = artifacts.envelope_from_payloads(
@@ -271,7 +328,11 @@ class MCPServer:
                         correlation_id=decision.request_id,
                         parents=parents,
                     )
-                    node = {"event_cid": meta["event_cid"], "timestamp": _now_iso(), **meta["event"]}
+                    node = {
+                        "event_cid": meta["event_cid"],
+                        "timestamp": _now_iso(),
+                        **meta["event"],
+                    }
                     self._dag.append(node)
                     if isinstance(result, dict):
                         result = {**result, "_mcppp": meta}
@@ -318,22 +379,28 @@ class MCPServer:
     def _interface_cid(self) -> str:
         """Kubo CIDv1 over the canonical interface descriptor set (Profile A)."""
         from .mcplusplus import artifacts
-        return artifacts.compute_artifact_cid({"interfaces": self._interface_descriptors()})
+
+        return artifacts.compute_artifact_cid(
+            {"interfaces": self._interface_descriptors()}
+        )
 
     def _interface_descriptors(self):
         """Profile A: canonical interface descriptors derived from the registry."""
         out = []
         for s in self.tm.all_tool_schemas():
-            out.append({
-                "namespace": f"ipfs_kit/{s['category']}",
-                "name": s["name"],
-                "input_schema": s.get("inputSchema", {}),
-                "output_schema": {"type": "object"},
-                "errors": ["IPFSError", "ToolNotFound"],
-                "semantic_tags": s.get("tags", []),
-                "compatibility": {"mcp": True, "mcp++": True},
-            })
+            out.append(
+                {
+                    "namespace": f"ipfs_kit/{s['category']}",
+                    "name": s["name"],
+                    "input_schema": s.get("inputSchema", {}),
+                    "output_schema": {"type": "object"},
+                    "errors": ["IPFSError", "ToolNotFound"],
+                    "semantic_tags": s.get("tags", []),
+                    "compatibility": {"mcp": True, "mcp++": True},
+                }
+            )
         from .agent_supervisor_receipts import descriptor
+
         out.append(descriptor())
         return out
 
@@ -392,10 +459,15 @@ def create_http_app(server: MCPServer | None = None):
         # Profile D is deliberately served by the same provider-backed MCP
         # route as JSON-RPC.  Keep this small transport alias here until the
         # registry can expose the canonical policy route directly.
-        if binding is None and scope.get("method", "GET") == "POST" and path == "/mcp/policy/evaluate":
+        if (
+            binding is None
+            and scope.get("method", "GET") == "POST"
+            and path == "/mcp/policy/evaluate"
+        ):
             binding = ("mcp++/policy/evaluate", {})
         if binding is not None:
             from urllib.parse import parse_qsl
+
             method, path_params = binding
             params = dict(parse_qsl(scope.get("query_string", b"").decode()))
             decoded = None
@@ -416,7 +488,11 @@ def create_http_app(server: MCPServer | None = None):
                 rpc_message["id"] = decoded.get("id") if is_jsonrpc else 1
             resp = await server.handle(rpc_message)
             if not is_jsonrpc:
-                resp = resp.get("result", resp.get("error")) if isinstance(resp, dict) else resp
+                resp = (
+                    resp.get("result", resp.get("error"))
+                    if isinstance(resp, dict)
+                    else resp
+                )
         else:
             resp = await server.handle(json.loads(body or b"{}"))
         if resp is None:  # JSON-RPC notification — HTTP 202, no body
@@ -424,8 +500,13 @@ def create_http_app(server: MCPServer | None = None):
             await send({"type": "http.response.body", "body": b""})
             return
         data = json.dumps(resp).encode()
-        await send({"type": "http.response.start", "status": 200,
-                    "headers": [(b"content-type", b"application/json")]})
+        await send(
+            {
+                "type": "http.response.start",
+                "status": 200,
+                "headers": [(b"content-type", b"application/json")],
+            }
+        )
         await send({"type": "http.response.body", "body": data})
 
     return app
@@ -442,12 +523,14 @@ async def serve_http(host: str = "127.0.0.1", port: int = 8004) -> None:
 
 async def serve_p2p() -> None:
     from .p2p_transport import serve_p2p as _serve
+
     server = MCPServer()
     await _serve(server.handle)
 
 
 def main(argv=None) -> None:
     import argparse
+
     p = argparse.ArgumentParser("ipfs-kit-mcp")
     p.add_argument("--transport", choices=["stdio", "http", "p2p"], default="stdio")
     p.add_argument("--host", default="127.0.0.1")

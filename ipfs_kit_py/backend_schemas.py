@@ -19,7 +19,6 @@ from .backends.spec import (
     normalize_backend_type,
 )
 
-
 _DISPLAY_NAMES: Mapping[str, str] = {
     "cluster": "Cluster",
     "digitalocean": "DigitalOcean",

@@ -156,12 +156,12 @@ result = vfs_manager.get_pin_index_zero_copy_sync(limit=50)
 from ipfs_kit_py.arrow_ipc_daemon_interface import get_global_arrow_ipc_interface
 
 interface = get_global_arrow_ipc_interface()
-arrow_table = await interface.get_pin_index_arrow(limit=100, filters={'pin_type': 'recursive'})
+arrow_table = await interface.get_pin_index_arrow(limit=100, filters={"pin_type": "recursive"})
 
 # Convert to pandas for analysis
 if arrow_table:
     df = interface.table_to_pandas(arrow_table)
-    aggregated = df.groupby('backend')['size_bytes'].sum()
+    aggregated = df.groupby("backend")["size_bytes"].sum()
 ```
 
 ## Error Handling

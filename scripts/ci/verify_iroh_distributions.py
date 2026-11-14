@@ -147,7 +147,9 @@ def _audit_forbidden_files(entries: Mapping[str, ArchiveEntry]) -> None:
         if "ipfs-kit-iroh-sidecar" in lowered:
             raise DistributionAuditError(f"Iroh sidecar leaked into distribution: {path}")
         if lowered.endswith((".receipt.json", ".key", ".pem")):
-            raise DistributionAuditError(f"runtime credential/receipt leaked into distribution: {path}")
+            raise DistributionAuditError(
+                f"runtime credential/receipt leaked into distribution: {path}"
+            )
 
 
 def normalized_digest(entries: Mapping[str, ArchiveEntry]) -> str:
@@ -170,7 +172,9 @@ def audit_distribution(path: Path) -> dict[str, object]:
     if missing:
         raise DistributionAuditError(f"{path.name} omits required Iroh files: {missing}")
 
-    metadata = _metadata_entry(entries, ".dist-info/METADATA" if path.suffix == ".whl" else "PKG-INFO")
+    metadata = _metadata_entry(
+        entries, ".dist-info/METADATA" if path.suffix == ".whl" else "PKG-INFO"
+    )
     metadata_text = metadata.data.decode("utf-8")
     for extra in ("iroh", "fsspec"):
         if f"Provides-Extra: {extra}" not in metadata_text:
@@ -185,11 +189,15 @@ def audit_distribution(path: Path) -> dict[str, object]:
     if path.suffix == ".whl":
         points = _parse_entry_points(_metadata_entry(entries, ".dist-info/entry_points.txt").data)
         if points.get("fsspec.specs") != REQUIRED_FSSPEC_ENTRY_POINTS:
-            raise DistributionAuditError("wheel fsspec entry points do not match the frozen contract")
+            raise DistributionAuditError(
+                "wheel fsspec entry points do not match the frozen contract"
+            )
         scripts = points.get("console_scripts", {})
         for name, target in REQUIRED_CONSOLE_SCRIPTS.items():
             if scripts.get(name) != target:
-                raise DistributionAuditError(f"wheel console script {name!r} is missing or incorrect")
+                raise DistributionAuditError(
+                    f"wheel console script {name!r} is missing or incorrect"
+                )
 
     raw_digest = hashlib.sha256(path.read_bytes()).hexdigest()
     return {

@@ -20,15 +20,37 @@ from .profile_g import (
 )
 
 PROFILE = "mcp++/risk-scheduling"
-PREFIXES = ("mcp++/goals/", "mcp++/tasks/", "mcp++/risk/", "mcp++/neighborhood/", "mcp++/schedule/")
+PREFIXES = (
+    "mcp++/goals/",
+    "mcp++/tasks/",
+    "mcp++/risk/",
+    "mcp++/neighborhood/",
+    "mcp++/schedule/",
+)
 METHODS = (
-    "mcp++/risk/profile", "mcp++/goals/create", "mcp++/goals/get", "mcp++/goals/list",
-    "mcp++/goals/decompose", "mcp++/goals/select", "mcp++/tasks/create", "mcp++/tasks/get",
-    "mcp++/tasks/list", "mcp++/tasks/ready", "mcp++/risk/assess", "mcp++/risk/evidence",
-    "mcp++/risk/history", "mcp++/neighborhood/query", "mcp++/neighborhood/attest",
-    "mcp++/schedule/frontier", "mcp++/schedule/status", "mcp++/schedule/propose",
-    "mcp++/schedule/claim", "mcp++/schedule/renew", "mcp++/schedule/release",
-    "mcp++/schedule/resolve", "mcp++/schedule/reconcile",
+    "mcp++/risk/profile",
+    "mcp++/goals/create",
+    "mcp++/goals/get",
+    "mcp++/goals/list",
+    "mcp++/goals/decompose",
+    "mcp++/goals/select",
+    "mcp++/tasks/create",
+    "mcp++/tasks/get",
+    "mcp++/tasks/list",
+    "mcp++/tasks/ready",
+    "mcp++/risk/assess",
+    "mcp++/risk/evidence",
+    "mcp++/risk/history",
+    "mcp++/neighborhood/query",
+    "mcp++/neighborhood/attest",
+    "mcp++/schedule/frontier",
+    "mcp++/schedule/status",
+    "mcp++/schedule/propose",
+    "mcp++/schedule/claim",
+    "mcp++/schedule/renew",
+    "mcp++/schedule/release",
+    "mcp++/schedule/resolve",
+    "mcp++/schedule/reconcile",
 )
 
 # Wire map includes G_STALE_FENCE so fencing denials are not remapped to
@@ -56,14 +78,16 @@ ERROR_NUMBERS = {
 # Keep transport map aligned with the runtime module constants.
 ERROR_NUMBERS.update(PROFILE_G_ERROR_NUMBERS)
 
-_LOCAL_RUNTIME_METHODS = frozenset({
-    "mcp++/risk/profile",
-    "mcp++/schedule/status",
-    "mcp++/schedule/resolve",
-    "mcp++/schedule/renew",
-    "mcp++/schedule/release",
-    "mcp++/schedule/reconcile",
-})
+_LOCAL_RUNTIME_METHODS = frozenset(
+    {
+        "mcp++/risk/profile",
+        "mcp++/schedule/status",
+        "mcp++/schedule/resolve",
+        "mcp++/schedule/renew",
+        "mcp++/schedule/release",
+        "mcp++/schedule/reconcile",
+    }
+)
 
 
 class ProfileGError(RuntimeError):
@@ -80,7 +104,11 @@ class ProfileGError(RuntimeError):
         self.details = dict(details or {})
 
     def data(self) -> dict[str, Any]:
-        result = {"code": self.code, "message": self.message, "retryable": self.retryable}
+        result = {
+            "code": self.code,
+            "message": self.message,
+            "retryable": self.retryable,
+        }
         if self.details:
             result["details"] = self.details
         return result
@@ -134,7 +162,9 @@ class ProfileGDispatcher:
 
     def dispatch(self, method: str, params: Mapping[str, Any]) -> Any:
         if method not in METHODS or not isinstance(params, Mapping):
-            raise ProfileGError("G_INVALID_ARTIFACT", "invalid Profile G method or params")
+            raise ProfileGError(
+                "G_INVALID_ARTIFACT", "invalid Profile G method or params"
+            )
 
         # Fencing-critical schedule methods are owned by RuntimeProfileG@1 on
         # kit (datasets only implements goals/tasks/risk advisory paths).
@@ -149,7 +179,10 @@ class ProfileGDispatcher:
         backend = self.backend
         if backend is None:
             try:
-                from ipfs_datasets_py.mcp_server.profile_g_service import get_profile_g_service
+                from ipfs_datasets_py.mcp_server.profile_g_service import (
+                    get_profile_g_service,
+                )
+
                 backend = get_profile_g_service().dispatch
             except (ImportError, ModuleNotFoundError):
                 backend = None

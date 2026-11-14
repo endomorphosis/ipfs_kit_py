@@ -71,7 +71,9 @@ def ensure_kubo_binary(
     """
     directory = prepend_managed_bin_to_path(bin_dir)
     binary = kubo_binary(directory)
-    install_enabled = _enabled("IPFS_KIT_AUTO_INSTALL_BINARIES", False) if install is None else install
+    install_enabled = (
+        _enabled("IPFS_KIT_AUTO_INSTALL_BINARIES", False) if install is None else install
+    )
     upgrade_enabled = _enabled("IPFS_KIT_AUTO_UPGRADE_KUBO", True) if upgrade is None else upgrade
     key = str(directory)
 

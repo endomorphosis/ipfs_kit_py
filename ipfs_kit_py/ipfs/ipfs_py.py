@@ -16,33 +16,36 @@ import httpx
 
 logger = logging.getLogger(__name__)
 
+
 # Define the ipfs_py class that will be imported by the backend
 class ipfs_py:
     """
     Reference implementation of ipfs_py client for the IPFS backend.
-    
+
     This class provides a standardized interface for interacting with IPFS
     and ensures compatibility with the IPFS backend implementation.
     """
-    
+
     def __init__(self, resources=None, metadata=None):
         """
         Initialize the IPFS client.
-        
+
         Args:
             resources: Dictionary containing connection parameters
             metadata: Dictionary containing additional configuration
         """
         self.resources = resources or {}
         self.metadata = metadata or {}
-        
+
         # Extract connection parameters
         self.host = self.resources.get(
-            "ipfs_host", self.resources.get("host", self.metadata.get("ipfs_host", "127.0.0.1"))
+            "ipfs_host",
+            self.resources.get("host", self.metadata.get("ipfs_host", "127.0.0.1")),
         )
         self.port = int(
             self.resources.get(
-                "ipfs_port", self.resources.get("port", self.metadata.get("ipfs_port", 5001))
+                "ipfs_port",
+                self.resources.get("port", self.metadata.get("ipfs_port", 5001)),
             )
         )
         self.timeout = float(
@@ -54,10 +57,10 @@ class ipfs_py:
             follow_redirects=False,
             trust_env=False,
         )
-        
+
         # Initialize connection
         self._initialize_connection()
-    
+
     def _initialize_connection(self):
         """Initialize connection to IPFS node."""
         logger.info("Configured IPFS API client for %s", self._api_url)
@@ -100,7 +103,9 @@ class ipfs_py:
             translated = self._multiaddr_to_url(configured)
             if translated:
                 return translated
-            raise ValueError("IPFS API must be an HTTP(S) URL or supported TCP multiaddr")
+            raise ValueError(
+                "IPFS API must be an HTTP(S) URL or supported TCP multiaddr"
+            )
 
         ipfs_path = Path(
             self.metadata.get("ipfs_path")
@@ -109,7 +114,9 @@ class ipfs_py:
         ).expanduser()
         api_file = ipfs_path / "api"
         try:
-            translated = self._multiaddr_to_url(api_file.read_text(encoding="utf-8").strip())
+            translated = self._multiaddr_to_url(
+                api_file.read_text(encoding="utf-8").strip()
+            )
             if translated:
                 return translated
         except (OSError, ValueError):
@@ -124,7 +131,9 @@ class ipfs_py:
 
     @staticmethod
     def _validate_codec(codec: str) -> str:
-        if not isinstance(codec, str) or not re.fullmatch(r"[a-z0-9][a-z0-9-]{0,63}", codec):
+        if not isinstance(codec, str) or not re.fullmatch(
+            r"[a-z0-9][a-z0-9-]{0,63}", codec
+        ):
             raise ValueError("codec must be a valid multicodec name")
         return codec
 
@@ -152,16 +161,16 @@ class ipfs_py:
         )
         response.raise_for_status()
         return response
-    
+
     # Core IPFS operations
-    
+
     def ipfs_add_file(self, file_obj):
         """
         Add a file or file-like object to IPFS.
-        
+
         Args:
             file_obj: File path or file-like object
-            
+
         Returns:
             Dict with operation result including CID
         """
@@ -171,19 +180,19 @@ class ipfs_py:
             return {
                 "success": True,
                 "Hash": "QmXGcUmYwbfQDhQ5QSuP8TRDFYXvPYZzWsteQNpj6YgFv1",
-                "Name": getattr(file_obj, 'name', 'unknown'),
-                "Size": "1024"
+                "Name": getattr(file_obj, "name", "unknown"),
+                "Size": "1024",
             }
         except Exception as e:
             return {"success": False, "error": str(e)}
-    
+
     def ipfs_add_bytes(self, data):
         """
         Add bytes to IPFS.
-        
+
         Args:
             data: Bytes to add
-            
+
         Returns:
             Dict with operation result including CID
         """
@@ -204,7 +213,9 @@ class ipfs_py:
                     "mhtype": kwargs.get("mhtype", "sha2-256"),
                     "mhlen": kwargs.get("mhlen", -1),
                     "pin": str(bool(pin)).lower(),
-                    "allow-big-block": str(bool(kwargs.get("allow_big_block", False))).lower(),
+                    "allow-big-block": str(
+                        bool(kwargs.get("allow_big_block", False))
+                    ).lower(),
                 },
                 files={"file": ("block.bin", payload, "application/octet-stream")},
             )
@@ -252,14 +263,14 @@ class ipfs_py:
 
     def dag_get(self, cid, **kwargs):
         return self.block_get(cid, **kwargs)
-    
+
     def ipfs_cat(self, cid):
         """
         Retrieve content from IPFS by CID.
-        
+
         Args:
             cid: Content identifier
-            
+
         Returns:
             Dict with operation result including content data
         """
@@ -267,14 +278,14 @@ class ipfs_py:
 
     def cat(self, cid, **kwargs):
         return self.ipfs_cat(cid)
-    
+
     def ipfs_pin_add(self, cid):
         """
         Pin content in IPFS.
-        
+
         Args:
             cid: Content identifier
-            
+
         Returns:
             Dict with operation result
         """
@@ -293,14 +304,14 @@ class ipfs_py:
             return {"success": True, "operation": operation, "cid": cid, "Pins": pins}
         except (httpx.HTTPError, TypeError, ValueError, json.JSONDecodeError) as exc:
             return self._failure(operation, exc)
-    
+
     def ipfs_pin_rm(self, cid):
         """
         Unpin content in IPFS.
-        
+
         Args:
             cid: Content identifier
-            
+
         Returns:
             Dict with operation result
         """
@@ -323,14 +334,14 @@ class ipfs_py:
             }
         except (httpx.HTTPError, TypeError, ValueError, json.JSONDecodeError) as exc:
             return self._failure(operation, exc)
-    
+
     def ipfs_pin_ls(self, cid=None):
         """
         List pinned content in IPFS.
-        
+
         Args:
             cid: Optional content identifier to filter by
-            
+
         Returns:
             Dict with operation result including list of pins
         """
@@ -348,14 +359,14 @@ class ipfs_py:
             return {"success": True, "operation": operation, "Keys": keys, "pins": keys}
         except (httpx.HTTPError, TypeError, ValueError, json.JSONDecodeError) as exc:
             return self._failure(operation, exc)
-    
+
     def ipfs_object_stat(self, cid):
         """
         Get object stats from IPFS.
-        
+
         Args:
             cid: Content identifier
-            
+
         Returns:
             Dict with operation result including object stats
         """
@@ -369,40 +380,36 @@ class ipfs_py:
                 "BlockSize": 1024,
                 "LinksSize": 0,
                 "DataSize": 1024,
-                "CumulativeSize": 1024
+                "CumulativeSize": 1024,
             }
         except Exception as e:
             return {"success": False, "error": str(e)}
-    
+
     def ipfs_add_metadata(self, cid, metadata):
         """
         Add metadata to content in IPFS.
-        
+
         Args:
             cid: Content identifier
             metadata: Dictionary containing metadata
-            
+
         Returns:
             Dict with operation result
         """
         try:
             # Implementation would normally add metadata to content in IPFS
             # For now, return a mock success response
-            return {
-                "success": True,
-                "cid": cid,
-                "metadata": metadata
-            }
+            return {"success": True, "cid": cid, "metadata": metadata}
         except Exception as e:
             return {"success": False, "error": str(e)}
-    
+
     def run_ipfs_command(self, cmd_args):
         """
         Run a raw IPFS command.
-        
+
         Args:
             cmd_args: List of command arguments
-            
+
         Returns:
             Dict with operation result
         """
@@ -412,7 +419,7 @@ class ipfs_py:
             return {
                 "success": True,
                 "command": " ".join(cmd_args),
-                "output": "Command executed successfully"
+                "output": "Command executed successfully",
             }
         except Exception as e:
             return {"success": False, "error": str(e)}

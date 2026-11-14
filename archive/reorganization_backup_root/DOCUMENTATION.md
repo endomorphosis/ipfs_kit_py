@@ -370,7 +370,7 @@ async def _check_config_changes(self):
     """Check for configuration file changes"""
     if os.path.exists(self.config_file):
         mtime = os.path.getmtime(self.config_file)
-        if hasattr(self, '_last_config_mtime') and mtime > self._last_config_mtime:
+        if hasattr(self, "_last_config_mtime") and mtime > self._last_config_mtime:
             self.config = self._load_config()
             await self._reconfigure_components()
 ```
@@ -395,7 +395,7 @@ The enhanced MCP server (`enhanced_multiprocessing_mcp_server.py`) provides:
 class EnhancedMultiprocessingMCPServer:
     def __init__(self, host="127.0.0.1", port=8888, workers=None):
         self.workers = workers or min(mp.cpu_count(), 4)
-        self.vfs_pool = ProcessPoolExecutor(max_workers=self.workers//2)
+        self.vfs_pool = ProcessPoolExecutor(max_workers=self.workers // 2)
         self.backend_pool = ProcessPoolExecutor(max_workers=2)
         self.route_pool = ProcessPoolExecutor(max_workers=2)
 ```
@@ -412,16 +412,16 @@ async def handle_request(self, request):
     """Handle request with load balancing"""
     start_time = time.time()
     success = False
-    
+
     try:
         # Route to appropriate process pool
-        if request.path.startswith('/vfs/'):
+        if request.path.startswith("/vfs/"):
             result = await self._handle_vfs_request(request)
-        elif request.path.startswith('/backend/'):
+        elif request.path.startswith("/backend/"):
             result = await self._handle_backend_request(request)
         else:
             result = await self._handle_route_request(request)
-        
+
         success = True
         return result
     finally:
@@ -439,13 +439,13 @@ async def add_files_batch(self, file_paths: List[str]) -> List[Dict[str, Any]]:
     """Add multiple files in parallel"""
     with Progress() as progress:
         task = progress.add_task("Adding files...", total=len(file_paths))
-        
+
         with ProcessPoolExecutor(max_workers=self.max_workers) as executor:
             futures = {
-                executor.submit(add_file_worker, file_path, self.config): file_path 
+                executor.submit(add_file_worker, file_path, self.config): file_path
                 for file_path in file_paths
             }
-            
+
             results = []
             for future in as_completed(futures):
                 result = future.result()
@@ -457,21 +457,21 @@ async def add_files_batch(self, file_paths: List[str]) -> List[Dict[str, Any]]:
 ```python
 class ProgressTracker:
     def __init__(self):
-        self.total_operations = Value('i', 0)
-        self.completed_operations = Value('i', 0)
-        self.failed_operations = Value('i', 0)
+        self.total_operations = Value("i", 0)
+        self.completed_operations = Value("i", 0)
+        self.failed_operations = Value("i", 0)
         self.start_time = time.time()
-    
+
     def update_progress(self):
         """Update and display progress"""
         elapsed = time.time() - self.start_time
         completion_rate = self.completed_operations.value / max(self.total_operations.value, 1)
         eta = elapsed / max(completion_rate, 0.01) - elapsed if completion_rate > 0 else 0
-        
+
         return {
             "progress": completion_rate * 100,
             "eta": eta,
-            "throughput": self.completed_operations.value / elapsed
+            "throughput": self.completed_operations.value / elapsed,
         }
 ```
 
@@ -484,18 +484,15 @@ The enhanced daemon (`enhanced_multiprocessing_daemon.py`) provides:
 def start_process_pools(self):
     """Start process pools for parallel operations"""
     self.health_pool = ProcessPoolExecutor(
-        max_workers=self.config["health_workers"],
-        mp_context=mp.get_context('spawn')
+        max_workers=self.config["health_workers"], mp_context=mp.get_context("spawn")
     )
-    
+
     self.pin_pool = ProcessPoolExecutor(
-        max_workers=self.config["pin_index_workers"],
-        mp_context=mp.get_context('spawn')
+        max_workers=self.config["pin_index_workers"], mp_context=mp.get_context("spawn")
     )
-    
+
     self.api_thread_pool = ThreadPoolExecutor(
-        max_workers=self.config["api_threads"],
-        thread_name_prefix="api-thread"
+        max_workers=self.config["api_threads"], thread_name_prefix="api-thread"
     )
 ```
 
@@ -503,31 +500,33 @@ def start_process_pools(self):
 ```python
 class ProcessStats:
     """Shared statistics for worker processes"""
+
     def __init__(self):
-        self.total_requests = Value('i', 0)
-        self.successful_requests = Value('i', 0)
-        self.failed_requests = Value('i', 0)
-        self.total_response_time = Value('d', 0.0)
-        self.active_workers = Value('i', 0)
-        self.peak_workers = Value('i', 0)
+        self.total_requests = Value("i", 0)
+        self.successful_requests = Value("i", 0)
+        self.failed_requests = Value("i", 0)
+        self.total_response_time = Value("d", 0.0)
+        self.active_workers = Value("i", 0)
+        self.peak_workers = Value("i", 0)
 ```
 
 #### Worker Functions
 ```python
-def health_check_worker(backend_name: str, config: Dict[str, Any], 
-                       result_queue: MPQueue, stats: ProcessStats):
+def health_check_worker(
+    backend_name: str, config: Dict[str, Any], result_queue: MPQueue, stats: ProcessStats
+):
     """Worker function for checking backend health"""
     try:
         health_monitor = BackendHealthMonitor(config_dir=config.get("config_dir"))
         health_result = health_monitor.check_backend_health_sync(backend_name)
-        
+
         result = {
             "backend": backend_name,
             "status": "healthy",
             "response_time": time.time() - start_time,
-            "details": health_result
+            "details": health_result,
         }
-        
+
         stats.update_request_count(1)
         stats.update_success_count(1)
         result_queue.put(result)
@@ -889,10 +888,10 @@ Get comprehensive daemon status.
 **Returns**: 
 ```python
 {
-    "daemon": {...},      # Daemon status
-    "backends": {...},    # Backend status
-    "replication": {...}, # Replication status
-    "config": {...}       # Current configuration
+    "daemon": {...},  # Daemon status
+    "backends": {...},  # Backend status
+    "replication": {...},  # Replication status
+    "config": {...},  # Current configuration
 }
 ```
 
@@ -1097,6 +1096,7 @@ python ipfs_kit_daemon.py --config /path/to/config.json --debug
 **Diagnosis**:
 ```python
 import multiprocessing as mp
+
 print(f"CPU count: {mp.cpu_count()}")
 print(f"Multiprocessing context: {mp.get_context()}")
 ```
@@ -1116,6 +1116,7 @@ print(f"Multiprocessing context: {mp.get_context()}")
 ```python
 # Monitor memory usage
 import psutil
+
 process = psutil.Process()
 print(f"Memory: {process.memory_info().rss / 1024 / 1024:.1f} MB")
 
@@ -1123,7 +1124,7 @@ print(f"Memory: {process.memory_info().rss / 1024 / 1024:.1f} MB")
 workers = min(mp.cpu_count() // 2, 4)
 
 # Use spawn context to avoid memory sharing issues
-mp_context = mp.get_context('spawn')
+mp_context = mp.get_context("spawn")
 ```
 
 #### 4. Process Pool Deadlocks
@@ -1171,7 +1172,7 @@ python ipfs_kit_daemon.py  # Regenerates default config
 # For CPU-intensive tasks
 cpu_workers = min(mp.cpu_count(), 8)
 
-# For I/O-intensive tasks  
+# For I/O-intensive tasks
 io_workers = min(mp.cpu_count() * 2, 20)
 
 # For mixed workloads
@@ -1188,7 +1189,7 @@ from multiprocessing import shared_memory
 max_workers = min(mp.cpu_count(), 4)
 
 # Use spawn context to avoid memory issues
-mp_context = mp.get_context('spawn')
+mp_context = mp.get_context("spawn")
 ```
 
 #### 3. I/O Optimization
@@ -1197,13 +1198,14 @@ mp_context = mp.get_context('spawn')
 # Use async for high-concurrency I/O
 import asyncio
 
+
 async def process_many_io_tasks(tasks):
     semaphore = asyncio.Semaphore(50)  # Limit concurrency
-    
+
     async def limited_task(task):
         async with semaphore:
             return await process_task(task)
-    
+
     return await asyncio.gather(*[limited_task(task) for task in tasks])
 ```
 

@@ -1,5 +1,3 @@
-
-
 def _run_async_from_sync(async_fn, *args, **kwargs):
     """Run an async callable from sync code.
 
@@ -33,6 +31,8 @@ def _run_async_from_sync(async_fn, *args, **kwargs):
     if error:
         raise error[0]
     return result[0] if result else None
+
+
 """
 IPFS LibP2P peer implementation for direct peer-to-peer communication.
 
@@ -78,6 +78,7 @@ def set_default_deps(deps: object | None) -> None:
     global _default_deps
     _default_deps = deps
 
+
 # IMPORTANT: do not import `ipfs_kit_py.libp2p` at module import time.
 # `ipfs_kit_py.libp2p` imports components that import this module, and importing it
 # here can create circular-import failures (especially during high_level_api startup).
@@ -117,9 +118,11 @@ def install_dependencies() -> bool:
     except Exception:
         return False
 
+
 # Set defaults for optional features
 HAS_MDNS = False
 HAS_NAT_TRAVERSAL = False
+
 
 def _get_compatible_new_host():
     """
@@ -127,6 +130,7 @@ def _get_compatible_new_host():
     """
     try:
         from ipfs_kit_py.libp2p import compatible_new_host
+
         return compatible_new_host
     except ImportError as e:
         logger.error(f"Cannot import compatible_new_host: {e}")
@@ -134,17 +138,19 @@ def _get_compatible_new_host():
         if HAS_LIBP2P:
             try:
                 from libp2p import new_host
+
                 return new_host
             except ImportError:
                 pass
         raise ImportError("Neither compatible_new_host nor basic new_host available")
 
+
 # Import our compatibility modules
 from ipfs_kit_py.libp2p.crypto_compat import (
-    serialize_private_key, 
-    generate_key_pair, 
+    serialize_private_key,
+    generate_key_pair,
     load_private_key,
-    create_key_pair
+    create_key_pair,
 )
 
 # Import libp2p modules only if dependencies are available
@@ -152,40 +158,48 @@ if HAS_LIBP2P:
     logger.debug("libp2p dependencies are available, importing required modules")
     try:
         import libp2p
-        
+
         # Handle missing pubsub_utils gracefully
         HAS_PUBSUB = True
         pubsub_utils = None
         try:
             from libp2p.pubsub.gossipsub import GossipSub
             from libp2p.pubsub.floodsub import FloodSub
+
             # Try to import pubsub utils
             try:
                 import libp2p.tools.pubsub.utils as pubsub_utils
+
                 logger.debug("libp2p pubsub modules and utils available")
             except ImportError:
                 # Try our custom implementation
                 from ipfs_kit_py.libp2p.tools.pubsub.utils import create_pubsub
+
                 # Create a minimal pubsub_utils object
                 class PubsubUtils:
                     @staticmethod
                     def create_pubsub(*args, **kwargs):
                         return create_pubsub(*args, **kwargs)
+
                 pubsub_utils = PubsubUtils()
                 logger.debug("Using custom pubsub implementation")
         except ImportError as e:
             HAS_PUBSUB = False
-            logger.warning(f"libp2p.pubsub modules not available: {e}. PubSub functionality will be limited.")
+            logger.warning(
+                f"libp2p.pubsub modules not available: {e}. PubSub functionality will be limited."
+            )
+
             # Create a dummy pubsub_utils for fallback
             class DummyPubsubUtils:
                 @staticmethod
                 def create_pubsub(*args, **kwargs):
                     logger.warning("PubSub not available, returning None")
                     return None
+
             pubsub_utils = DummyPubsubUtils()
-            
+
         from libp2p.crypto.keys import KeyPair, PrivateKey, PublicKey
-        
+
         # Import serialization functions - using our compatibility version
         try:
             from libp2p.crypto.serialization import deserialize_private_key
@@ -193,58 +207,71 @@ if HAS_LIBP2P:
             logger.warning(f"deserialize_private_key not found in libp2p.crypto.serialization: {e}")
             # Use compatibility version
             deserialize_private_key = load_private_key
-                    
+
         # Try to import other required modules with graceful fallbacks
         HAS_KADEMLIA = True
         try:
             from libp2p.kademlia.network import KademliaServer
         except ImportError as e:
             HAS_KADEMLIA = False
-            logger.debug(f"libp2p.kademlia module not available: {e}. DHT functionality will be limited.")
+            logger.debug(
+                f"libp2p.kademlia module not available: {e}. DHT functionality will be limited."
+            )
             # Use our custom implementation
             from ipfs_kit_py.libp2p.kademlia.network import KademliaServer
-            
+
         from libp2p.network.exceptions import SwarmException
-        
+
         try:
             from libp2p.network.stream.net_stream import NetStream as INetStream
             from libp2p.network.stream.exceptions import StreamError
         except ImportError as e:
-            logger.warning(f"libp2p.network.stream modules not available: {e}. Streaming functionality will be limited.")
+            logger.warning(
+                f"libp2p.network.stream modules not available: {e}. Streaming functionality will be limited."
+            )
+
             # Define minimal fallback classes
             class StreamError(Exception):
                 """Error in stream operations."""
+
                 pass
-            
+
             class INetStream:
                 """Minimal stream interface fallback."""
+
                 pass
-            
+
         from libp2p.peer.id import ID as PeerID
         from libp2p.peer.peerinfo import PeerInfo
-        
+
         try:
             from libp2p.tools.constants import ALPHA_VALUE
         except ImportError as e:
             # Define a fallback if the constant isn't available
             ALPHA_VALUE = 3
-            logger.warning(f"libp2p.tools.constants module not available: {e}. Using default ALPHA_VALUE={ALPHA_VALUE}.")
+            logger.warning(
+                f"libp2p.tools.constants module not available: {e}. Using default ALPHA_VALUE={ALPHA_VALUE}."
+            )
             # Import from our constants
             from ipfs_kit_py.libp2p.tools.constants import ALPHA_VALUE
-            
+
         try:
             from libp2p.typing import TProtocol
         except ImportError as e:
             # Define a fallback type if needed
             from typing import NewType
-            TProtocol = NewType('TProtocol', str)
-            logger.warning(f"libp2p.typing module not available: {e}. Using fallback TProtocol type.")
+
+            TProtocol = NewType("TProtocol", str)
+            logger.warning(
+                f"libp2p.typing module not available: {e}. Using fallback TProtocol type."
+            )
             # Import from our typing module
             from ipfs_kit_py.libp2p.typing import TProtocol
 
         # Optional imports for discovery - these don't affect basic functionality
         try:
             import libp2p.discovery.mdns as mdns
+
             HAS_MDNS = True
             logger.debug("mDNS discovery support is available")
         except ImportError as e:
@@ -255,6 +282,7 @@ if HAS_LIBP2P:
         try:
             from libp2p.transport.tcp.tcp import TCP
             from libp2p.transport.upgrader import TransportUpgrader
+
             HAS_NAT_TRAVERSAL = True
             logger.debug("NAT traversal support is available")
         except ImportError as e:
@@ -267,14 +295,18 @@ if HAS_LIBP2P:
         HAS_MDNS = False
         HAS_NAT_TRAVERSAL = False
 else:
-    logger.warning("libp2p dependencies are not available, peer-to-peer functionality will be limited")
+    logger.warning(
+        "libp2p dependencies are not available, peer-to-peer functionality will be limited"
+    )
     HAS_NAT_TRAVERSAL = False
+
     # Create dummy pubsub_utils for when libp2p is not available
     class DummyPubsubUtils:
         @staticmethod
         def create_pubsub(*args, **kwargs):
             logger.warning("libp2p not available, PubSub disabled")
             return None
+
     pubsub_utils = DummyPubsubUtils()
 
 # Local imports
@@ -346,13 +378,13 @@ class IPFSLibp2pPeer:
         """
         # Set up logger
         self.logger = logging.getLogger(__name__)
-        
+
         # Declare global variable upfront to avoid shadowing
         global HAS_LIBP2P
-        
+
         # Initialize metadata dictionary - moved earlier to fix attribute access issue
         self.metadata = metadata or {}
-        
+
         # Auto-install dependencies on first run if they're not already installed
         if not self.metadata.get("skip_dependency_check", False):
             if not self._check_and_install_dependencies():
@@ -398,18 +430,21 @@ class IPFSLibp2pPeer:
 
             # Create anyio task group for background tasks
             self._task_group = None
-            
+
             # Flag to track if task group is initialized
             self._task_group_initialized = False
-            
+
             # Set up components synchronously
             try:
                 # Check if we're already in an async context
                 try:
                     import sniffio
+
                     current_async_library = sniffio.current_async_library()
                     # We're in an async context, defer initialization
-                    self.logger.info(f"In {current_async_library} context, deferring libp2p initialization")
+                    self.logger.info(
+                        f"In {current_async_library} context, deferring libp2p initialization"
+                    )
                     self._deferred_init = True
                 except sniffio.AsyncLibraryNotFoundError:
                     # Not in async context, safe to run
@@ -424,9 +459,12 @@ class IPFSLibp2pPeer:
                 # sniffio not available, try to detect manually
                 try:
                     import anyio.lowlevel
+
                     anyio.lowlevel.current_task()
                     # We're in an async context, defer initialization
-                    self.logger.info("In async context (sniffio unavailable), deferring libp2p initialization")
+                    self.logger.info(
+                        "In async context (sniffio unavailable), deferring libp2p initialization"
+                    )
                     self._deferred_init = True
                 except Exception:
                     # No running loop, safe to run
@@ -456,7 +494,9 @@ class IPFSLibp2pPeer:
 
             self._running = True
             if self._deferred_init:
-                self.logger.info(f"libp2p peer created (deferred init) with ID: {self.get_peer_id() if hasattr(self, 'key_pair') else 'pending'}")
+                self.logger.info(
+                    f"libp2p peer created (deferred init) with ID: {self.get_peer_id() if hasattr(self, 'key_pair') else 'pending'}"
+                )
             else:
                 self.logger.info(f"libp2p peer initialized with ID: {self.get_peer_id()}")
         except Exception as e:
@@ -467,7 +507,7 @@ class IPFSLibp2pPeer:
 
     async def ensure_initialized(self):
         """Ensure the peer is fully initialized (call this from async context if deferred)."""
-        if getattr(self, '_deferred_init', False) and not getattr(self, '_initialized', False):
+        if getattr(self, "_deferred_init", False) and not getattr(self, "_initialized", False):
             await self._async_init()
             self._initialized = True
             self._deferred_init = False
@@ -484,7 +524,7 @@ class IPFSLibp2pPeer:
         """Initialize components asynchronously."""
         # Initialize the task group
         await self._init_task_group()
-        
+
         # Initialize components in sequence
         await self._init_host_async()
         self._setup_protocols()
@@ -506,7 +546,7 @@ class IPFSLibp2pPeer:
 
             # Start the host (already might be done in compatible_new_host)
             try:
-                if hasattr(self.host, 'get_network') and hasattr(self.host.get_network(), 'listen'):
+                if hasattr(self.host, "get_network") and hasattr(self.host.get_network(), "listen"):
                     self.host.get_network().listen()
             except Exception as e:
                 self.logger.debug(f"Note: Network may already be listening: {e}")
@@ -540,10 +580,12 @@ class IPFSLibp2pPeer:
         """Set up publish/subscribe asynchronously."""
         # Check if pubsub module is available
         if not HAS_PUBSUB:
-            self.logger.warning("PubSub functionality disabled due to missing libp2p.tools.pubsub module")
+            self.logger.warning(
+                "PubSub functionality disabled due to missing libp2p.tools.pubsub module"
+            )
             self.pubsub = None
             return
-            
+
         # Initialize pubsub with GossipSub
         self.pubsub = pubsub_utils.create_pubsub(
             host=self.host,
@@ -650,7 +692,7 @@ class IPFSLibp2pPeer:
 
             # Start the host (already might be done in compatible_new_host)
             try:
-                if hasattr(self.host, 'get_network') and hasattr(self.host.get_network(), 'listen'):
+                if hasattr(self.host, "get_network") and hasattr(self.host.get_network(), "listen"):
                     self.host.get_network().listen()
             except Exception as e:
                 self.logger.debug(f"Note: Network may already be listening: {e}")
@@ -752,10 +794,12 @@ class IPFSLibp2pPeer:
         """Set up publish/subscribe for messaging."""
         # Check if pubsub module is available
         if not HAS_PUBSUB:
-            self.logger.warning("PubSub functionality disabled due to missing libp2p.tools.pubsub module")
+            self.logger.warning(
+                "PubSub functionality disabled due to missing libp2p.tools.pubsub module"
+            )
             self.pubsub = None
             return
-            
+
         # Initialize pubsub with GossipSub
         self.pubsub = pubsub_utils.create_pubsub(
             host=self.host,
@@ -970,7 +1014,7 @@ class IPFSLibp2pPeer:
                         # Run without waiting for result
                         async def run_fetch():
                             await self._fetch_content_proactively(cid, providers)
-                        
+
                         try:
                             anyio.run(run_fetch)
                         except Exception as e:
@@ -1149,12 +1193,13 @@ class IPFSLibp2pPeer:
                         # Use task group if available
                         async def provide_in_dht(content_id):
                             await self.dht.provide(content_id)
-                        
+
                         self._task_group.start_soon(provide_in_dht, cid)
                     else:
                         # Fallback to anyio.run
                         async def provide_cid():
                             await self.dht.provide(cid)
+
                         try:
                             anyio.run(provide_cid)
                         except Exception as e:
@@ -1245,32 +1290,36 @@ class IPFSLibp2pPeer:
     def _check_and_install_dependencies(self):
         """
         Check if libp2p dependencies are available and attempt to install them if not.
-        
+
         Returns:
             bool: True if dependencies are available or successfully installed, False otherwise
         """
         global HAS_LIBP2P, HAS_PUBSUB
-        
+
         if not HAS_LIBP2P:
             self.logger.warning("libp2p is not available. Attempting to install dependencies...")
-            
+
             # Try to install dependencies
             if install_dependencies():
                 self.logger.info("Successfully installed libp2p dependencies")
                 # Re-import necessary components after successful installation
                 import libp2p
+
                 # Handle missing pubsub_utils gracefully
                 HAS_PUBSUB = True
                 try:
                     import libp2p.tools.pubsub.utils as pubsub_utils
                 except ImportError as e:
                     HAS_PUBSUB = False
-                    self.logger.warning(f"libp2p.tools.pubsub module not available: {e}. PubSub functionality will be limited.")
-                    
+                    self.logger.warning(
+                        f"libp2p.tools.pubsub module not available: {e}. PubSub functionality will be limited."
+                    )
+
                 # We already have compatible_new_host from our import above
                 # from libp2p import new_host
                 from libp2p.crypto.keys import KeyPair
                 from libp2p.kademlia.network import KademliaServer
+
                 HAS_LIBP2P = True
                 return True
             else:
@@ -1279,9 +1328,9 @@ class IPFSLibp2pPeer:
                     "Install from GitHub main with: pip install 'libp2p @ git+https://github.com/libp2p/py-libp2p.git@main'"
                 )
                 return False
-        
+
         return True
-    
+
     def get_peer_id(self) -> str:
         """Get this peer's ID as a string."""
         if self.host:
@@ -1482,7 +1531,9 @@ class IPFSLibp2pPeer:
 
                         addr = Multiaddr(addr_str)
                         self.host.peerstore.add_addr(
-                            PeerID.from_base58(peer_id), addr, 600  # 10 minutes validity
+                            PeerID.from_base58(peer_id),
+                            addr,
+                            600,  # 10 minutes validity
                         )
                     except Exception as e:
                         self.logger.debug(f"Error adding peer address: {str(e)}")
@@ -1491,7 +1542,9 @@ class IPFSLibp2pPeer:
                 if not self.is_connected_to(peer_id) and self.role != "leecher":
                     # Schedule connection attempt via task group or anyio.run
                     if self._task_group_initialized:
-                        self._task_group.start_soon(self._try_connect_to_discovered_peer, peer_id, addrs)
+                        self._task_group.start_soon(
+                            self._try_connect_to_discovered_peer, peer_id, addrs
+                        )
                     else:
                         # Run in background with anyio.run
                         try:
@@ -1584,10 +1637,11 @@ class IPFSLibp2pPeer:
 
         # Schedule via task group if available, otherwise use threading as fallback
         if self._task_group_initialized:
+
             async def scheduled_announcement():
                 await anyio.sleep(300)  # 5 minutes
                 self._announce_to_discovery_topic(topic)
-            
+
             self._task_group.start_soon(scheduled_announcement)
         else:
             # Fallback to threading if task group not available
@@ -1681,14 +1735,14 @@ class IPFSLibp2pPeer:
                 relays.append({"id": relay_id, "addr": peer})
 
         return relays
-        
+
     def publish_to_topic(self, topic_id: str, data: Union[str, bytes]) -> Dict[str, Any]:
         """Publish data to a GossipSub topic.
-        
+
         Args:
             topic_id: The topic to publish to
             data: The data to publish (bytes or string)
-            
+
         Returns:
             Dict with publication result
         """
@@ -1698,43 +1752,47 @@ class IPFSLibp2pPeer:
             "topic": topic_id,
             "timestamp": time.time(),
         }
-        
+
         try:
             if not self.pubsub:
                 result["error"] = "PubSub not available"
                 result["error_type"] = "missing_pubsub"
                 return result
-                
+
             # Ensure data is bytes
             if isinstance(data, str):
-                data_bytes = data.encode('utf-8')
+                data_bytes = data.encode("utf-8")
             else:
                 data_bytes = data
-                
+
             # Handle sync and async APIs
             try:
                 # Use anyio for async API
                 async def publish_async():
                     await self.pubsub.publish(topic_id, data_bytes)
                     return True
-                    
+
                 # Run the publish operation
-                if hasattr(self.pubsub.publish, "__code__") and "async" in self.pubsub.publish.__code__.co_flags:
+                if (
+                    hasattr(self.pubsub.publish, "__code__")
+                    and "async" in self.pubsub.publish.__code__.co_flags
+                ):
                     # It's an async method, use anyio to run it
                     success = anyio.run(publish_async)
                 else:
                     # It's a sync method, call directly
                     success = self.pubsub.publish(topic_id, data_bytes)
-                    
+
                 result["success"] = bool(success)
                 return result
-                
+
             except RuntimeError as e:
                 if "no running event loop" in str(e):
                     # We're in a context where we can't create a new event loop
                     # Try to get or create an event loop in the current thread
                     try:
                         import anyio
+
                         success = _run_async_from_sync(publish_async)
                         result["success"] = bool(success)
                         return result
@@ -1745,21 +1803,21 @@ class IPFSLibp2pPeer:
                         return result
                 else:
                     raise
-                    
+
         except Exception as e:
             result["error"] = str(e)
             result["error_type"] = type(e).__name__
             self.logger.error(f"Error publishing to topic {topic_id}: {e}")
-            
+
         return result
-            
+
     def subscribe_to_topic(self, topic_id: str, handler: Callable) -> Dict[str, Any]:
         """Subscribe to a GossipSub topic with a handler function.
-        
+
         Args:
             topic_id: The topic to subscribe to
             handler: Function to call with received messages
-            
+
         Returns:
             Dict with subscription result
         """
@@ -1769,43 +1827,47 @@ class IPFSLibp2pPeer:
             "topic": topic_id,
             "timestamp": time.time(),
         }
-        
+
         try:
             if not self.pubsub:
                 result["error"] = "PubSub not available"
                 result["error_type"] = "missing_pubsub"
                 return result
-                
+
             # Check if we need to wrap the handler
             if not isinstance(handler, (types.FunctionType, types.MethodType)):
                 result["error"] = f"Invalid handler type: {type(handler)}"
                 result["error_type"] = "invalid_handler"
                 return result
-                
+
             # Handle both async and sync APIs
             try:
                 # Use anyio for async API
                 async def subscribe_async():
                     await self.pubsub.subscribe(topic_id, handler)
                     return True
-                    
+
                 # Run the subscribe operation
-                if hasattr(self.pubsub.subscribe, "__code__") and "async" in self.pubsub.subscribe.__code__.co_flags:
+                if (
+                    hasattr(self.pubsub.subscribe, "__code__")
+                    and "async" in self.pubsub.subscribe.__code__.co_flags
+                ):
                     # It's an async method, use anyio to run it
                     success = anyio.run(subscribe_async)
                 else:
                     # It's a sync method, call directly
                     success = self.pubsub.subscribe(topic_id, handler)
-                    
+
                 result["success"] = bool(success)
                 return result
-                
+
             except RuntimeError as e:
                 if "no running event loop" in str(e):
                     # We're in a context where we can't create a new event loop
                     # Try to get or create an event loop in the current thread
                     try:
                         import anyio
+
                         success = _run_async_from_sync(subscribe_async)
                         result["success"] = bool(success)
                         return result
@@ -1816,21 +1878,23 @@ class IPFSLibp2pPeer:
                         return result
                 else:
                     raise
-                    
+
         except Exception as e:
             result["error"] = str(e)
             result["error_type"] = type(e).__name__
             self.logger.error(f"Error subscribing to topic {topic_id}: {e}")
-            
+
         return result
-        
-    def unsubscribe_from_topic(self, topic_id: str, handler: Optional[Callable] = None) -> Dict[str, Any]:
+
+    def unsubscribe_from_topic(
+        self, topic_id: str, handler: Optional[Callable] = None
+    ) -> Dict[str, Any]:
         """Unsubscribe from a GossipSub topic.
-        
+
         Args:
             topic_id: The topic to unsubscribe from
             handler: Optional specific handler to unsubscribe (if None, unsubscribe from all handlers)
-            
+
         Returns:
             Dict with unsubscription result
         """
@@ -1840,37 +1904,41 @@ class IPFSLibp2pPeer:
             "topic": topic_id,
             "timestamp": time.time(),
         }
-        
+
         try:
             if not self.pubsub:
                 result["error"] = "PubSub not available"
                 result["error_type"] = "missing_pubsub"
                 return result
-                
+
             # Handle both async and sync APIs
             try:
                 # Use anyio for async API
                 async def unsubscribe_async():
                     await self.pubsub.unsubscribe(topic_id, handler)
                     return True
-                    
+
                 # Run the unsubscribe operation
-                if hasattr(self.pubsub.unsubscribe, "__code__") and "async" in self.pubsub.unsubscribe.__code__.co_flags:
+                if (
+                    hasattr(self.pubsub.unsubscribe, "__code__")
+                    and "async" in self.pubsub.unsubscribe.__code__.co_flags
+                ):
                     # It's an async method, use anyio to run it
                     success = anyio.run(unsubscribe_async)
                 else:
                     # It's a sync method, call directly
                     success = self.pubsub.unsubscribe(topic_id, handler)
-                    
+
                 result["success"] = bool(success)
                 return result
-                
+
             except RuntimeError as e:
                 if "no running event loop" in str(e):
                     # We're in a context where we can't create a new event loop
                     # Try to get or create an event loop in the current thread
                     try:
                         import anyio
+
                         success = _run_async_from_sync(unsubscribe_async)
                         result["success"] = bool(success)
                         return result
@@ -1881,20 +1949,20 @@ class IPFSLibp2pPeer:
                         return result
                 else:
                     raise
-                    
+
         except Exception as e:
             result["error"] = str(e)
             result["error_type"] = type(e).__name__
             self.logger.error(f"Error unsubscribing from topic {topic_id}: {e}")
-            
+
         return result
-        
+
     def get_topic_peers(self, topic_id: str) -> Dict[str, Any]:
         """Get peers subscribed to a topic.
-        
+
         Args:
             topic_id: The topic to get peers for
-            
+
         Returns:
             Dict with peer information
         """
@@ -1903,41 +1971,41 @@ class IPFSLibp2pPeer:
             "operation": "get_topic_peers",
             "topic": topic_id,
             "timestamp": time.time(),
-            "peers": []
+            "peers": [],
         }
-        
+
         try:
             if not self.pubsub:
                 result["error"] = "PubSub not available"
                 result["error_type"] = "missing_pubsub"
                 return result
-                
+
             # Check if the method exists
             if not hasattr(self.pubsub, "get_peers"):
                 result["error"] = "get_peers method not available on pubsub implementation"
                 result["error_type"] = "missing_method"
                 return result
-                
+
             # Call the method
             peers = self.pubsub.get_peers(topic_id)
-            
+
             # Convert to list of strings if needed
             peer_list = [str(peer) for peer in peers] if peers else []
-            
+
             result["success"] = True
             result["peers"] = peer_list
             result["count"] = len(peer_list)
-            
+
         except Exception as e:
             result["error"] = str(e)
             result["error_type"] = type(e).__name__
             self.logger.error(f"Error getting peers for topic {topic_id}: {e}")
-            
+
         return result
-        
+
     def list_topics(self) -> Dict[str, Any]:
         """List all topics we're subscribed to.
-        
+
         Returns:
             Dict with topic information
         """
@@ -1945,39 +2013,43 @@ class IPFSLibp2pPeer:
             "success": False,
             "operation": "list_topics",
             "timestamp": time.time(),
-            "topics": []
+            "topics": [],
         }
-        
+
         try:
             if not self.pubsub:
                 result["error"] = "PubSub not available"
                 result["error_type"] = "missing_pubsub"
                 return result
-                
+
             # Check if the method exists
             if hasattr(self.pubsub, "get_topics"):
                 topics = self.pubsub.get_topics()
-            elif hasattr(self.pubsub, "topics") and isinstance(self.pubsub.topics, (list, tuple, set)):
+            elif hasattr(self.pubsub, "topics") and isinstance(
+                self.pubsub.topics, (list, tuple, set)
+            ):
                 topics = self.pubsub.topics
-            elif hasattr(self.pubsub, "subscriptions") and isinstance(self.pubsub.subscriptions, dict):
+            elif hasattr(self.pubsub, "subscriptions") and isinstance(
+                self.pubsub.subscriptions, dict
+            ):
                 topics = list(self.pubsub.subscriptions.keys())
             else:
                 result["error"] = "Cannot determine topics - method not available"
                 result["error_type"] = "missing_method"
                 return result
-                
+
             # Convert to list of strings if needed
             topic_list = [str(topic) for topic in topics] if topics else []
-            
+
             result["success"] = True
             result["topics"] = topic_list
             result["count"] = len(topic_list)
-            
+
         except Exception as e:
             result["error"] = str(e)
             result["error_type"] = type(e).__name__
             self.logger.error(f"Error listing topics: {e}")
-            
+
         return result
 
     def enable_relay(self) -> bool:
@@ -2071,7 +2143,9 @@ class IPFSLibp2pPeer:
                 except Exception as e:
                     # Send error response with timeout
                     with anyio.fail_after(5.0):  # 5-second write timeout
-                        await stream.write(json.dumps({"status": "error", "error": str(e)}).encode())
+                        await stream.write(
+                            json.dumps({"status": "error", "error": str(e)}).encode()
+                        )
             else:
                 # If we're not a relay server, reject the request
                 with anyio.fail_after(5.0):  # 5-second write timeout
@@ -2282,7 +2356,9 @@ class IPFSLibp2pPeer:
                     try:
                         _run_async_from_sync(provide_content)
                     except Exception as inner_e:
-                        self.logger.warning(f"Could not run provide_content from sync context: {inner_e}")
+                        self.logger.warning(
+                            f"Could not run provide_content from sync context: {inner_e}"
+                        )
 
             # Announce via pubsub
             if self.pubsub:
@@ -2331,8 +2407,10 @@ class IPFSLibp2pPeer:
                     try:
                         # Use AnyIO timeout
                         with anyio.fail_after(timeout):
-                            dht_providers = await self.dht.get_providers(cid, count=count - len(providers))
-                            
+                            dht_providers = await self.dht.get_providers(
+                                cid, count=count - len(providers)
+                            )
+
                             # Convert to provider info format and merge lists
                             dht_results = []
                             for provider in dht_providers:
@@ -2340,11 +2418,11 @@ class IPFSLibp2pPeer:
                                     "id": str(provider.peer_id),
                                     "addrs": [str(addr) for addr in provider.addrs],
                                 }
-                                
+
                                 # Only add if not already in the list
                                 if not any(p["id"] == provider_info["id"] for p in providers):
                                     dht_results.append(provider_info)
-                                    
+
                             return dht_results
                     except TimeoutError:
                         self.logger.warning(f"DHT provider lookup timed out for {cid}")
@@ -2352,7 +2430,7 @@ class IPFSLibp2pPeer:
 
                 # Run with anyio
                 dht_results = anyio.run(find_in_dht)
-                
+
                 # Add results to providers list
                 providers.extend(dht_results)
 
@@ -2716,7 +2794,7 @@ class IPFSLibp2pPeer:
                 # Run in background without waiting for result
                 async def run_promotion():
                     await self._promote_content_to_faster_tier(cid)
-                
+
                 try:
                     anyio.run(run_promotion)
                 except Exception as e:
@@ -2815,6 +2893,7 @@ class IPFSLibp2pPeer:
 
             # Check if it's an async method
             import inspect
+
             if inspect.iscoroutinefunction(func):
                 # Directly await it
                 return await func(*args, **kwargs)
@@ -3005,11 +3084,11 @@ class IPFSLibp2pPeer:
 
     def publish_to_topic(self, topic_id: str, data: Union[str, bytes]) -> Dict[str, Any]:
         """Publish data to a GossipSub topic.
-        
+
         Args:
             topic_id: The topic to publish to
             data: The data to publish (bytes or string)
-            
+
         Returns:
             Dict with publication result
         """
@@ -3017,29 +3096,30 @@ class IPFSLibp2pPeer:
             "success": False,
             "operation": "publish_to_topic",
             "timestamp": time.time(),
-            "topic": topic_id
+            "topic": topic_id,
         }
-        
+
         if not hasattr(self, "pubsub") or not self.pubsub:
             result["error"] = "PubSub not available"
             result["error_type"] = "missing_pubsub"
             return result
-            
+
         # Ensure data is bytes
         if isinstance(data, str):
-            data_bytes = data.encode('utf-8')
+            data_bytes = data.encode("utf-8")
         else:
             data_bytes = data
-            
+
         try:
             # Check if pubsub has a publish method that's either sync or async
             pubsub_publish = getattr(self.pubsub, "publish", None)
-            
+
             if pubsub_publish:
                 # Determine if it's an async method
                 import inspect
+
                 is_async = inspect.iscoroutinefunction(pubsub_publish)
-                
+
                 if is_async:
                     # Define async task
                     async def publish_async():
@@ -3063,16 +3143,16 @@ class IPFSLibp2pPeer:
         except Exception as e:
             result["error"] = f"Unexpected error in publish_to_topic: {str(e)}"
             self.logger.error(f"Error publishing to topic {topic_id}: {e}")
-            
+
         return result
-        
+
     def subscribe_to_topic(self, topic_id: str, handler: Callable) -> Dict[str, Any]:
         """Subscribe to a GossipSub topic with a handler function.
-        
+
         Args:
             topic_id: The topic to subscribe to
             handler: Function to handle incoming messages
-            
+
         Returns:
             Dict with subscription result
         """
@@ -3080,23 +3160,24 @@ class IPFSLibp2pPeer:
             "success": False,
             "operation": "subscribe_to_topic",
             "timestamp": time.time(),
-            "topic": topic_id
+            "topic": topic_id,
         }
-        
+
         if not hasattr(self, "pubsub") or not self.pubsub:
             result["error"] = "PubSub not available"
             result["error_type"] = "missing_pubsub"
             return result
-            
+
         try:
             # Check if pubsub has a subscribe method
             pubsub_subscribe = getattr(self.pubsub, "subscribe", None)
-            
+
             if pubsub_subscribe:
                 # Determine if it's an async method
                 import inspect
+
                 is_async = inspect.iscoroutinefunction(pubsub_subscribe)
-                
+
                 if is_async:
                     # Define async task
                     async def subscribe_async():
@@ -3120,16 +3201,18 @@ class IPFSLibp2pPeer:
         except Exception as e:
             result["error"] = f"Unexpected error in subscribe_to_topic: {str(e)}"
             self.logger.error(f"Error subscribing to topic {topic_id}: {e}")
-            
+
         return result
-        
-    def unsubscribe_from_topic(self, topic_id: str, handler: Optional[Callable] = None) -> Dict[str, Any]:
+
+    def unsubscribe_from_topic(
+        self, topic_id: str, handler: Optional[Callable] = None
+    ) -> Dict[str, Any]:
         """Unsubscribe from a GossipSub topic.
-        
+
         Args:
             topic_id: The topic to unsubscribe from
             handler: Optional specific handler to unsubscribe
-            
+
         Returns:
             Dict with unsubscription result
         """
@@ -3137,23 +3220,24 @@ class IPFSLibp2pPeer:
             "success": False,
             "operation": "unsubscribe_from_topic",
             "timestamp": time.time(),
-            "topic": topic_id
+            "topic": topic_id,
         }
-        
+
         if not hasattr(self, "pubsub") or not self.pubsub:
             result["error"] = "PubSub not available"
             result["error_type"] = "missing_pubsub"
             return result
-            
+
         try:
             # Check if pubsub has an unsubscribe method
             pubsub_unsubscribe = getattr(self.pubsub, "unsubscribe", None)
-            
+
             if pubsub_unsubscribe:
                 # Determine if it's an async method
                 import inspect
+
                 is_async = inspect.iscoroutinefunction(pubsub_unsubscribe)
-                
+
                 if is_async:
                     # Define async task
                     async def unsubscribe_async():
@@ -3183,15 +3267,15 @@ class IPFSLibp2pPeer:
         except Exception as e:
             result["error"] = f"Unexpected error in unsubscribe_from_topic: {str(e)}"
             self.logger.error(f"Error unsubscribing from topic {topic_id}: {e}")
-            
+
         return result
-        
+
     def get_topic_peers(self, topic_id: str) -> Dict[str, Any]:
         """Get peers subscribed to a topic.
-        
+
         Args:
             topic_id: The topic to get peers for
-            
+
         Returns:
             Dict with peer information
         """
@@ -3200,14 +3284,14 @@ class IPFSLibp2pPeer:
             "operation": "get_topic_peers",
             "timestamp": time.time(),
             "topic": topic_id,
-            "peers": []
+            "peers": [],
         }
-        
+
         if not hasattr(self, "pubsub") or not self.pubsub:
             result["error"] = "PubSub not available"
             result["error_type"] = "missing_pubsub"
             return result
-            
+
         try:
             # First try the direct method if available
             if hasattr(self.pubsub, "get_peers_subscribed"):
@@ -3216,7 +3300,7 @@ class IPFSLibp2pPeer:
                 result["peer_count"] = len(result["peers"])
                 result["success"] = True
                 return result
-                
+
             # Try alternate method name
             if hasattr(self.pubsub, "get_peers"):
                 peers = self.pubsub.get_peers(topic_id)
@@ -3224,7 +3308,7 @@ class IPFSLibp2pPeer:
                 result["peer_count"] = len(result["peers"])
                 result["success"] = True
                 return result
-                
+
             # Try to access topic subscribers directly if available
             if hasattr(self.pubsub, "topics") and topic_id in self.pubsub.topics:
                 topic = self.pubsub.topics[topic_id]
@@ -3234,17 +3318,17 @@ class IPFSLibp2pPeer:
                     result["peer_count"] = len(result["peers"])
                     result["success"] = True
                     return result
-                    
+
             result["error"] = "Unable to get peers for topic - no supported method found"
         except Exception as e:
             result["error"] = f"Unexpected error in get_topic_peers: {str(e)}"
             self.logger.error(f"Error getting peers for topic {topic_id}: {e}")
-            
+
         return result
-        
+
     def list_topics(self) -> Dict[str, Any]:
         """List all topics we're subscribed to.
-        
+
         Returns:
             Dict with topic information
         """
@@ -3252,14 +3336,14 @@ class IPFSLibp2pPeer:
             "success": False,
             "operation": "list_topics",
             "timestamp": time.time(),
-            "topics": []
+            "topics": [],
         }
-        
+
         if not hasattr(self, "pubsub") or not self.pubsub:
             result["error"] = "PubSub not available"
             result["error_type"] = "missing_pubsub"
             return result
-            
+
         try:
             # First try the direct method if available
             if hasattr(self.pubsub, "get_topics"):
@@ -3268,14 +3352,14 @@ class IPFSLibp2pPeer:
                 result["topic_count"] = len(result["topics"])
                 result["success"] = True
                 return result
-                
+
             # Try to access topics directly if available as a dict
             if hasattr(self.pubsub, "topics") and isinstance(self.pubsub.topics, dict):
                 result["topics"] = list(self.pubsub.topics.keys())
                 result["topic_count"] = len(result["topics"])
                 result["success"] = True
                 return result
-                
+
             # Try to access subscriptions if available
             if hasattr(self.pubsub, "subscriptions"):
                 if isinstance(self.pubsub.subscriptions, dict):
@@ -3287,73 +3371,75 @@ class IPFSLibp2pPeer:
                 result["topic_count"] = len(result["topics"])
                 result["success"] = True
                 return result
-                
+
             result["error"] = "Unable to list topics - no supported method found"
         except Exception as e:
             result["error"] = f"Unexpected error in list_topics: {str(e)}"
             self.logger.error(f"Error listing topics: {e}")
-            
+
         return result
-    
+
     def integrate_enhanced_dht_discovery(self):
         """Integrate the enhanced DHT discovery system with this peer.
-        
+
         This adds the more advanced discovery capabilities from enhanced_dht_discovery.py,
         improving content routing, peer discovery, and network metrics.
-        
+
         Returns:
             Dict with integration result
         """
         result = {
             "success": False,
             "operation": "integrate_enhanced_dht_discovery",
-            "timestamp": time.time()
+            "timestamp": time.time(),
         }
-        
+
         try:
             # Import the enhanced discovery classes
-            from ipfs_kit_py.libp2p.enhanced_dht_discovery import EnhancedDHTDiscovery, ContentRoutingManager
-            
+            from ipfs_kit_py.libp2p.enhanced_dht_discovery import (
+                EnhancedDHTDiscovery,
+                ContentRoutingManager,
+            )
+
             # Create the enhanced discovery component
             self.enhanced_discovery = EnhancedDHTDiscovery(
-                libp2p_peer=self,
-                role=self.role,
-                bootstrap_peers=self.bootstrap_peers
+                libp2p_peer=self, role=self.role, bootstrap_peers=self.bootstrap_peers
             )
-            
+
             # Create the content routing manager
             self.content_router = ContentRoutingManager(
-                dht_discovery=self.enhanced_discovery,
-                libp2p_peer=self
+                dht_discovery=self.enhanced_discovery, libp2p_peer=self
             )
-            
+
             # Start the discovery system
             self.enhanced_discovery.start()
-            
+
             result["success"] = True
             result["message"] = "Successfully integrated enhanced DHT discovery"
             self.logger.info("Enhanced DHT discovery integrated and started")
-            
+
         except ImportError as e:
             result["error"] = f"Failed to import enhanced DHT discovery: {str(e)}"
             self.logger.error(f"Enhanced DHT discovery integration failed - import error: {e}")
         except Exception as e:
             result["error"] = f"Failed to integrate enhanced DHT discovery: {str(e)}"
             self.logger.error(f"Enhanced DHT discovery integration failed: {e}")
-            
+
         return result
 
-    def find_providers_enhanced(self, cid: str, count: int = 5, timeout: int = 30) -> Dict[str, Any]:
+    def find_providers_enhanced(
+        self, cid: str, count: int = 5, timeout: int = 30
+    ) -> Dict[str, Any]:
         """Find providers for content using the enhanced discovery system.
-        
-        This method uses the advanced provider tracking and reputation system to find 
+
+        This method uses the advanced provider tracking and reputation system to find
         the most reliable sources for specific content.
-        
+
         Args:
             cid: Content ID to find providers for
             count: Maximum number of providers to return
             timeout: Maximum time to wait in seconds
-            
+
         Returns:
             Dict with provider information
         """
@@ -3362,9 +3448,9 @@ class IPFSLibp2pPeer:
             "operation": "find_providers_enhanced",
             "timestamp": time.time(),
             "cid": cid,
-            "providers": []
+            "providers": [],
         }
-        
+
         # First check if enhanced discovery is available
         if not hasattr(self, "enhanced_discovery") or not hasattr(self, "content_router"):
             # Try to integrate it
@@ -3381,30 +3467,27 @@ class IPFSLibp2pPeer:
                 except Exception as e:
                     result["error"] = f"Both enhanced and standard provider search failed: {str(e)}"
                     return result
-        
+
         try:
             # Use the content router to find optimal providers
             future = self.content_router.find_content(
-                cid, 
-                options={
-                    "timeout": timeout,
-                    "max_providers": count
-                }
+                cid, options={"timeout": timeout, "max_providers": count}
             )
-            
+
             # Wait for the result with timeout
             import anyio
+
             providers = future.result(timeout=timeout)
-            
+
             if providers:
                 result["providers"] = providers
                 result["provider_count"] = len(providers)
                 result["success"] = True
             else:
                 result["error"] = "No providers found"
-                
+
             return result
-                
+
         except ImportError as e:
             result["error"] = f"Enhanced DHT discovery not available: {str(e)}"
             self.logger.error(f"Error in enhanced provider search - import error: {e}")
@@ -3432,7 +3515,7 @@ class IPFSLibp2pPeer:
                 try:
                     # Close network connections
                     network = self.host.get_network()
-                    
+
                     # Define async close function
                     async def close_connections():
                         for conn in network.connections.values():
@@ -3442,7 +3525,7 @@ class IPFSLibp2pPeer:
                                     await conn.close()
                             except Exception as e:
                                 self.logger.warning(f"Error closing connection: {str(e)}")
-                    
+
                     # Run with anyio
                     anyio.run(close_connections)
                 except Exception as e:
@@ -3451,10 +3534,11 @@ class IPFSLibp2pPeer:
             # Stop task group if it was initialized
             if self._task_group_initialized and self._task_group:
                 try:
+
                     async def close_task_group():
                         await self._task_group.__aexit__(None, None, None)
                         self._task_group_initialized = False
-                    
+
                     anyio.run(close_task_group)
                 except Exception as e:
                     self.logger.error(f"Error closing task group: {str(e)}")
@@ -3484,11 +3568,11 @@ class IPFSLibp2pPeer:
 # Helper functions
 def publish_to_topic(self, topic_id: str, data: Union[str, bytes]) -> Dict[str, Any]:
     """Publish data to a GossipSub topic.
-    
+
     Args:
         topic_id: The topic to publish to
         data: The data to publish (string or bytes)
-        
+
     Returns:
         Dict with publish result
     """
@@ -3496,33 +3580,34 @@ def publish_to_topic(self, topic_id: str, data: Union[str, bytes]) -> Dict[str, 
         "success": False,
         "operation": "publish_to_topic",
         "timestamp": time.time(),
-        "topic": topic_id
+        "topic": topic_id,
     }
-    
+
     if not self.pubsub:
         result["error"] = "PubSub is not available"
         return result
-        
+
     # Ensure data is bytes
     if isinstance(data, str):
-        data_bytes = data.encode('utf-8')
+        data_bytes = data.encode("utf-8")
     else:
         data_bytes = data
-        
+
     try:
         # Check if pubsub has a publish method that's either sync or async
         pubsub_publish = getattr(self.pubsub, "publish", None)
-        
+
         if pubsub_publish:
             # Determine if it's an async method
             import inspect
+
             is_async = inspect.iscoroutinefunction(pubsub_publish)
-            
+
             if is_async:
                 # Define async task
                 async def publish_async():
                     return await self.pubsub.publish(topic_id, data_bytes)
-                
+
                 try:
                     publish_result = _run_async_from_sync(publish_async)
                     result["publish_result"] = publish_result
@@ -3540,16 +3625,17 @@ def publish_to_topic(self, topic_id: str, data: Union[str, bytes]) -> Dict[str, 
     except Exception as e:
         result["error"] = f"Unexpected error in publish_to_topic: {str(e)}"
         self.logger.error(f"Error publishing to topic {topic_id}: {e}")
-        
+
     return result
-    
+
+
 def subscribe_to_topic(self, topic_id: str, handler: Callable) -> Dict[str, Any]:
     """Subscribe to a GossipSub topic with a handler function.
-    
+
     Args:
         topic_id: The topic to subscribe to
         handler: Function to handle incoming messages
-        
+
     Returns:
         Dict with subscription result
     """
@@ -3557,27 +3643,28 @@ def subscribe_to_topic(self, topic_id: str, handler: Callable) -> Dict[str, Any]
         "success": False,
         "operation": "subscribe_to_topic",
         "timestamp": time.time(),
-        "topic": topic_id
+        "topic": topic_id,
     }
-    
+
     if not self.pubsub:
         result["error"] = "PubSub is not available"
         return result
-        
+
     try:
         # Check if pubsub has a subscribe method
         pubsub_subscribe = getattr(self.pubsub, "subscribe", None)
-        
+
         if pubsub_subscribe:
             # Determine if it's an async method
             import inspect
+
             is_async = inspect.iscoroutinefunction(pubsub_subscribe)
-            
+
             if is_async:
                 # Define async task
                 async def subscribe_async():
                     return await self.pubsub.subscribe(topic_id, handler)
-                
+
                 try:
                     subscription = _run_async_from_sync(subscribe_async)
                     result["subscription"] = str(subscription)
@@ -3595,16 +3682,19 @@ def subscribe_to_topic(self, topic_id: str, handler: Callable) -> Dict[str, Any]
     except Exception as e:
         result["error"] = f"Unexpected error in subscribe_to_topic: {str(e)}"
         self.logger.error(f"Error subscribing to topic {topic_id}: {e}")
-        
+
     return result
-    
-def unsubscribe_from_topic(self, topic_id: str, handler: Optional[Callable] = None) -> Dict[str, Any]:
+
+
+def unsubscribe_from_topic(
+    self, topic_id: str, handler: Optional[Callable] = None
+) -> Dict[str, Any]:
     """Unsubscribe from a GossipSub topic.
-    
+
     Args:
         topic_id: The topic to unsubscribe from
         handler: Optional specific handler to unsubscribe
-        
+
     Returns:
         Dict with unsubscription result
     """
@@ -3612,22 +3702,23 @@ def unsubscribe_from_topic(self, topic_id: str, handler: Optional[Callable] = No
         "success": False,
         "operation": "unsubscribe_from_topic",
         "timestamp": time.time(),
-        "topic": topic_id
+        "topic": topic_id,
     }
-    
+
     if not self.pubsub:
         result["error"] = "PubSub is not available"
         return result
-        
+
     try:
         # Check if pubsub has an unsubscribe method
         pubsub_unsubscribe = getattr(self.pubsub, "unsubscribe", None)
-        
+
         if pubsub_unsubscribe:
             # Determine if it's an async method
             import inspect
+
             is_async = inspect.iscoroutinefunction(pubsub_unsubscribe)
-            
+
             if is_async:
                 # Define async task
                 async def unsubscribe_async():
@@ -3635,7 +3726,7 @@ def unsubscribe_from_topic(self, topic_id: str, handler: Optional[Callable] = No
                         return await self.pubsub.unsubscribe(topic_id, handler)
                     else:
                         return await self.pubsub.unsubscribe(topic_id)
-                
+
                 try:
                     unsubscribe_result = _run_async_from_sync(unsubscribe_async)
                     result["unsubscribe_result"] = unsubscribe_result
@@ -3656,15 +3747,16 @@ def unsubscribe_from_topic(self, topic_id: str, handler: Optional[Callable] = No
     except Exception as e:
         result["error"] = f"Unexpected error in unsubscribe_from_topic: {str(e)}"
         self.logger.error(f"Error unsubscribing from topic {topic_id}: {e}")
-        
+
     return result
-    
+
+
 def get_topic_peers(self, topic_id: str) -> Dict[str, Any]:
     """Get peers subscribed to a topic.
-    
+
     Args:
         topic_id: The topic to get peers for
-        
+
     Returns:
         Dict with peer information
     """
@@ -3673,13 +3765,13 @@ def get_topic_peers(self, topic_id: str) -> Dict[str, Any]:
         "operation": "get_topic_peers",
         "timestamp": time.time(),
         "topic": topic_id,
-        "peers": []
+        "peers": [],
     }
-    
+
     if not self.pubsub:
         result["error"] = "PubSub is not available"
         return result
-        
+
     try:
         # First try the direct method if available
         if hasattr(self.pubsub, "get_peers_subscribed"):
@@ -3688,7 +3780,7 @@ def get_topic_peers(self, topic_id: str) -> Dict[str, Any]:
             result["peer_count"] = len(result["peers"])
             result["success"] = True
             return result
-            
+
         # Try alternate method name
         if hasattr(self.pubsub, "get_peers"):
             peers = self.pubsub.get_peers(topic_id)
@@ -3696,7 +3788,7 @@ def get_topic_peers(self, topic_id: str) -> Dict[str, Any]:
             result["peer_count"] = len(result["peers"])
             result["success"] = True
             return result
-            
+
         # Try to access topic subscribers directly if available
         if hasattr(self.pubsub, "topics") and topic_id in self.pubsub.topics:
             topic = self.pubsub.topics[topic_id]
@@ -3706,31 +3798,27 @@ def get_topic_peers(self, topic_id: str) -> Dict[str, Any]:
                 result["peer_count"] = len(result["peers"])
                 result["success"] = True
                 return result
-                
+
         result["error"] = "Unable to get peers for topic - no supported method found"
     except Exception as e:
         result["error"] = f"Unexpected error in get_topic_peers: {str(e)}"
         self.logger.error(f"Error getting peers for topic {topic_id}: {e}")
-        
+
     return result
-    
+
+
 def list_topics(self) -> Dict[str, Any]:
     """List all topics we're subscribed to.
-    
+
     Returns:
         Dict with topic information
     """
-    result = {
-        "success": False,
-        "operation": "list_topics",
-        "timestamp": time.time(),
-        "topics": []
-    }
-    
+    result = {"success": False, "operation": "list_topics", "timestamp": time.time(), "topics": []}
+
     if not self.pubsub:
         result["error"] = "PubSub is not available"
         return result
-        
+
     try:
         # First try the direct method if available
         if hasattr(self.pubsub, "get_topics"):
@@ -3739,14 +3827,14 @@ def list_topics(self) -> Dict[str, Any]:
             result["topic_count"] = len(result["topics"])
             result["success"] = True
             return result
-            
+
         # Try to access topics directly if available as a dict
         if hasattr(self.pubsub, "topics") and isinstance(self.pubsub.topics, dict):
             result["topics"] = list(self.pubsub.topics.keys())
             result["topic_count"] = len(result["topics"])
             result["success"] = True
             return result
-            
+
         # Try to access subscriptions if available
         if hasattr(self.pubsub, "subscriptions"):
             if isinstance(self.pubsub.subscriptions, dict):
@@ -3758,73 +3846,72 @@ def list_topics(self) -> Dict[str, Any]:
             result["topic_count"] = len(result["topics"])
             result["success"] = True
             return result
-            
+
         result["error"] = "Unable to list topics - no supported method found"
     except Exception as e:
         result["error"] = f"Unexpected error in list_topics: {str(e)}"
         self.logger.error(f"Error listing topics: {e}")
-        
+
     return result
+
 
 def integrate_enhanced_dht_discovery(self):
     """Integrate the enhanced DHT discovery system with this peer.
-    
+
     This adds the more advanced discovery capabilities from enhanced_dht_discovery.py,
     improving content routing, peer discovery, and network metrics.
-    
+
     Returns:
         Dict with integration result
     """
     result = {
         "success": False,
         "operation": "integrate_enhanced_dht_discovery",
-        "timestamp": time.time()
+        "timestamp": time.time(),
     }
-    
+
     try:
         # Import the enhanced discovery classes
         from .libp2p.enhanced_dht_discovery import EnhancedDHTDiscovery, ContentRoutingManager
-        
+
         # Create the enhanced discovery component
         self.enhanced_discovery = EnhancedDHTDiscovery(
-            libp2p_peer=self,
-            role=self.role,
-            bootstrap_peers=self.bootstrap_peers
+            libp2p_peer=self, role=self.role, bootstrap_peers=self.bootstrap_peers
         )
-        
+
         # Create the content routing manager
         self.content_router = ContentRoutingManager(
-            dht_discovery=self.enhanced_discovery,
-            libp2p_peer=self
+            dht_discovery=self.enhanced_discovery, libp2p_peer=self
         )
-        
+
         # Start the discovery system
         self.enhanced_discovery.start()
-        
+
         result["success"] = True
         result["message"] = "Successfully integrated enhanced DHT discovery"
         self.logger.info("Enhanced DHT discovery integrated and started")
-        
+
     except ImportError as e:
         result["error"] = f"Failed to import enhanced DHT discovery: {str(e)}"
         self.logger.error(f"Enhanced DHT discovery integration failed - import error: {e}")
     except Exception as e:
         result["error"] = f"Failed to integrate enhanced DHT discovery: {str(e)}"
         self.logger.error(f"Enhanced DHT discovery integration failed: {e}")
-        
+
     return result
+
 
 def find_providers_enhanced(self, cid: str, count: int = 5, timeout: int = 30) -> Dict[str, Any]:
     """Find providers for content using the enhanced discovery system.
-    
-    This method uses the advanced provider tracking and reputation system to find 
+
+    This method uses the advanced provider tracking and reputation system to find
     the most reliable sources for specific content.
-    
+
     Args:
         cid: Content ID to find providers for
         count: Maximum number of providers to return
         timeout: Maximum time to wait in seconds
-        
+
     Returns:
         Dict with provider information
     """
@@ -3833,9 +3920,9 @@ def find_providers_enhanced(self, cid: str, count: int = 5, timeout: int = 30) -
         "operation": "find_providers_enhanced",
         "timestamp": time.time(),
         "cid": cid,
-        "providers": []
+        "providers": [],
     }
-    
+
     # First check if enhanced discovery is available
     if not hasattr(self, "enhanced_discovery") or not hasattr(self, "content_router"):
         # Try to integrate it
@@ -3852,29 +3939,25 @@ def find_providers_enhanced(self, cid: str, count: int = 5, timeout: int = 30) -
             except Exception as e:
                 result["error"] = f"Both enhanced and standard provider search failed: {str(e)}"
                 return result
-    
+
     try:
         # Use the content router to find optimal providers
         future = self.content_router.find_content(
-            cid, 
-            options={
-                "timeout": timeout,
-                "max_providers": count
-            }
+            cid, options={"timeout": timeout, "max_providers": count}
         )
-        
+
         # Wait for the result with timeout
         providers = future.result(timeout=timeout)
-        
+
         if providers:
             result["providers"] = providers
             result["provider_count"] = len(providers)
             result["success"] = True
         else:
             result["error"] = "No providers found"
-            
+
         return result
-            
+
     except ImportError as e:
         result["error"] = f"Enhanced DHT discovery not available: {str(e)}"
         self.logger.error(f"Error in enhanced provider search - import error: {e}")
@@ -3883,6 +3966,7 @@ def find_providers_enhanced(self, cid: str, count: int = 5, timeout: int = 30) -
         result["error"] = f"Error finding providers: {str(e)}"
         self.logger.error(f"Error in enhanced provider search: {e}")
         return result
+
 
 def extract_peer_id_from_multiaddr(multiaddr_str: str) -> Optional[str]:
     """Extract peer ID from a multiaddress string.
@@ -3905,17 +3989,18 @@ def extract_peer_id_from_multiaddr(multiaddr_str: str) -> Optional[str]:
     except Exception:
         return None
 
+
 # Add start method to IPFSLibp2pPeer class
 def start(self) -> bool:
     """Start the libp2p peer if it's not already running.
-    
+
     Returns:
         bool: True if successful, False otherwise
     """
     if self._running:
         self.logger.debug("LibP2P peer is already running")
         return True
-        
+
     try:
         # We're already initialized in __init__, so just set running flag if needed
         self._running = True
@@ -3924,6 +4009,7 @@ def start(self) -> bool:
     except Exception as e:
         self.logger.error(f"Failed to start libp2p peer: {str(e)}")
         return False
+
 
 # Add the method to the class
 IPFSLibp2pPeer.start = start

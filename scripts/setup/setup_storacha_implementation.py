@@ -20,10 +20,7 @@ import threading
 import shutil
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
 # Constants
@@ -31,16 +28,17 @@ STORACHA_PORT = 5678
 STORACHA_MOCK_DIR = os.path.expanduser("~/.ipfs_kit/mock_storacha")
 STORACHA_API_KEY = f"storacha-dev-{uuid.uuid4().hex[:8]}"
 
+
 def setup_storacha_mock_server():
     """Set up a mock Storacha API server"""
     try:
         # Create directory for Storacha mock data
         os.makedirs(STORACHA_MOCK_DIR, exist_ok=True)
-        
+
         # Create a mock Storacha server
         server_path = os.path.join(os.getcwd(), "tests/mocks/storacha_mock_server.py")
-        
-        with open(server_path, 'w') as f:
+
+        with open(server_path, "w") as f:
             f.write(f"""#!/usr/bin/env python3
 import http.server
 import socketserver
@@ -274,42 +272,43 @@ if __name__ == "__main__":
         print("Shutting down mock Storacha API server")
         sys.exit(0)
 """)
-        
+
         # Make it executable
         os.chmod(server_path, 0o755)
-        
+
         logger.info(f"Created Storacha mock API server at: {server_path}")
-        
+
         # Start the mock API server in the background
         logger.info("Starting Storacha mock API server...")
-        
+
         # Use nohup to keep the server running after the script exits
-        with open(os.path.join(os.getcwd(), "logs/storacha_mock_api.log"), 'w') as log_file:
+        with open(os.path.join(os.getcwd(), "logs/storacha_mock_api.log"), "w") as log_file:
             process = subprocess.Popen(
                 [sys.executable, server_path],
                 stdout=log_file,
                 stderr=subprocess.STDOUT,
-                start_new_session=True
+                start_new_session=True,
             )
-        
+
         # Wait for the server to start
         time.sleep(2)
-        
+
         logger.info(f"Storacha mock API server started with PID {process.pid}")
-        
+
         # Save the PID for later
-        with open(os.path.join(os.getcwd(), "storacha_mock_api.pid"), 'w') as f:
+        with open(os.path.join(os.getcwd(), "storacha_mock_api.pid"), "w") as f:
             f.write(str(process.pid))
-        
+
         # Set environment variables
-        os.environ['STORACHA_API_KEY'] = STORACHA_API_KEY
-        os.environ['STORACHA_API_URL'] = f"http://localhost:{STORACHA_PORT}"
-        
+        os.environ["STORACHA_API_KEY"] = STORACHA_API_KEY
+        os.environ["STORACHA_API_URL"] = f"http://localhost:{STORACHA_PORT}"
+
         return True
-    
+
     except Exception as e:
         logger.error(f"Error setting up Storacha mock API server: {e}")
         return False
+
 
 def update_mcp_config():
     """Update MCP configuration with the Storacha settings"""
@@ -323,59 +322,61 @@ def update_mcp_config():
     if not config_file:
         logger.warning("MCP config file not found. Skipping config update.")
         return True
-    
+
     try:
         # Read existing file
-        with open(config_file, 'r') as f:
+        with open(config_file, "r") as f:
             lines = f.readlines()
-        
+
         # Find Storacha section and update it
         storacha_section_start = -1
         storacha_section_end = -1
-        
+
         for i, line in enumerate(lines):
             if "# Storacha configuration" in line:
                 storacha_section_start = i
             elif storacha_section_start > -1 and "fi" in line and storacha_section_end == -1:
                 storacha_section_end = i
-        
+
         if storacha_section_start > -1 and storacha_section_end > -1:
             # Create new Storacha configuration
             new_storacha_config = [
                 "# Storacha configuration\n",
                 "# Using Storacha local development API\n",
-                f"export STORACHA_API_KEY=\"{STORACHA_API_KEY}\"\n",
-                f"export STORACHA_API_URL=\"http://localhost:{STORACHA_PORT}\"\n"
+                f'export STORACHA_API_KEY="{STORACHA_API_KEY}"\n',
+                f'export STORACHA_API_URL="http://localhost:{STORACHA_PORT}"\n',
             ]
-            
+
             # Replace the section
-            lines[storacha_section_start:storacha_section_end+1] = new_storacha_config
-            
+            lines[storacha_section_start : storacha_section_end + 1] = new_storacha_config
+
             # Write updated file
-            with open(config_file, 'w') as f:
+            with open(config_file, "w") as f:
                 f.writelines(lines)
-            
+
             logger.info(f"Updated MCP configuration file with Storacha settings")
             return True
         else:
             logger.error("Could not find Storacha section in MCP configuration file")
             return False
-    
+
     except Exception as e:
         logger.error(f"Error updating MCP configuration: {e}")
         return False
 
+
 def main():
     """Main function"""
     logger.info("Setting up Storacha implementation for MCP Server")
-    
+
     # Set up Storacha mock API server
     if setup_storacha_mock_server():
         # Update MCP configuration
         update_mcp_config()
-    
+
     logger.info("Storacha implementation setup complete")
     logger.info("Restart the MCP server to apply changes")
+
 
 if __name__ == "__main__":
     main()

@@ -1,4 +1,5 @@
 """Stats tool group (Kubo `ipfs stats` parity)."""
+
 from __future__ import annotations
 
 import uuid

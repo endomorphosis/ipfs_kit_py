@@ -11,6 +11,7 @@ import subprocess
 import json
 from pathlib import Path
 
+
 def get_huggingface_token():
     """Get the HuggingFace token from the default location or environment."""
     # First check environment variable
@@ -33,9 +34,7 @@ def get_huggingface_token():
     # Try using huggingface-cli to get token
     try:
         result = subprocess.run(
-            ["huggingface-cli", "whoami", "--token"],
-            capture_output=True,
-            text=True
+            ["huggingface-cli", "whoami", "--token"], capture_output=True, text=True
         )
         if result.returncode == 0 and result.stdout.strip():
             token = result.stdout.strip()
@@ -45,6 +44,7 @@ def get_huggingface_token():
         print(f"Error getting token from CLI: {e}")
 
     return None
+
 
 def update_environment_file():
     """Update the environment file with the HuggingFace token."""
@@ -58,7 +58,7 @@ def update_environment_file():
     os.environ["MCP_USE_MOCK_MODE"] = "false"
 
     # Create a credentials file for persistence
-    creds_file = Path('mcp_real_credentials.sh')
+    creds_file = Path("mcp_real_credentials.sh")
 
     # Read existing file if it exists
     existing_content = ""
@@ -79,13 +79,17 @@ def update_environment_file():
 
         new_content = "\n".join(updated_lines)
     else:
-        new_content = existing_content + f'\nexport HUGGINGFACE_TOKEN="{token}"\nexport MCP_USE_MOCK_MODE="false"\n'
+        new_content = (
+            existing_content
+            + f'\nexport HUGGINGFACE_TOKEN="{token}"\nexport MCP_USE_MOCK_MODE="false"\n'
+        )
 
     # Write the updated file
     creds_file.write_text(new_content)
     print(f"Updated {creds_file} with HuggingFace token")
 
     return True
+
 
 def restart_mcp_server():
     """Restart the MCP server with the updated configuration."""
@@ -96,6 +100,7 @@ def restart_mcp_server():
 
         # Wait a moment for processes to terminate
         import time
+
         time.sleep(2)
 
         # Source the credentials file and start the server
@@ -118,6 +123,7 @@ def restart_mcp_server():
     except Exception as e:
         print(f"Error restarting MCP server: {e}")
         return False
+
 
 if __name__ == "__main__":
     print("Initializing HuggingFace storage backend with real credentials...")

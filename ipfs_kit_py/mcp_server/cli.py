@@ -6,6 +6,7 @@ Usage: ipfs-kit-mcp-tools <category> <tool> --key val \
 Tool calls pass through :class:`MCPServer`, including its AuthorizationGate;
 the CLI does not provide a privileged dispatch bypass.
 """
+
 from __future__ import annotations
 
 import json

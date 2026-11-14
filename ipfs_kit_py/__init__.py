@@ -41,7 +41,11 @@ class OptionalDependencyError(ImportError):
         self.feature = feature
         self.extra = extra
         self.dependency = dependency
-        missing = f" optional dependency {dependency!r}" if dependency else " an optional dependency"
+        missing = (
+            f" optional dependency {dependency!r}"
+            if dependency
+            else " an optional dependency"
+        )
         super().__init__(
             f"{feature} requires{missing}. Install it with: "
             f"python -m pip install 'ipfs_kit_py[{extra}]'"
@@ -53,19 +57,31 @@ _LAZY_EXPORTS: dict[str, tuple[str, str, str | None]] = {
     "OperationDefinition": (".core.operation_registry", "OperationDefinition", None),
     "OperationSpec": (".core.operation_registry", "OperationSpec", None),
     "OperationRegistry": (".core.operation_registry", "OperationRegistry", None),
-    "AuthorizationRequirement": (".core.operation_registry", "AuthorizationRequirement", None),
+    "AuthorizationRequirement": (
+        ".core.operation_registry",
+        "AuthorizationRequirement",
+        None,
+    ),
     "AuthorizationClass": (".core.operation_registry", "AuthorizationClass", None),
     "CapabilityTier": (".core.operation_registry", "CapabilityTier", None),
     "OperationRequest": (".core.operation_contracts", "OperationRequest", None),
     "OperationResult": (".core.operation_contracts", "OperationResult", None),
     "StorageError": (".core.operation_contracts", "StorageError", None),
-    "StateTransitionReceipt": (".core.operation_contracts", "StateTransitionReceipt", None),
+    "StateTransitionReceipt": (
+        ".core.operation_contracts",
+        "StateTransitionReceipt",
+        None,
+    ),
     "OperationState": (".core.operation_contracts", "OperationState", None),
     "canonical_json": (".core.operation_contracts", "canonical_json", None),
     "content_identity": (".core.operation_contracts", "content_identity", None),
     "ServiceRouter": (".core.service_router", "ServiceRouter", None),
     "DispatchContext": (".core.service_router", "DispatchContext", None),
-    "CanonicalStorageService": (".core.service_router", "CanonicalStorageService", None),
+    "CanonicalStorageService": (
+        ".core.service_router",
+        "CanonicalStorageService",
+        None,
+    ),
     # JIT helpers are lazy too, so package import never initializes JIT.
     "jit_manager": (".core", "jit_manager", None),
     "require_feature": (".core", "require_feature", None),
@@ -93,25 +109,45 @@ def _optional_module(module_name: str, extra: str) -> Any:
     try:
         return import_module(module_name)
     except ModuleNotFoundError as exc:
-        raise OptionalDependencyError(module_name, extra=extra, dependency=exc.name) from exc
+        raise OptionalDependencyError(
+            module_name, extra=extra, dependency=exc.name
+        ) from exc
 
 
-def get_ipfs_datasets(*, deps: object | None = None, module_override: Any = None) -> Any:
+def get_ipfs_datasets(
+    *, deps: object | None = None, module_override: Any = None
+) -> Any:
     """Return ``ipfs_datasets_py`` only when the integration is used."""
 
-    return module_override if module_override is not None else _optional_module("ipfs_datasets_py", "ipfs_datasets")
+    return (
+        module_override
+        if module_override is not None
+        else _optional_module("ipfs_datasets_py", "ipfs_datasets")
+    )
 
 
-def get_ipfs_accelerate(*, deps: object | None = None, module_override: Any = None) -> Any:
+def get_ipfs_accelerate(
+    *, deps: object | None = None, module_override: Any = None
+) -> Any:
     """Return ``ipfs_accelerate_py`` only when the integration is used."""
 
-    return module_override if module_override is not None else _optional_module("ipfs_accelerate_py", "ipfs_accelerate")
+    return (
+        module_override
+        if module_override is not None
+        else _optional_module("ipfs_accelerate_py", "ipfs_accelerate")
+    )
 
 
-def get_ipfs_transformers(*, deps: object | None = None, module_override: Any = None) -> Any:
+def get_ipfs_transformers(
+    *, deps: object | None = None, module_override: Any = None
+) -> Any:
     """Return ``ipfs_transformers_py`` only when the integration is used."""
 
-    return module_override if module_override is not None else _optional_module("ipfs_transformers_py", "transformers")
+    return (
+        module_override
+        if module_override is not None
+        else _optional_module("ipfs_transformers_py", "transformers")
+    )
 
 
 def __getattr__(name: str) -> Any:
@@ -126,7 +162,9 @@ def __getattr__(name: str) -> Any:
             value = getattr(import_module(module_name, __name__), attribute)
         except ModuleNotFoundError as exc:
             if extra:
-                raise OptionalDependencyError(name, extra=extra, dependency=exc.name) from exc
+                raise OptionalDependencyError(
+                    name, extra=extra, dependency=exc.name
+                ) from exc
             raise
     else:
         # Existing users may import first-party submodules from the package
@@ -136,7 +174,9 @@ def __getattr__(name: str) -> Any:
             value = import_module(f"{__name__}.{name}")
         except ModuleNotFoundError as exc:
             if exc.name == f"{__name__}.{name}":
-                raise AttributeError(f"module {__name__!r} has no attribute {name!r}") from None
+                raise AttributeError(
+                    f"module {__name__!r} has no attribute {name!r}"
+                ) from None
             raise
     globals()[name] = value
     return value

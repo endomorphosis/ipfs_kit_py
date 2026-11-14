@@ -5,8 +5,9 @@ import time
 
 logger = logging.getLogger(__name__)
 
-IPFS_KIT_PATH = Path.home() / '.ipfs_kit'
-PEERS_PATH = IPFS_KIT_PATH / 'peers.json'
+IPFS_KIT_PATH = Path.home() / ".ipfs_kit"
+PEERS_PATH = IPFS_KIT_PATH / "peers.json"
+
 
 class PeerManager:
     def __init__(self):
@@ -16,7 +17,7 @@ class PeerManager:
         if not PEERS_PATH.exists():
             return []
         try:
-            with open(PEERS_PATH, 'r') as f:
+            with open(PEERS_PATH, "r") as f:
                 return json.load(f)
         except Exception as e:
             logger.error(f"Error loading peers data: {e}")
@@ -25,7 +26,7 @@ class PeerManager:
     def _save_peers(self):
         PEERS_PATH.parent.mkdir(parents=True, exist_ok=True)
         try:
-            with open(PEERS_PATH, 'w') as f:
+            with open(PEERS_PATH, "w") as f:
                 json.dump(self.peers_data, f, indent=2)
         except Exception as e:
             logger.error(f"Error saving peers data: {e}")

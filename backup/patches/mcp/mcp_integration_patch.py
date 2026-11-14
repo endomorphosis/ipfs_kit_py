@@ -14,8 +14,11 @@ import shutil
 from pathlib import Path
 
 # Configure logging
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger(__name__)
+
 
 def backup_file(file_path: str) -> bool:
     """Create a backup of the specified file"""
@@ -27,6 +30,7 @@ def backup_file(file_path: str) -> bool:
     except Exception as e:
         logger.error(f"Failed to create backup: {e}")
         return False
+
 
 def patch_mcp_server():
     """Patch direct_mcp_server.py to add our tools at startup"""
@@ -43,7 +47,7 @@ def patch_mcp_server():
 
     try:
         # Read the file
-        with open(mcp_server_path, 'r') as f:
+        with open(mcp_server_path, "r") as f:
             content = f.read()
 
         # Import statements to add
@@ -62,10 +66,7 @@ except ImportError:
         # Add imports after existing imports
         import_section_end = "from mcp_error_handling import format_error_response"
         if import_section_end in content:
-            content = content.replace(
-                import_section_end,
-                f"{import_section_end}\n{imports_to_add}"
-            )
+            content = content.replace(import_section_end, f"{import_section_end}\n{imports_to_add}")
         else:
             logger.warning("Import section not found, adding imports at the beginning")
             content = imports_to_add + content
@@ -100,7 +101,7 @@ except ImportError:
         if initialize_match:
             # Find the end of the method's first block (indented code)
             method_start = initialize_match.end()
-            next_line_start = content.find('\n', method_start) + 1
+            next_line_start = content.find("\n", method_start) + 1
 
             # Look for the first indented line
             indented_line_match = re.search(r"\n( +)", content[next_line_start:])
@@ -108,7 +109,7 @@ except ImportError:
                 indentation = indented_line_match.group(1)
 
                 # Format the init code with the proper indentation
-                formatted_init_code = init_code.replace('\n        ', f'\n{indentation}')
+                formatted_init_code = init_code.replace("\n        ", f"\n{indentation}")
 
                 # Find a good position to insert the code (after controllers are initialized)
                 insert_marker = "# Initialize controllers"
@@ -116,33 +117,42 @@ except ImportError:
 
                 if marker_pos > 0:
                     # Find the end of the controllers initialization section
-                    controllers_section_end = content.find('\n\n', marker_pos)
+                    controllers_section_end = content.find("\n\n", marker_pos)
                     if controllers_section_end > 0:
                         # Insert the initialization code after the controllers section
                         content = (
-                            content[:controllers_section_end] +
-                            "\n\n" + indentation + "# Initialize FS Journal and Multi-Backend integration" +
-                            formatted_init_code +
-                            content[controllers_section_end:]
+                            content[:controllers_section_end]
+                            + "\n\n"
+                            + indentation
+                            + "# Initialize FS Journal and Multi-Backend integration"
+                            + formatted_init_code
+                            + content[controllers_section_end:]
                         )
                     else:
-                        logger.warning("Could not find end of controllers section, adding at the end of the method")
+                        logger.warning(
+                            "Could not find end of controllers section, adding at the end of the method"
+                        )
                         # Find the end of the method
-                        method_end = content.find('\n\n', next_line_start)
+                        method_end = content.find("\n\n", next_line_start)
                         if method_end > 0:
                             content = (
-                                content[:method_end] +
-                                "\n\n" + indentation + "# Initialize FS Journal and Multi-Backend integration" +
-                                formatted_init_code +
-                                content[method_end:]
+                                content[:method_end]
+                                + "\n\n"
+                                + indentation
+                                + "# Initialize FS Journal and Multi-Backend integration"
+                                + formatted_init_code
+                                + content[method_end:]
                             )
                 else:
-                    logger.warning("Controllers initialization marker not found, adding at the beginning of the method")
+                    logger.warning(
+                        "Controllers initialization marker not found, adding at the beginning of the method"
+                    )
                     content = (
-                        content[:next_line_start] +
-                        indentation + "# Initialize FS Journal and Multi-Backend integration" +
-                        formatted_init_code +
-                        content[next_line_start:]
+                        content[:next_line_start]
+                        + indentation
+                        + "# Initialize FS Journal and Multi-Backend integration"
+                        + formatted_init_code
+                        + content[next_line_start:]
                     )
             else:
                 logger.error("Could not determine indentation in initialize_server method")
@@ -152,7 +162,7 @@ except ImportError:
             return False
 
         # Write the modified content back to the file
-        with open(mcp_server_path, 'w') as f:
+        with open(mcp_server_path, "w") as f:
             f.write(content)
 
         logger.info(f"Successfully patched {mcp_server_path}")
@@ -172,12 +182,13 @@ except ImportError:
 
         return False
 
+
 def create_updated_startup_script():
     """Create an updated startup script that uses the patched server"""
     script_path = "start_ipfs_mcp_complete.sh"
 
     try:
-        with open(script_path, 'w') as f:
+        with open(script_path, "w") as f:
             f.write("""#!/bin/bash
 # Start the MCP server with full IPFS Kit, FS Journal and Multi-Backend integration
 
@@ -226,12 +237,13 @@ fi
         logger.error(f"Failed to create startup script: {e}")
         return False
 
+
 def create_example_usage_script():
     """Create an example script to demonstrate the usage of our integration"""
     script_path = "example_ipfs_fs_usage.py"
 
     try:
-        with open(script_path, 'w') as f:
+        with open(script_path, "w") as f:
             f.write("""#!/usr/bin/env python3
 \"\"\"
 Example IPFS FS Usage
@@ -340,6 +352,7 @@ if __name__ == "__main__":
         logger.error(f"Failed to create example usage script: {e}")
         return False
 
+
 def main():
     """Main function to patch the MCP server"""
     logger.info("Starting MCP integration patch...")
@@ -372,6 +385,7 @@ The integration adds:
 - Data format conversion (JSON, Parquet, Arrow)
 """)
     return 0
+
 
 if __name__ == "__main__":
     sys.exit(main())

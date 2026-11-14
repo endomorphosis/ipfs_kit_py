@@ -13,6 +13,7 @@ module docstring causing the original import section to be lost and producing a
 cascade of "name is not defined" errors. This docstring has been reduced and the
 imports + helpers restored below.
 """
+
 import os, sys, json, time, logging, socket, signal, tarfile, shutil, subprocess, inspect, atexit, threading, mimetypes
 import anyio
 import anyio.abc
@@ -26,6 +27,7 @@ from types import SimpleNamespace
 # Import comprehensive service manager
 try:
     from ipfs_kit_py.mcp.services.comprehensive_service_manager import ComprehensiveServiceManager
+
     COMPREHENSIVE_SERVICE_MANAGER_AVAILABLE = True
 except ImportError:
     COMPREHENSIVE_SERVICE_MANAGER_AVAILABLE = False
@@ -45,8 +47,25 @@ try:
 except Exception:
     yaml = None  # type: ignore
 
-from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect, Depends, UploadFile, File, Form
-from fastapi.responses import HTMLResponse, PlainTextResponse, StreamingResponse, Response, JSONResponse, FileResponse
+from fastapi import (
+    FastAPI,
+    HTTPException,
+    Request,
+    WebSocket,
+    WebSocketDisconnect,
+    Depends,
+    UploadFile,
+    File,
+    Form,
+)
+from fastapi.responses import (
+    HTMLResponse,
+    PlainTextResponse,
+    StreamingResponse,
+    Response,
+    JSONResponse,
+    FileResponse,
+)
 from fastapi.middleware.cors import CORSMiddleware
 import mimetypes
 
@@ -127,6 +146,7 @@ class InMemoryLogHandler(logging.Handler):
         super().__init__()
         self.maxlen = maxlen
         self._items: List[Dict[str, Any]] = []
+
     def emit(self, record: logging.LogRecord) -> None:  # pragma: no cover
         try:
             item = {
@@ -145,42 +165,32 @@ class InMemoryLogHandler(logging.Handler):
                 self._items = self._items[trim:]
         except Exception:
             pass
+
     def get(self, limit: int = 200) -> List[Dict[str, Any]]:
         if limit and limit > 0:
             return self._items[-limit:]
         return list(self._items)
+
     def clear(self) -> None:
         self._items.clear()
+
 
 def create_default_backends():
     """Create default backend configurations for testing and demonstration."""
     now = datetime.now(UTC).isoformat()
-    
+
     return {
         "local_fs": {
             "type": "local_storage",
             "description": "Local filesystem storage backend",
             "status": "enabled",
-            "config": {
-                "path": "/tmp/ipfs_kit_storage",
-                "max_size": "10GB",
-                "compression": True
-            },
+            "config": {"path": "/tmp/ipfs_kit_storage", "max_size": "10GB", "compression": True},
             "created_at": now,
             "last_check": now,
             "health": "healthy",
             "category": "storage",
-            "policy": {
-                "quota": "10GB",
-                "replication": 1,
-                "retention": "30d",
-                "cache": "enabled"
-            },
-            "stats": {
-                "size": "2.1GB",
-                "files": 1247,
-                "last_sync": now
-            }
+            "policy": {"quota": "10GB", "replication": 1, "retention": "30d", "cache": "enabled"},
+            "stats": {"size": "2.1GB", "files": 1247, "last_sync": now},
         },
         "ipfs_local": {
             "type": "ipfs",
@@ -189,7 +199,7 @@ def create_default_backends():
             "config": {
                 "api_url": "http://127.0.0.1:5001",
                 "gateway_url": "http://127.0.0.1:8080",
-                "pinning": True
+                "pinning": True,
             },
             "created_at": now,
             "last_check": now,
@@ -199,13 +209,9 @@ def create_default_backends():
                 "quota": "unlimited",
                 "replication": 3,
                 "retention": "permanent",
-                "cache": "enabled"
+                "cache": "enabled",
             },
-            "stats": {
-                "peers": 42,
-                "pins": 156,
-                "last_sync": now
-            }
+            "stats": {"peers": 42, "pins": 156, "last_sync": now},
         },
         "s3_demo": {
             "type": "s3",
@@ -216,23 +222,14 @@ def create_default_backends():
                 "bucket": "ipfs-kit-demo",
                 "region": "us-east-1",
                 "access_key": "demo-key",
-                "secret_key": "demo-secret"
+                "secret_key": "demo-secret",
             },
             "created_at": now,
             "last_check": now,
             "health": "healthy",
             "category": "storage",
-            "policy": {
-                "quota": "100GB",
-                "replication": 3,
-                "retention": "90d",
-                "cache": "enabled"
-            },
-            "stats": {
-                "objects": 3421,
-                "size": "45.2GB",
-                "last_sync": now
-            }
+            "policy": {"quota": "100GB", "replication": 3, "retention": "90d", "cache": "enabled"},
+            "stats": {"objects": 3421, "size": "45.2GB", "last_sync": now},
         },
         "parquet_meta": {
             "type": "parquet",
@@ -241,23 +238,14 @@ def create_default_backends():
             "config": {
                 "path": "/tmp/ipfs_kit_parquet",
                 "compression": "snappy",
-                "schema_version": "1.0"
+                "schema_version": "1.0",
             },
             "created_at": now,
             "last_check": now,
             "health": "healthy",
             "category": "analytics",
-            "policy": {
-                "quota": "50GB",
-                "replication": 2,
-                "retention": "365d",
-                "cache": "enabled"
-            },
-            "stats": {
-                "tables": 12,
-                "rows": 98765,
-                "last_sync": now
-            }
+            "policy": {"quota": "50GB", "replication": 2, "retention": "365d", "cache": "enabled"},
+            "stats": {"tables": 12, "rows": 98765, "last_sync": now},
         },
         "github": {
             "type": "git",
@@ -266,23 +254,14 @@ def create_default_backends():
             "config": {
                 "repo_url": "https://github.com/user/repo.git",
                 "branch": "main",
-                "auth_token": "demo-token"
+                "auth_token": "demo-token",
             },
             "created_at": now,
             "last_check": now,
             "health": "healthy",
             "category": "storage",
-            "policy": {
-                "quota": "5GB",
-                "replication": 1,
-                "retention": "365d",
-                "cache": "enabled"
-            },
-            "stats": {
-                "commits": 245,
-                "branches": 3,
-                "last_sync": now
-            }
+            "policy": {"quota": "5GB", "replication": 1, "retention": "365d", "cache": "enabled"},
+            "stats": {"commits": 245, "branches": 3, "last_sync": now},
         },
         "cluster": {
             "type": "ipfs_cluster",
@@ -291,7 +270,7 @@ def create_default_backends():
             "config": {
                 "cluster_api": "http://127.0.0.1:9094",
                 "peer_id": "12D3KooWDemo...",
-                "secret": "demo-secret"
+                "secret": "demo-secret",
             },
             "created_at": now,
             "last_check": now,
@@ -301,21 +280,19 @@ def create_default_backends():
                 "quota": "unlimited",
                 "replication": 5,
                 "retention": "permanent",
-                "cache": "enabled"
+                "cache": "enabled",
             },
-            "stats": {
-                "nodes": 5,
-                "pins": 892,
-                "last_sync": now
-            }
-        }
+            "stats": {"nodes": 5, "pins": 892, "last_sync": now},
+        },
     }
+
 
 def create_default_buckets():
     """Create default bucket configurations for first-time setup."""
     from datetime import datetime, UTC
+
     now = datetime.now(UTC).isoformat()
-    
+
     return [
         {
             "name": "media",
@@ -323,29 +300,19 @@ def create_default_buckets():
             "description": "Media files, images, and documents",
             "created_at": now,
             "meta": {},
-            "policy": {
-                "quota": "2GB",
-                "replication": 1,
-                "retention": "90d",
-                "cache": "enabled"
-            }
+            "policy": {"quota": "2GB", "replication": 1, "retention": "90d", "cache": "enabled"},
         },
         {
-            "name": "documents", 
+            "name": "documents",
             "backend": "filesystem",
             "description": "Text documents and PDFs",
             "created_at": now,
             "meta": {},
-            "policy": {
-                "quota": "1GB",
-                "replication": 1,
-                "retention": "365d",
-                "cache": "enabled"
-            }
+            "policy": {"quota": "1GB", "replication": 1, "retention": "365d", "cache": "enabled"},
         },
         {
             "name": "archive",
-            "backend": "filesystem", 
+            "backend": "filesystem",
             "description": "Long-term archival storage",
             "created_at": now,
             "meta": {},
@@ -353,18 +320,22 @@ def create_default_buckets():
                 "quota": "5GB",
                 "replication": 2,
                 "retention": "permanent",
-                "cache": "disabled"
-            }
-        }
+                "cache": "disabled",
+            },
+        },
     ]
+
 
 def ensure_paths(data_dir: Optional[str]):
     base = Path(data_dir or os.path.expanduser("~/.ipfs_kit"))
     data_dir_path = base
     data_dir_path.mkdir(parents=True, exist_ok=True)
-    car_store = data_dir_path / "car_store"; car_store.mkdir(exist_ok=True)
-    vfs_root = data_dir_path / "vfs"; vfs_root.mkdir(exist_ok=True)
-    bucket_configs = data_dir_path / "bucket_configs"; bucket_configs.mkdir(exist_ok=True)
+    car_store = data_dir_path / "car_store"
+    car_store.mkdir(exist_ok=True)
+    vfs_root = data_dir_path / "vfs"
+    vfs_root.mkdir(exist_ok=True)
+    bucket_configs = data_dir_path / "bucket_configs"
+    bucket_configs.mkdir(exist_ok=True)
     backends_file = data_dir_path / "backends.json"
     buckets_file = data_dir_path / "buckets.json"
     pins_file = data_dir_path / "pins.json"
@@ -373,63 +344,67 @@ def ensure_paths(data_dir: Optional[str]):
     # state (no demo/default buckets/backends).
     _running_under_pytest = bool(os.environ.get("PYTEST_CURRENT_TEST")) or ("pytest" in sys.modules)
     _explicit_data_dir = data_dir is not None
-    
+
     # Initialize with default backends if file doesn't exist or is empty.
     # In pytest + explicit temp data dirs, write an empty list for isolation.
     if not backends_file.exists() or backends_file.stat().st_size == 0:
         with suppress(Exception):
-            with backends_file.open('w', encoding='utf-8') as fh:
+            with backends_file.open("w", encoding="utf-8") as fh:
                 if _running_under_pytest and _explicit_data_dir:
                     json.dump([], fh, indent=2)
                 else:
                     json.dump(create_default_backends(), fh, indent=2)
-    
+
     # Check if backends.json has old format and upgrade it
     try:
-        with backends_file.open('r', encoding='utf-8') as fh:
+        with backends_file.open("r", encoding="utf-8") as fh:
             existing_backends = json.load(fh)
-        
+
         # Check if any backend is in old format (missing required fields)
         needs_upgrade = False
         for name, config in existing_backends.items():
-            if not isinstance(config, dict) or 'description' not in config or 'created_at' not in config:
+            if (
+                not isinstance(config, dict)
+                or "description" not in config
+                or "created_at" not in config
+            ):
                 needs_upgrade = True
                 break
-        
+
         if needs_upgrade:
             # Upgrade to new format with defaults
             default_backends = create_default_backends()
-            with backends_file.open('w', encoding='utf-8') as fh:
+            with backends_file.open("w", encoding="utf-8") as fh:
                 json.dump(default_backends, fh, indent=2)
     except Exception:
         # If there's any error reading, create defaults
         with suppress(Exception):
-            with backends_file.open('w', encoding='utf-8') as fh:
+            with backends_file.open("w", encoding="utf-8") as fh:
                 json.dump(create_default_backends(), fh, indent=2)
-    
+
     # Initialize buckets.json with default buckets if file doesn't exist or is empty.
     # In pytest + explicit temp data dirs, keep it empty for test isolation.
     if not buckets_file.exists() or buckets_file.stat().st_size == 0:
         with suppress(Exception):
             if _running_under_pytest and _explicit_data_dir:
-                with buckets_file.open('w', encoding='utf-8') as fh:
+                with buckets_file.open("w", encoding="utf-8") as fh:
                     json.dump([], fh, indent=2)
             else:
                 default_buckets = create_default_buckets()
-                with buckets_file.open('w', encoding='utf-8') as fh:
+                with buckets_file.open("w", encoding="utf-8") as fh:
                     json.dump(default_buckets, fh, indent=2)
 
                 # Create VFS directories for default buckets
                 for bucket in default_buckets:
                     bucket_dir = vfs_root / bucket["name"]
                     bucket_dir.mkdir(exist_ok=True)
-    
+
     # Initialize pins.json with empty array if it doesn't exist
     if not pins_file.exists():
         with suppress(Exception):
-            with pins_file.open('w', encoding='utf-8') as fh:
+            with pins_file.open("w", encoding="utf-8") as fh:
                 json.dump([], fh)
-    
+
     return SimpleNamespace(
         base=base,
         data_dir=data_dir_path,
@@ -445,23 +420,27 @@ def ensure_paths(data_dir: Optional[str]):
 # ---- JSON helpers (restored) ----
 def _read_json(path: Path, default):
     try:
-        with path.open('r', encoding='utf-8') as f:
+        with path.open("r", encoding="utf-8") as f:
             return json.load(f)
     except Exception:
         return default
 
+
 def _atomic_write_json(path: Path, data) -> None:
     try:
-        tmp = path.with_suffix(path.suffix + '.tmp')
-        with tmp.open('w', encoding='utf-8') as f:
+        tmp = path.with_suffix(path.suffix + ".tmp")
+        with tmp.open("w", encoding="utf-8") as f:
             json.dump(data, f, indent=2, sort_keys=True)
         tmp.replace(path)
     except Exception:
         pass
 
+
 def _which(bin_name: str) -> Optional[str]:
     from shutil import which
+
     return which(bin_name)
+
 
 def _port_open(host: str, port: int, timeout: float = 0.25) -> bool:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -471,6 +450,7 @@ def _port_open(host: str, port: int, timeout: float = 0.25) -> bool:
         except Exception:
             return False
 
+
 def _run_cmd(cmd: List[str], timeout: float = 10.0) -> Dict[str, Any]:
     try:
         proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
@@ -478,27 +458,23 @@ def _run_cmd(cmd: List[str], timeout: float = 10.0) -> Dict[str, Any]:
     except Exception as e:
         return {"code": -1, "error": str(e)}
 
+
 def _calculate_bucket_stats(bucket_name: str, vfs_base_path: Path) -> Dict[str, Any]:
     """Calculate actual bucket statistics from VFS directory."""
     bucket_path = vfs_base_path / bucket_name
-    stats = {
-        "size": 0,
-        "file_count": 0, 
-        "folder_count": 0,
-        "total_size": 0
-    }
-    
+    stats = {"size": 0, "file_count": 0, "folder_count": 0, "total_size": 0}
+
     if not bucket_path.exists():
         return stats
-        
+
     try:
         for root, dirs, files in os.walk(bucket_path):
             # Count folders (excluding .gitkeep files)
             stats["folder_count"] += len(dirs)
-            
-            # Count files and calculate size  
+
+            # Count files and calculate size
             for file in files:
-                if file != '.gitkeep':  # Skip placeholder files
+                if file != ".gitkeep":  # Skip placeholder files
                     file_path = os.path.join(root, file)
                     try:
                         file_size = os.path.getsize(file_path)
@@ -506,12 +482,13 @@ def _calculate_bucket_stats(bucket_name: str, vfs_base_path: Path) -> Dict[str, 
                         stats["file_count"] += 1
                     except OSError:
                         continue
-                        
+
         stats["total_size"] = stats["size"]
     except Exception:
         pass
-        
+
     return stats
+
 
 def _normalize_buckets(items, vfs_base_path: Path = None):
     if not isinstance(items, list):
@@ -520,47 +497,48 @@ def _normalize_buckets(items, vfs_base_path: Path = None):
     for it in items:
         if not isinstance(it, dict):
             continue
-        name = it.get('name') or it.get('id')
+        name = it.get("name") or it.get("id")
         if not name:
             continue
         # Normalize embedded policy with defaults
-        pol = it.get('policy') or {}
+        pol = it.get("policy") or {}
         norm_policy = {
-            'replication_factor': int(pol.get('replication_factor', 1) or 1),
-            'cache_policy': pol.get('cache_policy', 'none') or 'none',
-            'retention_days': int(pol.get('retention_days', 0) or 0),
+            "replication_factor": int(pol.get("replication_factor", 1) or 1),
+            "cache_policy": pol.get("cache_policy", "none") or "none",
+            "retention_days": int(pol.get("retention_days", 0) or 0),
         }
-        
+
         # Calculate actual bucket statistics if VFS path provided
         bucket_stats = {"size": 0, "file_count": 0, "folder_count": 0, "total_size": 0}
         if vfs_base_path:
             bucket_stats = _calculate_bucket_stats(name, vfs_base_path)
-        
+
         # Enhanced bucket info with all fields JavaScript expects
         bucket_info = {
             "name": name,
-            "backend": it.get('backend', 'filesystem'),
-            "meta": it.get('meta', {}),
+            "backend": it.get("backend", "filesystem"),
+            "meta": it.get("meta", {}),
             "policy": norm_policy,
-            "description": it.get('description', f"Storage bucket with {bucket_stats['file_count']} files"),
-            "status": it.get('status', 'active'),
-            "tier": it.get('tier', it.get('backend', 'filesystem')),  # Use backend as tier if not specified
-            "created_at": it.get('created_at', ''),
+            "description": it.get(
+                "description", f"Storage bucket with {bucket_stats['file_count']} files"
+            ),
+            "status": it.get("status", "active"),
+            "tier": it.get(
+                "tier", it.get("backend", "filesystem")
+            ),  # Use backend as tier if not specified
+            "created_at": it.get("created_at", ""),
             "size": bucket_stats["size"],
             "size_gb": round(bucket_stats["size"] / (1024**3), 2),  # Size in GB for JavaScript
             "file_count": bucket_stats["file_count"],
             "folder_count": bucket_stats["folder_count"],
             "total_size": bucket_stats["total_size"],
-            "quota": it.get('quota', {
-                "storage": "5GB",
-                "files": 10000,
-                "bandwidth": "100GB"
-            }),
-            "backends": it.get('backends', [it.get('backend', 'filesystem')]),
-            "replica_count": it.get('replica_count', 1)
+            "quota": it.get("quota", {"storage": "5GB", "files": 10000, "bandwidth": "100GB"}),
+            "backends": it.get("backends", [it.get("backend", "filesystem")]),
+            "replica_count": it.get("replica_count", 1),
         }
         out.append(bucket_info)
     return out
+
 
 def _normalize_pins(items):
     if not isinstance(items, list):
@@ -569,11 +547,12 @@ def _normalize_pins(items):
     for it in items:
         if not isinstance(it, dict):
             continue
-        cid = it.get('cid') or it.get('hash')
+        cid = it.get("cid") or it.get("hash")
         if not cid:
             continue
-        out.append({"cid": cid, "name": it.get('name')})
+        out.append({"cid": cid, "name": it.get("name")})
     return out
+
 
 def _normalize_backends(items):
     """Normalize backend items ensuring required fields are present."""
@@ -592,17 +571,16 @@ def _normalize_backends(items):
                 "tier": it.get("tier", "standard"),
                 "description": it.get("description", f"{it.get('type', 'unknown')} backend"),
                 "config": it.get("config", {}),
-                "policy": it.get("policy", {
-                    "replication_factor": 1,
-                    "cache_policy": "none", 
-                    "retention_days": 0
-                }),
+                "policy": it.get(
+                    "policy", {"replication_factor": 1, "cache_policy": "none", "retention_days": 0}
+                ),
                 "enabled": it.get("enabled", False),
                 "created_at": it.get("created_at"),
-                "last_updated": it.get("last_updated")
+                "last_updated": it.get("last_updated"),
             }
             out.append(backend)
     return out
+
 
 def _safe_vfs_path(root: Path, user_path: str) -> Path:
     # prevent directory traversal
@@ -610,6 +588,7 @@ def _safe_vfs_path(root: Path, user_path: str) -> Path:
     if not str(p).startswith(str(root.resolve())):
         raise ValueError("invalid path")
     return p
+
 
 def _run_cmd_bytes(cmd: List[str], timeout: float = 30.0) -> Dict[str, Any]:
     """Run command returning dict with raw bytes; mirrors shape of _run_cmd.
@@ -622,7 +601,7 @@ def _run_cmd_bytes(cmd: List[str], timeout: float = 30.0) -> Dict[str, Any]:
             "ok": proc.returncode == 0,
             "code": proc.returncode,
             "out_bytes": proc.stdout if proc.returncode == 0 else b"",
-            "err": proc.stderr.decode('utf-8', 'ignore'),
+            "err": proc.stderr.decode("utf-8", "ignore"),
         }
     except Exception as e:  # pragma: no cover
         return {"ok": False, "code": -1, "out_bytes": b"", "err": str(e)}
@@ -631,6 +610,7 @@ def _run_cmd_bytes(cmd: List[str], timeout: float = 30.0) -> Dict[str, Any]:
 # -----------------------------
 # Main dashboard class
 # -----------------------------
+
 
 class ConsolidatedMCPDashboard:
     def __init__(self, config: Optional[Dict[str, Any]] = None) -> None:
@@ -666,7 +646,9 @@ class ConsolidatedMCPDashboard:
 
         # In library/test contexts, registering signal handlers that call sys.exit()
         # can cause pytest to crash during interruption or failure reporting.
-        _running_under_pytest = bool(os.environ.get("PYTEST_CURRENT_TEST")) or ("pytest" in sys.modules)
+        _running_under_pytest = bool(os.environ.get("PYTEST_CURRENT_TEST")) or (
+            "pytest" in sys.modules
+        )
         _fast_init = bool(os.environ.get("IPFS_KIT_FAST_INIT"))
         if not _running_under_pytest:
             with suppress(Exception):
@@ -684,7 +666,9 @@ class ConsolidatedMCPDashboard:
                 if self._hits_file.exists():
                     data = _read_json(self._hits_file, {})
                     if isinstance(data, dict):
-                        self.endpoint_hits.update({k: int(v) for k, v in data.items() if isinstance(k, str)})
+                        self.endpoint_hits.update(
+                            {k: int(v) for k, v in data.items() if isinstance(k, str)}
+                        )
             with suppress(Exception):
                 if self._realtime_task_group is None:
                     self._realtime_task_group = anyio.create_task_group()
@@ -730,8 +714,12 @@ class ConsolidatedMCPDashboard:
         # process; we reuse a single handler to avoid "detached handler" issues
         # while clearing between instances to keep tests isolated.
         root = logging.getLogger()
-        existing_memlog = next((h for h in root.handlers if isinstance(h, InMemoryLogHandler)), None)
-        self.memlog = existing_memlog if existing_memlog is not None else InMemoryLogHandler(maxlen=4000)
+        existing_memlog = next(
+            (h for h in root.handlers if isinstance(h, InMemoryLogHandler)), None
+        )
+        self.memlog = (
+            existing_memlog if existing_memlog is not None else InMemoryLogHandler(maxlen=4000)
+        )
         if existing_memlog is None:
             root.addHandler(self.memlog)
         if _running_under_pytest:
@@ -750,11 +738,16 @@ class ConsolidatedMCPDashboard:
         """Get or initialize the service manager."""
         if self._service_manager is None:
             try:
-                from ipfs_kit_py.mcp.services.comprehensive_service_manager import ComprehensiveServiceManager
+                from ipfs_kit_py.mcp.services.comprehensive_service_manager import (
+                    ComprehensiveServiceManager,
+                )
+
                 # Use data_dir instead of base for service manager
-                data_dir = self.paths.data_dir if hasattr(self.paths, 'data_dir') else self.paths.base
+                data_dir = (
+                    self.paths.data_dir if hasattr(self.paths, "data_dir") else self.paths.base
+                )
                 self._service_manager = ComprehensiveServiceManager(data_dir)
-                
+
                 # Auto-enable detectable services
                 try:
                     result = self._service_manager.auto_enable_detectable_services()
@@ -762,13 +755,15 @@ class ConsolidatedMCPDashboard:
                         self.log.info(f"Auto-enabled services: {result['enabled_services']}")
                 except Exception as e:
                     self.log.warning(f"Failed to auto-enable services: {e}")
-                
+
                 self.log.info(f"Initialized ComprehensiveServiceManager with data_dir: {data_dir}")
             except ImportError as e:
                 self.log.error(f"Failed to import ComprehensiveServiceManager: {e}")
                 self._service_manager = None
             except Exception as e:
-                self.log.error(f"Failed to initialize ComprehensiveServiceManager: {e}", exc_info=True)
+                self.log.error(
+                    f"Failed to initialize ComprehensiveServiceManager: {e}", exc_info=True
+                )
                 self._service_manager = None
         return self._service_manager
 
@@ -782,15 +777,18 @@ class ConsolidatedMCPDashboard:
         if self._peer_manager is None:
             try:
                 from ipfs_kit_py.peer_manager import PeerManager  # type: ignore
+
                 self._peer_manager = PeerManager()
             except Exception as e:  # pragma: no cover
                 self.log.warning(f"PeerManager unavailable: {e}")
                 self._peer_manager = None
         return self._peer_manager
-    
-    def _transform_config_for_backend(self, service_type: str, config: Dict[str, Any]) -> Dict[str, Any]:
+
+    def _transform_config_for_backend(
+        self, service_type: str, config: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """Transform user configuration to backend-specific format.
-        
+
         This method converts the form input into the format expected by backend modules
         like s3_kit, github_kit, etc.
         """
@@ -800,9 +798,11 @@ class ConsolidatedMCPDashboard:
                 "s3cfg": {
                     "accessKey": config.get("access_key", ""),
                     "secretKey": config.get("secret_key", ""),
-                    "endpoint": config.get("endpoint", f"https://s3.{config.get('region', 'us-east-1')}.amazonaws.com"),
+                    "endpoint": config.get(
+                        "endpoint", f"https://s3.{config.get('region', 'us-east-1')}.amazonaws.com"
+                    ),
                     "bucket": config.get("bucket", ""),
-                    "region": config.get("region", "us-east-1")
+                    "region": config.get("region", "us-east-1"),
                 }
             }
         elif service_type == "github":
@@ -810,20 +810,20 @@ class ConsolidatedMCPDashboard:
             return {
                 "github_token": config.get("api_token", ""),
                 "repository": config.get("repository", ""),
-                "username": config.get("username", "")
+                "username": config.get("username", ""),
             }
         elif service_type == "huggingface":
-            # Transform to huggingface_kit format  
+            # Transform to huggingface_kit format
             return {
                 "hf_token": config.get("api_token", ""),
                 "username": config.get("username", ""),
-                "repository": config.get("repository", "")
+                "repository": config.get("repository", ""),
             }
         elif service_type == "gdrive":
             # Transform to gdrive_kit format
             return {
                 "credentials": config.get("credentials", {}),
-                "folder_id": config.get("folder_id", "")
+                "folder_id": config.get("folder_id", ""),
             }
         elif service_type in ["ftp", "sftp"]:
             # Transform to FTP/SFTP format
@@ -832,85 +832,100 @@ class ConsolidatedMCPDashboard:
                 "port": config.get("port", 21 if service_type == "ftp" else 22),
                 "username": config.get("username", ""),
                 "password": config.get("password", ""),
-                "path": config.get("path", "/")
+                "path": config.get("path", "/"),
             }
         elif service_type == "storacha":
             # Transform to storacha_kit format
-            return {
-                "api_token": config.get("api_token", ""),
-                "space": config.get("space", "")
-            }
+            return {"api_token": config.get("api_token", ""), "space": config.get("space", "")}
         else:
             # Generic passthrough for other services
             return config
-    
+
     async def _list_all_services(self, service_manager):
         """List all services (enabled and disabled) for comprehensive dashboard view."""
         services = []
-        
+
         # Get all daemon services
         for daemon_id, config in service_manager.services_config.get("daemons", {}).items():
             if config.get("enabled", False):
                 status = await service_manager._check_daemon_status(daemon_id, config)
                 actions = service_manager._get_available_actions(daemon_id, status["status"])
             else:
-                # For disabled services, show as "not_enabled" 
+                # For disabled services, show as "not_enabled"
                 status = {
                     "status": "not_enabled",
                     "last_check": None,
-                    "details": {"reason": "Service not enabled"}
+                    "details": {"reason": "Service not enabled"},
                 }
                 actions = ["configure", "enable"]  # Allow enabling and configuration
-            
-            services.append({
-                "id": daemon_id,
-                "name": config["name"],
-                "type": config["type"],
-                "description": config["description"],
-                "status": status["status"],
-                "port": config.get("port"),
-                "gateway_port": config.get("gateway_port"),
-                "swarm_port": config.get("swarm_port"),
-                "config_dir": config.get("config_dir"),
-                "auto_start": config.get("auto_start", False),
-                "actions": actions,
-                "last_check": status.get("last_check"),
-                "details": status.get("details", {}),
-                "enabled": config.get("enabled", False)
-            })
-        
-        # Get all storage backend services  
-        for backend_id, config in service_manager.services_config.get("storage_backends", {}).items():
+
+            services.append(
+                {
+                    "id": daemon_id,
+                    "name": config["name"],
+                    "type": config["type"],
+                    "description": config["description"],
+                    "status": status["status"],
+                    "port": config.get("port"),
+                    "gateway_port": config.get("gateway_port"),
+                    "swarm_port": config.get("swarm_port"),
+                    "config_dir": config.get("config_dir"),
+                    "auto_start": config.get("auto_start", False),
+                    "actions": actions,
+                    "last_check": status.get("last_check"),
+                    "details": status.get("details", {}),
+                    "enabled": config.get("enabled", False),
+                }
+            )
+
+        # Get all storage backend services
+        for backend_id, config in service_manager.services_config.get(
+            "storage_backends", {}
+        ).items():
             if config.get("enabled", False):
                 status = await service_manager._check_storage_backend_status(backend_id, config)
                 actions = service_manager._get_available_actions(backend_id, status["status"])
             else:
                 # For disabled services, show as "not_configured" since most require credentials
                 status = {
-                    "status": "not_configured" if config.get("requires_credentials") else "not_enabled",
+                    "status": "not_configured"
+                    if config.get("requires_credentials")
+                    else "not_enabled",
                     "last_check": None,
-                    "details": {"reason": "Credentials not configured" if config.get("requires_credentials") else "Service not enabled"}
+                    "details": {
+                        "reason": "Credentials not configured"
+                        if config.get("requires_credentials")
+                        else "Service not enabled"
+                    },
                 }
                 # Provide configure action for credentialed services, enable for others
-                actions = ["configure", "enable"] if config.get("requires_credentials") else ["enable", "configure"]
-            
-            services.append({
-                "id": backend_id,
-                "name": config["name"],
-                "type": config["type"],
-                "description": config["description"],
-                "status": status["status"],
-                "requires_credentials": config.get("requires_credentials", False),
-                "config_keys": config.get("config_keys", []),
-                "config_hints": config.get("config_hints", {}),
-                "actions": actions,
-                "last_check": status.get("last_check"),
-                "details": status.get("details", {}),
-                "enabled": config.get("enabled", False)
-            })
-        
+                actions = (
+                    ["configure", "enable"]
+                    if config.get("requires_credentials")
+                    else ["enable", "configure"]
+                )
+
+            services.append(
+                {
+                    "id": backend_id,
+                    "name": config["name"],
+                    "type": config["type"],
+                    "description": config["description"],
+                    "status": status["status"],
+                    "requires_credentials": config.get("requires_credentials", False),
+                    "config_keys": config.get("config_keys", []),
+                    "config_hints": config.get("config_hints", {}),
+                    "actions": actions,
+                    "last_check": status.get("last_check"),
+                    "details": status.get("details", {}),
+                    "enabled": config.get("enabled", False),
+                }
+            )
+
         # Get all network services
-        for service_id, config in service_manager.services_config.get("network_services", {}).items():
+        for service_id, config in service_manager.services_config.get(
+            "network_services", {}
+        ).items():
             if config.get("enabled", False):
                 status = await service_manager._check_network_service_status(service_id, config)
                 actions = service_manager._get_available_actions(service_id, status["status"])
@@ -918,23 +933,25 @@ class ConsolidatedMCPDashboard:
                 status = {
                     "status": "not_enabled",
                     "last_check": None,
-                    "details": {"reason": "Service not enabled"}
+                    "details": {"reason": "Service not enabled"},
                 }
                 actions = ["configure", "enable"]
-            
-            services.append({
-                "id": service_id,
-                "name": config["name"],
-                "type": config["type"],
-                "description": config["description"],
-                "status": status["status"],
-                "port": config.get("port"),
-                "actions": actions,
-                "last_check": status.get("last_check"),
-                "details": status.get("details", {}),
-                "enabled": config.get("enabled", False)
-            })
-        
+
+            services.append(
+                {
+                    "id": service_id,
+                    "name": config["name"],
+                    "type": config["type"],
+                    "description": config["description"],
+                    "status": status["status"],
+                    "port": config.get("port"),
+                    "actions": actions,
+                    "last_check": status.get("last_check"),
+                    "details": status.get("details", {}),
+                    "enabled": config.get("enabled", False),
+                }
+            )
+
         return {
             "services": services,
             "total": len(services),
@@ -944,8 +961,8 @@ class ConsolidatedMCPDashboard:
                 "error": len([s for s in services if s["status"] == "error"]),
                 "configured": len([s for s in services if s["status"] == "configured"]),
                 "not_configured": len([s for s in services if s["status"] == "not_configured"]),
-                "not_enabled": len([s for s in services if s["status"] == "not_enabled"])
-            }
+                "not_enabled": len([s for s in services if s["status"] == "not_enabled"]),
+            },
         }
 
     # --- Run helpers (restored) ---
@@ -964,7 +981,9 @@ class ConsolidatedMCPDashboard:
             if self._hits_file.exists():
                 data = _read_json(self._hits_file, {})
                 if isinstance(data, dict):
-                    self.endpoint_hits.update({k: int(v) for k, v in data.items() if isinstance(k, str)})
+                    self.endpoint_hits.update(
+                        {k: int(v) for k, v in data.items() if isinstance(k, str)}
+                    )
         with suppress(Exception):
             if self._realtime_task_group is None:
                 self._realtime_task_group = anyio.create_task_group()
@@ -1003,7 +1022,7 @@ class ConsolidatedMCPDashboard:
         # Disk
         with suppress(Exception):
             du = shutil.disk_usage(str(self.paths.data_dir))
-            snap["disk"] = round(du.used/du.total*100, 2) if du.total else None
+            snap["disk"] = round(du.used / du.total * 100, 2) if du.total else None
         # Network delta (simple aggregate rx/tx bytes across interfaces)
         # NOTE: Original implementation may have used psutil.net_io_counters; restored lightweight placeholder if psutil present.
         if psutil:
@@ -1019,16 +1038,22 @@ class ConsolidatedMCPDashboard:
                             snap["tx_bps"] = (tx - self._net_last.get("tx", tx)) / dt
                     self._net_last = {"ts": snap["ts"], "rx": rx, "tx": tx}
         # Append to histories (ensure keys present for tests even if None yet)
-        self._net_history.append({
-            "ts": snap.get("ts"),
-            "rx_bps": snap.get("rx_bps"),
-            "tx_bps": snap.get("tx_bps"),
-        })
-        self._sys_history.append({k: snap.get(k) for k in ("ts", "cpu", "mem", "disk") if k in snap})
+        self._net_history.append(
+            {
+                "ts": snap.get("ts"),
+                "rx_bps": snap.get("rx_bps"),
+                "tx_bps": snap.get("tx_bps"),
+            }
+        )
+        self._sys_history.append(
+            {k: snap.get(k) for k in ("ts", "cpu", "mem", "disk") if k in snap}
+        )
+
         # Rolling averages (5 most recent points with values)
         def _avg(seq: Iterable[Optional[float]]) -> Optional[float]:
             vals = [v for v in seq if isinstance(v, (int, float))]
-            return round(sum(vals)/len(vals), 2) if vals else None
+            return round(sum(vals) / len(vals), 2) if vals else None
+
         last_net = list(self._net_history)[-5:]
         last_sys = list(self._sys_history)[-5:]
         snap["avg_rx_bps"] = _avg(p.get("rx_bps") for p in last_net)
@@ -1040,34 +1065,39 @@ class ConsolidatedMCPDashboard:
 
     async def _broadcast_loop(self) -> None:  # pragma: no cover (timing loop)
         while True:
-                try:
-                    snap = self._gather_metrics_snapshot()
-                    if self._ws_clients:
-                        payload = {**snap, "type": "metrics"}
-                        dead = []
-                        for ws in list(self._ws_clients):
-                            try:
-                                await ws.send_json(payload)
-                            except Exception:
-                                dead.append(ws)
-                        for ws in dead:
-                            self._ws_clients.discard(ws)
-                except Exception:
-                    self.log.exception("broadcast loop error")
-                await anyio.sleep(1.0)
+            try:
+                snap = self._gather_metrics_snapshot()
+                if self._ws_clients:
+                    payload = {**snap, "type": "metrics"}
+                    dead = []
+                    for ws in list(self._ws_clients):
+                        try:
+                            await ws.send_json(payload)
+                        except Exception:
+                            dead.append(ws)
+                    for ws in dead:
+                        self._ws_clients.discard(ws)
+            except Exception:
+                self.log.exception("broadcast loop error")
+            await anyio.sleep(1.0)
 
     def _register_routes(self) -> None:
         app = self.app
         dashboard = self
+
         # --- auth dependency ---
         def _auth_dep(request: Request):
             token = dashboard.api_token
             if not token:
                 return True
             supplied = (
-                request.headers.get("x-api-token") or
-                (request.headers.get("authorization", " ").split(" ")[1] if request.headers.get("authorization", " ").lower().startswith("bearer ") else None) or
-                request.query_params.get("token")
+                request.headers.get("x-api-token")
+                or (
+                    request.headers.get("authorization", " ").split(" ")[1]
+                    if request.headers.get("authorization", " ").lower().startswith("bearer ")
+                    else None
+                )
+                or request.query_params.get("token")
             )
             if supplied != token:
                 raise HTTPException(401, "Unauthorized")
@@ -1078,11 +1108,14 @@ class ConsolidatedMCPDashboard:
         # It is kept temporarily to support older polling clients/tests. It now also includes
         # a metrics snapshot for convenience. Remove after next minor release.
         self._overview_warning_emitted = False  # one-time log flag
+
         @app.get("/api/system/overview")
         async def system_overview() -> Response:  # type: ignore
             if not getattr(self, "_overview_warning_emitted", False):
                 with suppress(Exception):
-                    self.log.warning("/api/system/overview is deprecated; use /api/system/health and /api/mcp/status")
+                    self.log.warning(
+                        "/api/system/overview is deprecated; use /api/system/health and /api/mcp/status"
+                    )
                 self._overview_warning_emitted = True
             # Gather components
             health = await system_health()
@@ -1098,10 +1131,16 @@ class ConsolidatedMCPDashboard:
                 "migration": {
                     "health": "/api/system/health",
                     "status": "/api/mcp/status",
-                    "metrics": "/api/metrics/system"
-                }
+                    "metrics": "/api/metrics/system",
+                },
             }
-            return JSONResponse(payload, headers={"X-Deprecated": "true", "Link": '</api/system/health>; rel="health", </api/mcp/status>; rel="status"'})
+            return JSONResponse(
+                payload,
+                headers={
+                    "X-Deprecated": "true",
+                    "Link": '</api/system/health>; rel="health", </api/mcp/status>; rel="status"',
+                },
+            )
 
         # Basic pages
         @app.get("/", response_class=HTMLResponse)
@@ -1115,20 +1154,24 @@ class ConsolidatedMCPDashboard:
             try:
                 # Try to load from dashboard_templates directory
                 base_dir = Path(__file__).parent.parent  # ipfs_kit_py/mcp
-                template_path = base_dir / "dashboard_templates" / "enhanced_service_monitoring.html"
-                
+                template_path = (
+                    base_dir / "dashboard_templates" / "enhanced_service_monitoring.html"
+                )
+
                 if template_path.exists():
-                    with open(template_path, 'r', encoding='utf-8') as f:
+                    with open(template_path, "r", encoding="utf-8") as f:
                         return f.read()
-                
+
                 # Fallback: try relative to this file
                 alt_path = Path(__file__).parent / "templates" / "enhanced_service_monitoring.html"
                 if alt_path.exists():
-                    with open(alt_path, 'r', encoding='utf-8') as f:
+                    with open(alt_path, "r", encoding="utf-8") as f:
                         return f.read()
-                        
+
                 self.log.warning(f"Service monitoring template not found at: {template_path}")
-                return "<html><body><h1>Service Monitoring</h1><p>Template not found</p></body></html>"
+                return (
+                    "<html><body><h1>Service Monitoring</h1><p>Template not found</p></body></html>"
+                )
             except Exception as e:
                 self.log.error(f"Error loading service monitoring template: {e}")
                 return f"<html><body><h1>Error</h1><p>{str(e)}</p></body></html>"
@@ -1148,7 +1191,11 @@ class ConsolidatedMCPDashboard:
 
         @app.get("/app.js", response_class=PlainTextResponse)
         async def app_js() -> Response:
-            return Response(self._app_js(), media_type="application/javascript; charset=utf-8", headers={"Cache-Control": "no-store"})
+            return Response(
+                self._app_js(),
+                media_type="application/javascript; charset=utf-8",
+                headers={"Cache-Control": "no-store"},
+            )
 
         @app.get("/mcp-client.js", response_class=PlainTextResponse)
         async def mcp_client_js() -> Response:
@@ -1159,31 +1206,33 @@ class ConsolidatedMCPDashboard:
             except Exception:
                 static_path = None
             # Compatibility shim: ensure core + expected namespaces exist when using static SDKs
-            shim = "\n;(function(){\n" \
-                   "  try {\n" \
-                   "    var g = (typeof window !== 'undefined' ? window : globalThis);\n" \
-                   "    g.MCP = g.MCP || {};\n" \
-                   "    async function rpcList(){ const r = await fetch('/mcp/tools/list?full=1', {method:'POST', headers:{'x-api-token': (g.API_TOKEN||'')}}); return await r.json(); }\n" \
-                   "    async function rpcCall(name, args){ const r = await fetch('/mcp/tools/call', {method:'POST', headers:{'content-type':'application/json','x-api-token':(g.API_TOKEN||'')}, body: JSON.stringify({name, args})}); return await r.json(); }\n" \
-                   "    if (!g.MCP.listTools) g.MCP.listTools = rpcList;\n" \
-                   "    if (!g.MCP.callTool) g.MCP.callTool = (n,a)=>rpcCall(n, a||{});\n" \
-                   "    if (!g.MCP.status) {\n" \
-                   "      g.MCP.status = async function(){ const r = await fetch('/api/mcp/status'); const js = await r.json(); const data = (js && (js.data||js)) || {}; const tools = Array.isArray(data.tools)?data.tools:[]; return Object.assign({ initialized: !!data, tools }, data); };\n" \
-                   "    }\n" \
-                   "    function ensureNS(ns, obj){ g.MCP[ns] = g.MCP[ns] || {}; var t=g.MCP[ns]; for (var k in obj){ if (!(k in t)) t[k]=obj[k]; } }\n" \
-                   "    ensureNS('Services', { list:()=>rpcCall('list_services',{}), control:(s,a,p)=>rpcCall('service_control',{service:s, action:a, params:p}), status:(s)=>rpcCall('service_status',{service:s}) });\n" \
-                   "    ensureNS('Backends', { list:()=>rpcCall('list_backends',{}), get:(n)=>rpcCall('get_backend',{name:n}), create:(n,c)=>rpcCall('create_backend',{name:n, config:c}), update:(n,c)=>rpcCall('update_backend',{name:n, config:c}), delete:(n)=>rpcCall('delete_backend',{name:n}), test:(n)=>rpcCall('test_backend',{name:n}), listInstances:()=>rpcCall('list_backend_instances',{}), createInstance:(type,name,desc)=>rpcCall('create_backend_instance',{service_type:type, instance_name:name, description:desc}), configureInstance:(name,type,config)=>rpcCall('configure_backend_instance',{instance_name:name, service_type:type, config:config}), getPerformanceMetrics:(name,range,history)=>rpcCall('get_backend_performance_metrics',{backend_name:name, time_range:range, include_history:history}), getTemplate:(type,template)=>rpcCall('get_backend_configuration_template',{backend_type:type, template_type:template}), clone:(source,newName,modifyConfig)=>rpcCall('clone_backend_configuration',{source_backend:source, new_backend_name:newName, modify_config:modifyConfig}), backup:(name,backupName,includeData)=>rpcCall('backup_backend_configuration',{backend_name:name, backup_name:backupName, include_data:includeData}), restore:(name,backupId,force)=>rpcCall('restore_backend_configuration',{backend_name:name, backup_id:backupId, force_restore:force}) });\n" \
-                   "    ensureNS('Buckets', { list:()=>rpcCall('list_buckets',{}), get:(n)=>rpcCall('get_bucket',{name:n}), create:(n,b)=>rpcCall('create_bucket',{name:n, backend:b}), update:(n,p)=>rpcCall('update_bucket',{name:n, patch:p}), delete:(n)=>rpcCall('delete_bucket',{name:n}), getPolicy:(n)=>rpcCall('get_bucket_policy',{name:n}), updatePolicy:(n,pol)=>rpcCall('update_bucket_policy',{name:n, policy:pol}), listFiles:(bucket,path,meta)=>rpcCall('bucket_list_files',{bucket,path:(path||'.'),show_metadata:!!meta}), uploadFile:(bucket,path,content,mode,policy)=>rpcCall('bucket_upload_file',{bucket,path,content,mode:(mode||'text'),apply_policy:!!policy}), downloadFile:(bucket,path,format)=>rpcCall('bucket_download_file',{bucket,path,format:(format||'text')}), deleteFile:(bucket,path,replicas)=>rpcCall('bucket_delete_file',{bucket,path,remove_replicas:!!replicas}), renameFile:(bucket,src,dst,replicas)=>rpcCall('bucket_rename_file',{bucket,src,dst,update_replicas:!!replicas}), mkdir:(bucket,path,parents)=>rpcCall('bucket_mkdir',{bucket,path,create_parents:!!parents}), syncReplicas:(bucket,force)=>rpcCall('bucket_sync_replicas',{bucket,force_sync:!!force}), getMetadata:(bucket,path,replicas)=>rpcCall('bucket_get_metadata',{bucket,path,include_replicas:!!replicas}) });\n" \
-                   "    ensureNS('Pins', { list:()=>rpcCall('list_pins',{}), create:(cid,name)=>rpcCall('create_pin',{cid, name}), delete:(cid)=>rpcCall('delete_pin',{cid}), export:()=>rpcCall('pins_export',{}), import:(items)=>rpcCall('pins_import',{items}) });\n" \
-                   "    ensureNS('Files', { list:(p)=>rpcCall('files_list',{path:(p==null?'.':p)}), read:(p)=>rpcCall('files_read',{path:p}), write:(p,c,m)=>rpcCall('files_write',{path:p, content:c, mode:(m||'text')}), mkdir:(p)=>rpcCall('files_mkdir',{path:p}), rm:(p,rec)=>rpcCall('files_rm',{path:p, recursive:!!rec}), mv:(s,d)=>rpcCall('files_mv',{src:s, dst:d}), stat:(p)=>rpcCall('files_stat',{path:p}), copy:(s,d,rec)=>rpcCall('files_copy',{src:s, dst:d, recursive:!!rec}), touch:(p)=>rpcCall('files_touch',{path:p}), tree:(p,d)=>rpcCall('files_tree',{path:(p==null?'.':p), depth:(d==null?2:d)}) });\n" \
-                   "    ensureNS('IPFS', { version:()=>rpcCall('ipfs_version',{}), add:(p)=>rpcCall('ipfs_add',{path:p}), pin:(cid,name)=>rpcCall('ipfs_pin',{cid, name}), cat:(cid)=>rpcCall('ipfs_cat',{cid}), ls:(cid)=>rpcCall('ipfs_ls',{cid}) });\n" \
-                   "    ensureNS('CARs', { list:()=>rpcCall('cars_list',{}), export:(p,car)=>rpcCall('car_export',{path:p, car}), import:(car,dest)=>rpcCall('car_import',{car, dest}) });\n" \
-                   "    ensureNS('State', { snapshot:()=>rpcCall('state_snapshot',{}), backup:()=>rpcCall('state_backup',{}), reset:()=>rpcCall('state_reset',{}) });\n" \
-                   "    ensureNS('Logs', { get:(limit)=>rpcCall('get_logs',{limit: (limit==null?200:limit)}), clear:()=>rpcCall('clear_logs',{}) });\n" \
-                   "    ensureNS('Server', { shutdown:()=>rpcCall('server_shutdown',{}) });\n" \
-                   "    ensureNS('Peers', { list:()=>rpcCall('list_peers',{}), stats:()=>rpcCall('get_peer_stats',{}), connect:(peer)=>rpcCall('connect_peer',peer||{}), disconnect:(peer_id)=>rpcCall('disconnect_peer',{peer_id}), info:(peer_id)=>rpcCall('get_peer_info',{peer_id}), discover:(limit,timeout)=>rpcCall('discover_peers',{limit, timeout}), bootstrap:(action,peer_address)=>rpcCall('bootstrap_peers',{action, peer_address}) });\n" \
-                   "  } catch(e) { /* ignore shim errors */ }\n" \
-                   "})();\n"
+            shim = (
+                "\n;(function(){\n"
+                "  try {\n"
+                "    var g = (typeof window !== 'undefined' ? window : globalThis);\n"
+                "    g.MCP = g.MCP || {};\n"
+                "    async function rpcList(){ const r = await fetch('/mcp/tools/list?full=1', {method:'POST', headers:{'x-api-token': (g.API_TOKEN||'')}}); return await r.json(); }\n"
+                "    async function rpcCall(name, args){ const r = await fetch('/mcp/tools/call', {method:'POST', headers:{'content-type':'application/json','x-api-token':(g.API_TOKEN||'')}, body: JSON.stringify({name, args})}); return await r.json(); }\n"
+                "    if (!g.MCP.listTools) g.MCP.listTools = rpcList;\n"
+                "    if (!g.MCP.callTool) g.MCP.callTool = (n,a)=>rpcCall(n, a||{});\n"
+                "    if (!g.MCP.status) {\n"
+                "      g.MCP.status = async function(){ const r = await fetch('/api/mcp/status'); const js = await r.json(); const data = (js && (js.data||js)) || {}; const tools = Array.isArray(data.tools)?data.tools:[]; return Object.assign({ initialized: !!data, tools }, data); };\n"
+                "    }\n"
+                "    function ensureNS(ns, obj){ g.MCP[ns] = g.MCP[ns] || {}; var t=g.MCP[ns]; for (var k in obj){ if (!(k in t)) t[k]=obj[k]; } }\n"
+                "    ensureNS('Services', { list:()=>rpcCall('list_services',{}), control:(s,a,p)=>rpcCall('service_control',{service:s, action:a, params:p}), status:(s)=>rpcCall('service_status',{service:s}) });\n"
+                "    ensureNS('Backends', { list:()=>rpcCall('list_backends',{}), get:(n)=>rpcCall('get_backend',{name:n}), create:(n,c)=>rpcCall('create_backend',{name:n, config:c}), update:(n,c)=>rpcCall('update_backend',{name:n, config:c}), delete:(n)=>rpcCall('delete_backend',{name:n}), test:(n)=>rpcCall('test_backend',{name:n}), listInstances:()=>rpcCall('list_backend_instances',{}), createInstance:(type,name,desc)=>rpcCall('create_backend_instance',{service_type:type, instance_name:name, description:desc}), configureInstance:(name,type,config)=>rpcCall('configure_backend_instance',{instance_name:name, service_type:type, config:config}), getPerformanceMetrics:(name,range,history)=>rpcCall('get_backend_performance_metrics',{backend_name:name, time_range:range, include_history:history}), getTemplate:(type,template)=>rpcCall('get_backend_configuration_template',{backend_type:type, template_type:template}), clone:(source,newName,modifyConfig)=>rpcCall('clone_backend_configuration',{source_backend:source, new_backend_name:newName, modify_config:modifyConfig}), backup:(name,backupName,includeData)=>rpcCall('backup_backend_configuration',{backend_name:name, backup_name:backupName, include_data:includeData}), restore:(name,backupId,force)=>rpcCall('restore_backend_configuration',{backend_name:name, backup_id:backupId, force_restore:force}) });\n"
+                "    ensureNS('Buckets', { list:()=>rpcCall('list_buckets',{}), get:(n)=>rpcCall('get_bucket',{name:n}), create:(n,b)=>rpcCall('create_bucket',{name:n, backend:b}), update:(n,p)=>rpcCall('update_bucket',{name:n, patch:p}), delete:(n)=>rpcCall('delete_bucket',{name:n}), getPolicy:(n)=>rpcCall('get_bucket_policy',{name:n}), updatePolicy:(n,pol)=>rpcCall('update_bucket_policy',{name:n, policy:pol}), listFiles:(bucket,path,meta)=>rpcCall('bucket_list_files',{bucket,path:(path||'.'),show_metadata:!!meta}), uploadFile:(bucket,path,content,mode,policy)=>rpcCall('bucket_upload_file',{bucket,path,content,mode:(mode||'text'),apply_policy:!!policy}), downloadFile:(bucket,path,format)=>rpcCall('bucket_download_file',{bucket,path,format:(format||'text')}), deleteFile:(bucket,path,replicas)=>rpcCall('bucket_delete_file',{bucket,path,remove_replicas:!!replicas}), renameFile:(bucket,src,dst,replicas)=>rpcCall('bucket_rename_file',{bucket,src,dst,update_replicas:!!replicas}), mkdir:(bucket,path,parents)=>rpcCall('bucket_mkdir',{bucket,path,create_parents:!!parents}), syncReplicas:(bucket,force)=>rpcCall('bucket_sync_replicas',{bucket,force_sync:!!force}), getMetadata:(bucket,path,replicas)=>rpcCall('bucket_get_metadata',{bucket,path,include_replicas:!!replicas}) });\n"
+                "    ensureNS('Pins', { list:()=>rpcCall('list_pins',{}), create:(cid,name)=>rpcCall('create_pin',{cid, name}), delete:(cid)=>rpcCall('delete_pin',{cid}), export:()=>rpcCall('pins_export',{}), import:(items)=>rpcCall('pins_import',{items}) });\n"
+                "    ensureNS('Files', { list:(p)=>rpcCall('files_list',{path:(p==null?'.':p)}), read:(p)=>rpcCall('files_read',{path:p}), write:(p,c,m)=>rpcCall('files_write',{path:p, content:c, mode:(m||'text')}), mkdir:(p)=>rpcCall('files_mkdir',{path:p}), rm:(p,rec)=>rpcCall('files_rm',{path:p, recursive:!!rec}), mv:(s,d)=>rpcCall('files_mv',{src:s, dst:d}), stat:(p)=>rpcCall('files_stat',{path:p}), copy:(s,d,rec)=>rpcCall('files_copy',{src:s, dst:d, recursive:!!rec}), touch:(p)=>rpcCall('files_touch',{path:p}), tree:(p,d)=>rpcCall('files_tree',{path:(p==null?'.':p), depth:(d==null?2:d)}) });\n"
+                "    ensureNS('IPFS', { version:()=>rpcCall('ipfs_version',{}), add:(p)=>rpcCall('ipfs_add',{path:p}), pin:(cid,name)=>rpcCall('ipfs_pin',{cid, name}), cat:(cid)=>rpcCall('ipfs_cat',{cid}), ls:(cid)=>rpcCall('ipfs_ls',{cid}) });\n"
+                "    ensureNS('CARs', { list:()=>rpcCall('cars_list',{}), export:(p,car)=>rpcCall('car_export',{path:p, car}), import:(car,dest)=>rpcCall('car_import',{car, dest}) });\n"
+                "    ensureNS('State', { snapshot:()=>rpcCall('state_snapshot',{}), backup:()=>rpcCall('state_backup',{}), reset:()=>rpcCall('state_reset',{}) });\n"
+                "    ensureNS('Logs', { get:(limit)=>rpcCall('get_logs',{limit: (limit==null?200:limit)}), clear:()=>rpcCall('clear_logs',{}) });\n"
+                "    ensureNS('Server', { shutdown:()=>rpcCall('server_shutdown',{}) });\n"
+                "    ensureNS('Peers', { list:()=>rpcCall('list_peers',{}), stats:()=>rpcCall('get_peer_stats',{}), connect:(peer)=>rpcCall('connect_peer',peer||{}), disconnect:(peer_id)=>rpcCall('disconnect_peer',{peer_id}), info:(peer_id)=>rpcCall('get_peer_info',{peer_id}), discover:(limit,timeout)=>rpcCall('discover_peers',{limit, timeout}), bootstrap:(action,peer_address)=>rpcCall('bootstrap_peers',{action, peer_address}) });\n"
+                "  } catch(e) { /* ignore shim errors */ }\n"
+                "})();\n"
+            )
             source = "inline"
             body = None
             if static_path and static_path.exists():
@@ -1195,7 +1244,11 @@ class ConsolidatedMCPDashboard:
             if body is None:
                 body = self._mcp_client_js()
                 source = "inline"
-            return Response(body, media_type="application/javascript; charset=utf-8", headers={"Cache-Control": "no-store", "X-MCP-SDK-Source": source})
+            return Response(
+                body,
+                media_type="application/javascript; charset=utf-8",
+                headers={"Cache-Control": "no-store", "X-MCP-SDK-Source": source},
+            )
 
         # Add route for /static/mcp-sdk.js to fix dashboard loading
         @app.get("/static/mcp-sdk.js", response_class=PlainTextResponse)
@@ -1216,7 +1269,7 @@ class ConsolidatedMCPDashboard:
                     base_dir / "mcp" / "dashboard" / "static" / file_path,
                     base_dir.parent / "static" / file_path,
                 ]
-                
+
                 for static_path in static_locations:
                     if static_path.exists() and static_path.is_file():
                         self.log.debug(f"Serving static file from: {static_path}")
@@ -1224,16 +1277,16 @@ class ConsolidatedMCPDashboard:
                         content_type, _ = mimetypes.guess_type(str(static_path))
                         if not content_type:
                             content_type = "application/octet-stream"
-                        
+
                         return FileResponse(
                             path=str(static_path),
                             media_type=content_type,
-                            headers={"Cache-Control": "no-store"}
+                            headers={"Cache-Control": "no-store"},
                         )
-                
+
                 # If file not found, return 404
                 raise HTTPException(status_code=404, detail=f"Static file not found: {file_path}")
-                
+
             except Exception as e:
                 raise HTTPException(status_code=500, detail=f"Error serving static file: {str(e)}")
 
@@ -1243,10 +1296,19 @@ class ConsolidatedMCPDashboard:
             try:
                 backend = request.query_params.get("backend")
                 time_range = request.query_params.get("range", "1h")
-                include_history = request.query_params.get("history", "true").lower() in ("1","true","yes","y")
+                include_history = request.query_params.get("history", "true").lower() in (
+                    "1",
+                    "true",
+                    "yes",
+                    "y",
+                )
                 res = self._handle_backends(
                     name="get_backend_performance_metrics",
-                    args={"backend_name": backend, "time_range": time_range, "include_history": include_history},
+                    args={
+                        "backend_name": backend,
+                        "time_range": time_range,
+                        "include_history": include_history,
+                    },
                 )
                 if res is None:
                     raise HTTPException(404, "metrics handler unavailable")
@@ -1278,7 +1340,9 @@ class ConsolidatedMCPDashboard:
         async def api_config_write(filename: str, request: Request) -> JSONResponse:
             body = await request.json()
             content = body.get("content", "")
-            res = self._handle_config("write_config_file", {"filename": filename, "content": content})
+            res = self._handle_config(
+                "write_config_file", {"filename": filename, "content": content}
+            )
             if res is None:
                 raise HTTPException(404, "config write unavailable")
             if "error" in res:
@@ -1303,6 +1367,7 @@ class ConsolidatedMCPDashboard:
         @app.get("/favicon.ico")
         async def favicon() -> Response:  # type: ignore
             return Response(status_code=204, headers={"Cache-Control": "public, max-age=3600"})
+
         @app.head("/favicon.ico")
         async def favicon_head() -> Response:  # type: ignore
             return Response(status_code=204, headers={"Cache-Control": "public, max-age=3600"})
@@ -1311,6 +1376,7 @@ class ConsolidatedMCPDashboard:
         @app.get("/healthz")
         async def healthz() -> Response:  # type: ignore
             return PlainTextResponse("ok", headers={"Cache-Control": "no-store"})
+
         @app.head("/healthz")
         async def healthz_head() -> Response:  # type: ignore
             return Response(status_code=200, headers={"Cache-Control": "no-store"})
@@ -1341,17 +1407,19 @@ class ConsolidatedMCPDashboard:
                     migration = {
                         "health": "/api/system/health",
                         "status": "/api/mcp/status",
-                        "metrics": "/api/metrics/system"
+                        "metrics": "/api/metrics/system",
                     }
-                items.append({
-                    "endpoint": ep,
-                    "remove_in": remove_in,
-                    "migration": migration,
-                    "hits": self.endpoint_hits.get(ep, 0),
-                })
+                items.append(
+                    {
+                        "endpoint": ep,
+                        "remove_in": remove_in,
+                        "migration": migration,
+                        "hits": self.endpoint_hits.get(ep, 0),
+                    }
+                )
             return {"deprecated": items}
 
-    # (Removed duplicate legacy overview endpoint definition above after enhancement)
+        # (Removed duplicate legacy overview endpoint definition above after enhancement)
 
         # System metrics
         @app.get("/api/metrics/system")
@@ -1365,7 +1433,11 @@ class ConsolidatedMCPDashboard:
                     out["memory"] = {"used": vm.used, "total": vm.total, "percent": vm.percent}
             with suppress(Exception):
                 du = shutil.disk_usage(str(self.paths.data_dir))
-                out["disk"] = {"used": du.used, "total": du.total, "percent": round(du.used/du.total*100,2) if du.total else None}
+                out["disk"] = {
+                    "used": du.used,
+                    "total": du.total,
+                    "percent": round(du.used / du.total * 100, 2) if du.total else None,
+                }
             with suppress(Exception):
                 out["uptime_sec"] = time.time() - self._start_time
             return out
@@ -1374,26 +1446,26 @@ class ConsolidatedMCPDashboard:
         async def metrics_system_history(request: Request) -> Dict[str, Any]:
             seconds_param: Optional[float] = None
             with suppress(Exception):
-                raw = request.query_params.get('seconds')
+                raw = request.query_params.get("seconds")
                 if raw:
                     seconds_param = float(raw)
             pts = list(self._sys_history)
             if seconds_param is not None:
                 cutoff = time.time() - seconds_param
-                pts = [p for p in pts if p.get('ts', 0) >= cutoff]
+                pts = [p for p in pts if p.get("ts", 0) >= cutoff]
             return {"interval": 1.0, "points": pts}
 
         @app.get("/api/metrics/network")
         async def metrics_network(request: Request) -> Dict[str, Any]:
             seconds_param: Optional[float] = None
             with suppress(Exception):
-                raw = request.query_params.get('seconds')
+                raw = request.query_params.get("seconds")
                 if raw:
                     seconds_param = float(raw)
             pts = list(self._net_history)
             if seconds_param is not None:
                 cutoff = time.time() - seconds_param
-                pts = [p for p in pts if p.get('ts', 0) >= cutoff]
+                pts = [p for p in pts if p.get("ts", 0) >= cutoff]
             return {"interval": 1.0, "points": pts}
 
         @app.get("/api/analytics/summary")
@@ -1404,7 +1476,7 @@ class ConsolidatedMCPDashboard:
                 system_metrics = {}
                 with suppress(Exception):
                     system_metrics = await metrics_system()
-                
+
                 # Get service counts with error handling
                 services_count = 0
                 active_services = 0
@@ -1413,131 +1485,161 @@ class ConsolidatedMCPDashboard:
                     if service_manager:
                         services = await self._list_all_services(service_manager)
                         services_count = len(services)
-                        active_services = len([s for s in services if isinstance(s, dict) and s.get("status") in ("running", "healthy")])
-                
+                        active_services = len(
+                            [
+                                s
+                                for s in services
+                                if isinstance(s, dict) and s.get("status") in ("running", "healthy")
+                            ]
+                        )
+
                 # Get backend and bucket counts with error handling
                 backends_count = 0
                 with suppress(Exception):
                     backends = _read_json(self.paths.backends_file, {})
-                    backends_count = len(backends.get("backends", []) if isinstance(backends, dict) else backends) if backends else 0
-                
+                    backends_count = (
+                        len(
+                            backends.get("backends", []) if isinstance(backends, dict) else backends
+                        )
+                        if backends
+                        else 0
+                    )
+
                 buckets_count = 0
                 with suppress(Exception):
                     buckets = _read_json(self.paths.buckets_file, [])
-                    buckets_count = len(buckets) if isinstance(buckets, list) else len(buckets.get("items", [])) if isinstance(buckets, dict) else 0
-                
+                    buckets_count = (
+                        len(buckets)
+                        if isinstance(buckets, list)
+                        else len(buckets.get("items", []))
+                        if isinstance(buckets, dict)
+                        else 0
+                    )
+
                 pins_count = 0
                 with suppress(Exception):
                     pins = _read_json(self.paths.pins_file, [])
                     pins_count = len(pins) if isinstance(pins, list) else 0
-                
+
                 # Calculate request metrics with error handling
-                total_requests = getattr(self, 'request_count', 0)
+                total_requests = getattr(self, "request_count", 0)
                 popular_endpoints = []
                 with suppress(Exception):
-                    endpoint_hits = getattr(self, 'endpoint_hits', {})
-                    popular_endpoints = sorted(endpoint_hits.items(), key=lambda x: x[1], reverse=True)[:10]
-                
+                    endpoint_hits = getattr(self, "endpoint_hits", {})
+                    popular_endpoints = sorted(
+                        endpoint_hits.items(), key=lambda x: x[1], reverse=True
+                    )[:10]
+
                 # Build response with safe defaults
                 response_data = {
                     "system": {
                         "cpu_percent": system_metrics.get("cpu_percent", 0.0),
                         "memory_percent": system_metrics.get("memory", {}).get("percent", 0.0),
                         "disk_percent": system_metrics.get("disk", {}).get("percent", 0.0),
-                        "uptime_hours": system_metrics.get("uptime_sec", 0) / 3600.0
+                        "uptime_hours": system_metrics.get("uptime_sec", 0) / 3600.0,
                     },
                     "services": {
                         "total": services_count,
                         "active": active_services,
-                        "inactive": max(0, services_count - active_services)
+                        "inactive": max(0, services_count - active_services),
                     },
                     "storage": {
                         "backends": backends_count,
                         "buckets": buckets_count,
-                        "pins": pins_count
+                        "pins": pins_count,
                     },
-                    "requests": {
-                        "total": total_requests,
-                        "popular_endpoints": popular_endpoints
-                    },
+                    "requests": {"total": total_requests, "popular_endpoints": popular_endpoints},
                     "logs": {
-                        "total": len(self.memlog.get(limit=0)) if hasattr(self, 'memlog') else 0,
-                        "recent": len(self.memlog.get(limit=100)) if hasattr(self, 'memlog') else 0
-                    }
+                        "total": len(self.memlog.get(limit=0)) if hasattr(self, "memlog") else 0,
+                        "recent": len(self.memlog.get(limit=100)) if hasattr(self, "memlog") else 0,
+                    },
                 }
-                
+
                 return response_data
-                
+
             except Exception as e:
                 self.log.error(f"Error in analytics summary: {e}")
                 # Return safe default structure to prevent frontend errors
                 return {
-                    "system": {"cpu_percent": 0.0, "memory_percent": 0.0, "disk_percent": 0.0, "uptime_hours": 0.0},
+                    "system": {
+                        "cpu_percent": 0.0,
+                        "memory_percent": 0.0,
+                        "disk_percent": 0.0,
+                        "uptime_hours": 0.0,
+                    },
                     "services": {"total": 0, "active": 0, "inactive": 0},
                     "storage": {"backends": 0, "buckets": 0, "pins": 0},
                     "requests": {"total": 0, "popular_endpoints": []},
-                    "logs": {"total": 0, "recent": 0}
+                    "logs": {"total": 0, "recent": 0},
                 }
 
         @app.get("/api/config/files")
         async def config_files() -> Dict[str, Any]:
             """Get configuration files information."""
             config_files = []
-            
+
             # Check main config files
             config_paths = [
                 ("backends.json", self.paths.backends_file),
-                ("buckets.json", self.paths.buckets_file), 
-                ("pins.json", self.paths.pins_file)
+                ("buckets.json", self.paths.buckets_file),
+                ("pins.json", self.paths.pins_file),
             ]
-            
+
             for name, path in config_paths:
                 try:
                     if path.exists():
                         stat_info = path.stat()
-                        with path.open('r') as f:
+                        with path.open("r") as f:
                             content = json.load(f)
-                        
-                        config_files.append({
-                            "name": name,
-                            "path": str(path),
-                            "size": stat_info.st_size,
-                            "modified": datetime.fromtimestamp(stat_info.st_mtime, UTC).isoformat(),
-                            "entries": len(content) if isinstance(content, (list, dict)) else 0,
-                            "readable": True
-                        })
+
+                        config_files.append(
+                            {
+                                "name": name,
+                                "path": str(path),
+                                "size": stat_info.st_size,
+                                "modified": datetime.fromtimestamp(
+                                    stat_info.st_mtime, UTC
+                                ).isoformat(),
+                                "entries": len(content) if isinstance(content, (list, dict)) else 0,
+                                "readable": True,
+                            }
+                        )
                     else:
-                        config_files.append({
+                        config_files.append(
+                            {
+                                "name": name,
+                                "path": str(path),
+                                "size": 0,
+                                "modified": None,
+                                "entries": 0,
+                                "readable": False,
+                                "status": "missing",
+                            }
+                        )
+                except Exception as e:
+                    config_files.append(
+                        {
                             "name": name,
                             "path": str(path),
                             "size": 0,
                             "modified": None,
                             "entries": 0,
                             "readable": False,
-                            "status": "missing"
-                        })
-                except Exception as e:
-                    config_files.append({
-                        "name": name,
-                        "path": str(path),
-                        "size": 0,
-                        "modified": None,
-                        "entries": 0,
-                        "readable": False,
-                        "error": str(e)
-                    })
-            
+                            "error": str(e),
+                        }
+                    )
+
             return {
                 "files": config_files,
                 "data_dir": str(self.paths.data_dir),
-                "total_files": len(config_files)
+                "total_files": len(config_files),
             }
 
         @app.get("/api/mcp/status")
         async def mcp_status() -> Dict[str, Any]:
             tools_defs = self._tools_list()["result"]["tools"]
             tool_names = [t["name"] for t in tools_defs]
-            
+
             # Use enhanced backend manager if available
             backend_count = 0
             bm = getattr(self, "backend_manager", None)
@@ -1553,10 +1655,10 @@ class ConsolidatedMCPDashboard:
             else:
                 backends = _read_json(self.paths.backends_file, default={})
                 backend_count = len(backends.keys()) if isinstance(backends, dict) else 0
-            
+
             buckets = _read_json(self.paths.buckets_file, default=[])
             pins = _read_json(self.paths.pins_file, default=[])
-            
+
             # Get comprehensive service count
             services_active = 0
             try:
@@ -1620,31 +1722,30 @@ class ConsolidatedMCPDashboard:
                             yield f"data: {data}\n\n"
                         last = len(logs)
                     await anyio.sleep(0.5)
+
             return StreamingResponse(event_gen(), media_type="text/event-stream")
 
         # Logs API endpoint for dashboard
         @app.get("/api/logs")
-        async def api_logs(component: str = "all", level: str = "all", limit: int = 100) -> Dict[str, Any]:
+        async def api_logs(
+            component: str = "all", level: str = "all", limit: int = 100
+        ) -> Dict[str, Any]:
             """Get logs with filtering options."""
             logs = self.memlog.get(limit=limit)
-            
+
             # Filter by component if specified
             if component != "all":
                 logs = [log for log in logs if component.lower() in log.get("logger", "").lower()]
-            
+
             # Filter by level if specified
             if level != "all":
                 level_filter = level.upper()
                 logs = [log for log in logs if log.get("level", "").upper() == level_filter]
-            
+
             return {
                 "logs": logs,
                 "total": len(logs),
-                "filters": {
-                    "component": component,
-                    "level": level,
-                    "limit": limit
-                }
+                "filters": {"component": component, "level": level, "limit": limit},
             }
 
         # WebSocket realtime
@@ -1659,17 +1760,30 @@ class ConsolidatedMCPDashboard:
                 for ep, remove_in in self.DEPRECATED_ENDPOINTS.items():
                     migration = None
                     if ep == "/api/system/overview":
-                        migration = {"health": "/api/system/health", "status": "/api/mcp/status", "metrics": "/api/metrics/system"}
-                    deps.append({"endpoint": ep, "remove_in": remove_in, "migration": migration, "hits": self.endpoint_hits.get(ep, 0)})
-                await ws.send_json({"type": "system_update", "data": status_payload, "deprecations": deps})
+                        migration = {
+                            "health": "/api/system/health",
+                            "status": "/api/mcp/status",
+                            "metrics": "/api/metrics/system",
+                        }
+                    deps.append(
+                        {
+                            "endpoint": ep,
+                            "remove_in": remove_in,
+                            "migration": migration,
+                            "hits": self.endpoint_hits.get(ep, 0),
+                        }
+                    )
+                await ws.send_json(
+                    {"type": "system_update", "data": status_payload, "deprecations": deps}
+                )
                 with suppress(Exception):
                     snap = self._gather_metrics_snapshot()
-                    snap['type'] = 'metrics'
-                    for k in ('cpu','mem','disk','rx_bps','tx_bps'):
+                    snap["type"] = "metrics"
+                    for k in ("cpu", "mem", "disk", "rx_bps", "tx_bps"):
                         v = snap.get(k)
-                        if isinstance(v,(int,float)):
-                            snap[f'avg_{k if k not in ("rx_bps","tx_bps") else k}'] = v
-                    for name in ('avg_cpu','avg_mem','avg_disk','avg_rx_bps','avg_tx_bps'):
+                        if isinstance(v, (int, float)):
+                            snap[f"avg_{k if k not in ('rx_bps', 'tx_bps') else k}"] = v
+                    for name in ("avg_cpu", "avg_mem", "avg_disk", "avg_rx_bps", "avg_tx_bps"):
                         snap.setdefault(name, None)
                     await ws.send_json(snap)
                 await anyio.sleep(0)
@@ -1687,6 +1801,7 @@ class ConsolidatedMCPDashboard:
         # Initialize enhanced backend manager
         try:
             from ipfs_kit_py.enhanced_backend_manager import EnhancedBackendManager
+
             self.backend_manager = EnhancedBackendManager(str(self.paths.data_dir))
             self.log.info("✓ Enhanced backend manager initialized")
         except ImportError:
@@ -1710,15 +1825,17 @@ class ConsolidatedMCPDashboard:
             return await list_backends()
 
         @app.post("/api/state/backends")
-        async def create_backend(payload: Dict[str, Any], _auth=Depends(_auth_dep)) -> Dict[str, Any]:
+        async def create_backend(
+            payload: Dict[str, Any], _auth=Depends(_auth_dep)
+        ) -> Dict[str, Any]:
             name = payload.get("name")
             backend_type = payload.get("type", "local")
             config = payload.get("config", {})
             tier = payload.get("tier", "standard")
-            
+
             if not name:
                 raise HTTPException(400, "Missing backend name")
-                
+
             if bm := getattr(self, "backend_manager", None):
                 # Use enhanced manager
                 try:
@@ -1728,23 +1845,25 @@ class ConsolidatedMCPDashboard:
                         "description": f"{backend_type.title()} storage backend",
                         "config": config,
                         "status": "enabled",
-                        "tier": tier
+                        "tier": tier,
                     }
 
                     config_path = bm._get_backend_config_path(name)  # type: ignore[attr-defined]
                     if config_path.exists():
                         raise HTTPException(409, "Backend already exists")
 
-                    with open(config_path, 'w') as f:
+                    with open(config_path, "w") as f:
                         yaml.safe_dump(backend_config, f)  # type: ignore[attr-defined]
 
                     # Create default policy (use enhanced manager instance consistently)
                     policy_set = bm._generate_policy_for_backend(name, backend_type, tier)  # type: ignore[attr-defined]
                     policy_path = bm._get_policy_config_path(name)  # type: ignore[attr-defined]
-                    policy_payload: Any = policy_set.model_dump() if hasattr(policy_set, "model_dump") else (
-                        policy_set.dict() if hasattr(policy_set, "dict") else policy_set
+                    policy_payload: Any = (
+                        policy_set.model_dump()
+                        if hasattr(policy_set, "model_dump")
+                        else (policy_set.dict() if hasattr(policy_set, "dict") else policy_set)
                     )
-                    with open(policy_path, 'w') as f:
+                    with open(policy_path, "w") as f:
                         json.dump(policy_payload, f, indent=2)
 
                     return {"ok": True, "name": name, "type": backend_type, "tier": tier}
@@ -1765,11 +1884,11 @@ class ConsolidatedMCPDashboard:
                 backend = bm.get_backend_with_policies(name)  # type: ignore[attr-defined]
                 if not backend:
                     raise HTTPException(404, "Backend not found")
-                
+
                 # Add current stats
                 stats = bm.get_backend_stats(name)  # type: ignore[attr-defined]
                 backend["stats"] = stats
-                
+
                 return backend
             else:
                 # Fallback to original implementation
@@ -1779,20 +1898,24 @@ class ConsolidatedMCPDashboard:
                 return {"name": name, "config": data[name]}
 
         @app.post("/api/state/backends/{name}")
-        async def update_backend(name: str, payload: Dict[str, Any], _auth=Depends(_auth_dep)) -> Dict[str, Any]:
+        async def update_backend(
+            name: str, payload: Dict[str, Any], _auth=Depends(_auth_dep)
+        ) -> Dict[str, Any]:
             if bm := getattr(self, "backend_manager", None):
                 backend = bm.get_backend_with_policies(name)  # type: ignore[attr-defined]
                 if not backend:
                     raise HTTPException(404, "Backend not found")
-                    
+
                 # Update backend config
                 config_path = bm._get_backend_config_path(name)  # type: ignore[attr-defined]
-                with open(config_path, 'r') as f:
+                with open(config_path, "r") as f:
                     current_config = yaml.safe_load(f)  # type: ignore[attr-defined]
-                    
+
                 # Apply updates
                 if "config" in payload:
-                    if "config" not in current_config or not isinstance(current_config.get("config"), dict):
+                    if "config" not in current_config or not isinstance(
+                        current_config.get("config"), dict
+                    ):
                         current_config["config"] = {}
                     current_config["config"].update(payload["config"])
                 if "tier" in payload:
@@ -1801,14 +1924,14 @@ class ConsolidatedMCPDashboard:
                     current_config["status"] = payload["status"]
                 if "description" in payload:
                     current_config["description"] = payload["description"]
-                    
-                with open(config_path, 'w') as f:
+
+                with open(config_path, "w") as f:
                     yaml.safe_dump(current_config, f)  # type: ignore[attr-defined]
-                    
+
                 # Update policies if provided
                 if "policy" in payload and bm is not None:
                     bm.update_backend_policy(name, payload["policy"])  # type: ignore[attr-defined]
-                    
+
                 return {"ok": True}
             else:
                 # Fallback to original implementation
@@ -1825,10 +1948,10 @@ class ConsolidatedMCPDashboard:
             if bm := getattr(self, "backend_manager", None):
                 config_path = bm._get_backend_config_path(name)  # type: ignore[attr-defined]
                 policy_path = bm._get_policy_config_path(name)  # type: ignore[attr-defined]
-                
+
                 if not config_path.exists():
                     raise HTTPException(404, "Backend not found")
-                    
+
                 try:
                     config_path.unlink()
                     if policy_path.exists():
@@ -1851,14 +1974,14 @@ class ConsolidatedMCPDashboard:
                 backend = bm.get_backend_with_policies(name)  # type: ignore[attr-defined]
                 if not backend:
                     raise HTTPException(404, "Backend not found")
-                    
+
                 backend_type = backend.get("type", "unknown")
                 stats = bm.get_backend_stats(name)  # type: ignore[attr-defined]
-                
+
                 # Simple reachability test based on backend type
                 reachable = True  # Default to true for demo
                 test_result = "ok"
-                
+
                 if backend_type == "ipfs":
                     # Test IPFS connectivity
                     ipfs_bin = _which("ipfs")
@@ -1868,19 +1991,19 @@ class ConsolidatedMCPDashboard:
                     # Could test S3 connectivity here
                     test_result = "s3 endpoint reachable"
                 elif backend_type == "local":
-                    # Test local path accessibility  
+                    # Test local path accessibility
                     path = backend.get("config", {}).get("path")
                     if path:
                         reachable = Path(path).exists()
                         test_result = "path accessible" if reachable else "path not found"
-                
+
                 return {
-                    "name": name, 
-                    "type": backend_type, 
-                    "reachable": reachable, 
+                    "name": name,
+                    "type": backend_type,
+                    "reachable": reachable,
                     "test_result": test_result,
                     "stats": stats,
-                    "availability": stats.get("availability", 1.0)
+                    "availability": stats.get("availability", 1.0),
                 }
             else:
                 # Fallback to original implementation
@@ -1890,7 +2013,7 @@ class ConsolidatedMCPDashboard:
                 ipfs_bin = _which("ipfs")
                 reachable = bool(ipfs_bin)
                 return {"name": name, "type": kind, "reachable": reachable, "ipfs_bin": ipfs_bin}
-                
+
         @app.get("/api/state/backends/{name}/stats")
         async def get_backend_stats(name: str) -> Dict[str, Any]:
             """Get detailed statistics for a specific backend."""
@@ -1902,7 +2025,7 @@ class ConsolidatedMCPDashboard:
                 return {"name": name, "stats": stats}
             else:
                 raise HTTPException(501, "Backend statistics not available")
-                
+
         @app.get("/api/state/backends/{name}/policy")
         async def get_backend_policy(name: str) -> Dict[str, Any]:
             """Get policy configuration for a specific backend."""
@@ -1910,19 +2033,21 @@ class ConsolidatedMCPDashboard:
                 backend = bm.get_backend_with_policies(name)  # type: ignore[attr-defined]
                 if not backend:
                     raise HTTPException(404, "Backend not found")
-                    
+
                 return {"name": name, "policy": backend.get("policy", {})}
             else:
                 raise HTTPException(501, "Backend policies not available")
-                
+
         @app.post("/api/state/backends/{name}/policy")
-        async def update_backend_policy(name: str, payload: Dict[str, Any], _auth=Depends(_auth_dep)) -> Dict[str, Any]:
+        async def update_backend_policy(
+            name: str, payload: Dict[str, Any], _auth=Depends(_auth_dep)
+        ) -> Dict[str, Any]:
             """Update policy configuration for a specific backend."""
             if bm := getattr(self, "backend_manager", None):
                 backend = bm.get_backend_with_policies(name)  # type: ignore[attr-defined]
                 if not backend:
                     raise HTTPException(404, "Backend not found")
-                    
+
                 policy_updates = payload.get("policy", {})
                 if bm.update_backend_policy(name, policy_updates):  # type: ignore[attr-defined]
                     return {"ok": True, "message": "Policy updated successfully"}
@@ -1954,16 +2079,16 @@ class ConsolidatedMCPDashboard:
                             "details": service.get("details", {}),
                             "config_keys": service.get("config_keys", []),
                             "config_hints": service.get("config_hints", {}),
-                            "requires_credentials": service.get("requires_credentials", False)
+                            "requires_credentials": service.get("requires_credentials", False),
                         }
-                        
+
                         # Add daemon-specific fields
                         if service["type"] == "daemon":
                             service_dict["gateway_port"] = service.get("gateway_port")
                             service_dict["swarm_port"] = service.get("swarm_port")
                             service_dict["config_dir"] = service.get("config_dir")
                             service_dict["auto_start"] = service.get("auto_start", False)
-                        
+
                         services[service["id"]] = service_dict
                     for service_id, override_status in self._service_status_overrides.items():
                         if service_id in services:
@@ -1972,35 +2097,46 @@ class ConsolidatedMCPDashboard:
                 else:
                     # Fallback to basic service detection if service manager fails
                     services = {}
-                    
+
                     # IPFS daemon detection
                     ipfs_detected = _which("ipfs") is not None
                     ipfs_api_open = _port_open("127.0.0.1", 5001)
                     services["ipfs"] = {
                         "name": "IPFS Daemon",
                         "type": "daemon",
-                        "status": "running" if (ipfs_detected and ipfs_api_open) else ("stopped" if ipfs_detected else "missing"),
+                        "status": "running"
+                        if (ipfs_detected and ipfs_api_open)
+                        else ("stopped" if ipfs_detected else "missing"),
                         "description": "InterPlanetary File System daemon",
                         "bin": _which("ipfs"),
                         "api_port_open": ipfs_api_open,
-                        "actions": ["start", "stop", "restart"] if ipfs_detected else []
+                        "actions": ["start", "stop", "restart"] if ipfs_detected else [],
                     }
-                    
+
                     # Check for other common daemons
                     daemon_checks = [
                         ("lotus", "Lotus Client", "Filecoin Lotus client", 1234),
                         ("aria2c", "Aria2 Daemon", "High-speed download daemon", 6800),
-                        ("ipfs-cluster-service", "IPFS Cluster", "IPFS Cluster coordination service", 9094)
+                        (
+                            "ipfs-cluster-service",
+                            "IPFS Cluster",
+                            "IPFS Cluster coordination service",
+                            9094,
+                        ),
                     ]
-                    
+
                     for binary_name, service_name, description, port in daemon_checks:
                         binary_path = _which(binary_name)
                         if binary_path:
-                            service_id = binary_name.replace('-', '_').replace('c', '') if binary_name == 'aria2c' else binary_name.replace('-', '_')
+                            service_id = (
+                                binary_name.replace("-", "_").replace("c", "")
+                                if binary_name == "aria2c"
+                                else binary_name.replace("-", "_")
+                            )
                             port_open = _port_open("127.0.0.1", port)
                             services[service_id] = {
                                 "name": service_name,
-                                "type": "daemon", 
+                                "type": "daemon",
                                 "status": "running" if port_open else "stopped",
                                 "description": description,
                                 "bin": binary_path,
@@ -2009,13 +2145,15 @@ class ConsolidatedMCPDashboard:
                     for service_id, override_status in self._service_status_overrides.items():
                         if service_id in services:
                             services[service_id]["status"] = override_status
-                    
+
                     return {"services": services}
             except Exception as e:
                 self.log.error(f"Error listing services: {e}")
                 return {"services": {}, "error": str(e)}
 
-        async def _handle_service_action(name: str, action: str, params: Dict[str, Any]) -> Dict[str, Any]:
+        async def _handle_service_action(
+            name: str, action: str, params: Dict[str, Any]
+        ) -> Dict[str, Any]:
             if action not in (
                 "start",
                 "stop",
@@ -2042,7 +2180,11 @@ class ConsolidatedMCPDashboard:
                             "message": f"Service {name} {action} completed successfully",
                         }
                     if action in ("start", "stop", "restart"):
-                        status = "starting" if action == "start" else ("stopped" if action == "stop" else "running")
+                        status = (
+                            "starting"
+                            if action == "start"
+                            else ("stopped" if action == "stop" else "running")
+                        )
                         self._service_status_overrides[name] = status
                         return {
                             "ok": True,
@@ -2139,7 +2281,7 @@ class ConsolidatedMCPDashboard:
             except Exception:
                 action = ""
                 params = {}
-                
+
             return await _handle_service_action(name, action, params)
 
         @app.post("/api/services/{name}/start")
@@ -2161,37 +2303,37 @@ class ConsolidatedMCPDashboard:
                 _auth_dep(request)
             except HTTPException:
                 raise
-            
+
             try:
                 data = await request.json()
                 config = data.get("config", {})
-                
+
                 # Transform config to backend-specific format
                 backend_config = self._transform_config_for_backend(name, config)
-                
+
                 # Save configuration in proper format for backend modules
                 config_dir = self.paths.data_dir / "backend_configs"
                 config_dir.mkdir(exist_ok=True)
-                
+
                 instance_name = config.get("instance_name", name)
                 config_file = config_dir / f"{instance_name}.json"
-                
+
                 # Save the backend-specific configuration
-                with open(config_file, 'w') as f:
+                with open(config_file, "w") as f:
                     json.dump(backend_config, f, indent=2)
-                
+
                 # Also save to ipfs_kit metadata format
                 metadata_dir = self.paths.data_dir / "metadata"
                 metadata_dir.mkdir(exist_ok=True)
                 metadata_file = metadata_dir / f"{instance_name}_meta.json"
-                
-                with open(metadata_file, 'w') as f:
+
+                with open(metadata_file, "w") as f:
                     json.dump({"config": backend_config, "service_type": name}, f, indent=2)
-                
+
                 # Update backends.json for UI
                 backends = _normalize_backends(_read_json(self.paths.backends_file, default=[]))
                 backend_found = False
-                
+
                 for i, backend in enumerate(backends):
                     if backend.get("name") == instance_name:
                         backends[i] = {
@@ -2201,41 +2343,39 @@ class ConsolidatedMCPDashboard:
                             "description": config.get("description", f"{name} instance"),
                             "config": backend_config,
                             "enabled": True,
-                            "last_updated": datetime.now(UTC).isoformat()
+                            "last_updated": datetime.now(UTC).isoformat(),
                         }
                         backend_found = True
                         break
-                
+
                 if not backend_found:
-                    backends.append({
-                        "name": instance_name,
-                        "type": name,
-                        "tier": "standard",
-                        "description": config.get("description", f"{name} instance"),
-                        "config": backend_config,
-                        "enabled": True,
-                        "created_at": datetime.now(UTC).isoformat(),
-                        "last_updated": datetime.now(UTC).isoformat()
-                    })
-                
+                    backends.append(
+                        {
+                            "name": instance_name,
+                            "type": name,
+                            "tier": "standard",
+                            "description": config.get("description", f"{name} instance"),
+                            "config": backend_config,
+                            "enabled": True,
+                            "created_at": datetime.now(UTC).isoformat(),
+                            "last_updated": datetime.now(UTC).isoformat(),
+                        }
+                    )
+
                 _atomic_write_json(self.paths.backends_file, backends)
-                
+
                 return {
                     "success": True,
                     "service": name,
                     "instance_name": instance_name,
                     "message": f"Service {instance_name} configured successfully",
                     "config_saved": True,
-                    "config_file": str(config_file)
+                    "config_file": str(config_file),
                 }
-                    
+
             except Exception as e:
                 self.log.error(f"Error configuring service {name}: {e}")
-                return {
-                    "success": False,
-                    "service": name,
-                    "error": str(e)
-                }
+                return {"success": False, "service": name, "error": str(e)}
 
         @app.post("/api/services/instances")
         async def create_service_instance(request: Request) -> Dict[str, Any]:
@@ -2244,97 +2384,99 @@ class ConsolidatedMCPDashboard:
                 _auth_dep(request)
             except HTTPException:
                 raise
-            
+
             try:
                 data = await request.json()
                 service_type = data.get("service_type")
                 instance_name = data.get("instance_name")
-                
+
                 if not service_type or not instance_name:
-                    return {
-                        "success": False,
-                        "error": "Missing service_type or instance_name"
-                    }
-                
+                    return {"success": False, "error": "Missing service_type or instance_name"}
+
                 # Check if instance already exists
                 config_dir = self.paths.data_dir / "service_configs"
                 config_file = config_dir / f"{instance_name}_config.json"
-                
+
                 if config_file.exists():
-                    return {
-                        "success": False,
-                        "error": f"Instance '{instance_name}' already exists"
-                    }
-                
+                    return {"success": False, "error": f"Instance '{instance_name}' already exists"}
+
                 # Create new instance configuration
                 new_config = {
                     "basic": {
                         "instance_name": instance_name,
                         "service_type": service_type,
                         "description": data.get("description", f"Instance of {service_type}"),
-                        "enabled": True
+                        "enabled": True,
                     },
                     "cache": {
                         "cache_policy": "none",
                         "cache_size_mb": 1024,
-                        "cache_ttl_seconds": 3600
+                        "cache_ttl_seconds": 3600,
                     },
                     "storage": {
                         "storage_quota_gb": 100.0,
                         "max_files": 10000,
-                        "max_file_size_mb": 500
+                        "max_file_size_mb": 500,
                     },
                     "retention": {
                         "retention_days": 365,
                         "auto_cleanup": False,
-                        "versioning": False
+                        "versioning": False,
                     },
-                    "replication": {
-                        "replication_factor": 3,
-                        "sync_strategy": "immediate"
-                    },
-                    "service_specific": {}
+                    "replication": {"replication_factor": 3, "sync_strategy": "immediate"},
+                    "service_specific": {},
                 }
-                
+
                 # Save configuration
                 config_dir.mkdir(exist_ok=True)
-                with open(config_file, 'w') as f:
+                with open(config_file, "w") as f:
                     json.dump(new_config, f, indent=2)
-                
+
                 # Add to backends if it's a storage service
-                if service_type in ["s3", "github", "ipfs_cluster", "huggingface", "gdrive", "ftp", "sshfs", "apache_arrow", "parquet"]:
+                if service_type in [
+                    "s3",
+                    "github",
+                    "ipfs_cluster",
+                    "huggingface",
+                    "gdrive",
+                    "ftp",
+                    "sshfs",
+                    "apache_arrow",
+                    "parquet",
+                ]:
                     backends = _normalize_backends(_read_json(self.paths.backends_file, default=[]))
-                    backends.append({
-                        "name": instance_name,
-                        "type": service_type,
-                        "tier": "standard",
-                        "description": new_config["basic"]["description"],
-                        "config": new_config,
-                        "policy": {
-                            "replication_factor": new_config["replication"]["replication_factor"],
-                            "cache_policy": new_config["cache"]["cache_policy"],
-                            "retention_days": new_config["retention"]["retention_days"]
-                        },
-                        "enabled": True,
-                        "created_at": datetime.now(UTC).isoformat(),
-                        "last_updated": datetime.now(UTC).isoformat()
-                    })
+                    backends.append(
+                        {
+                            "name": instance_name,
+                            "type": service_type,
+                            "tier": "standard",
+                            "description": new_config["basic"]["description"],
+                            "config": new_config,
+                            "policy": {
+                                "replication_factor": new_config["replication"][
+                                    "replication_factor"
+                                ],
+                                "cache_policy": new_config["cache"]["cache_policy"],
+                                "retention_days": new_config["retention"]["retention_days"],
+                            },
+                            "enabled": True,
+                            "created_at": datetime.now(UTC).isoformat(),
+                            "last_updated": datetime.now(UTC).isoformat(),
+                        }
+                    )
                     _atomic_write_json(self.paths.backends_file, backends)
-                
+
                 return {
                     "success": True,
                     "instance_name": instance_name,
                     "service_type": service_type,
                     "message": f"Service instance '{instance_name}' created successfully",
-                    "config": new_config
+                    "config": new_config,
                 }
-                
+
             except Exception as e:
                 self.log.error(f"Error creating service instance: {e}")
-                return {
-                    "success": False,
-                    "error": str(e)
-                }
+                return {"success": False, "error": str(e)}
 
         # Buckets
         @app.get("/api/state/buckets")
@@ -2349,7 +2491,9 @@ class ConsolidatedMCPDashboard:
             return await list_buckets()
 
         @app.post("/api/state/buckets")
-        async def create_bucket(payload: Dict[str, Any], _auth=Depends(_auth_dep)) -> Dict[str, Any]:
+        async def create_bucket(
+            payload: Dict[str, Any], _auth=Depends(_auth_dep)
+        ) -> Dict[str, Any]:
             name = payload.get("name")
             backend = payload.get("backend")
             if not name:
@@ -2357,7 +2501,12 @@ class ConsolidatedMCPDashboard:
             items = _normalize_buckets(_read_json(self.paths.buckets_file, default=[]))
             if any(b.get("name") == name for b in items):
                 raise HTTPException(409, "Bucket exists")
-            entry = {"name": name, "backend": backend, "created_at": datetime.now(UTC).isoformat(), "policy": {"replication_factor": 1, "cache_policy": "none", "retention_days": 0}}
+            entry = {
+                "name": name,
+                "backend": backend,
+                "created_at": datetime.now(UTC).isoformat(),
+                "policy": {"replication_factor": 1, "cache_policy": "none", "retention_days": 0},
+            }
             items.append(entry)
             _atomic_write_json(self.paths.buckets_file, items)
             if yaml is not None:
@@ -2376,12 +2525,26 @@ class ConsolidatedMCPDashboard:
             raise HTTPException(404, "Not found")
 
         @app.post("/api/state/buckets/{name}/policy")
-        async def update_bucket_policy(name: str, payload: Dict[str, Any], _auth=Depends(_auth_dep)) -> Dict[str, Any]:
+        async def update_bucket_policy(
+            name: str, payload: Dict[str, Any], _auth=Depends(_auth_dep)
+        ) -> Dict[str, Any]:
             # Accept either flat keys or nested { policy: { ... } }
             pol_in = payload.get("policy") if isinstance(payload.get("policy"), dict) else None
-            rf = payload.get("replication_factor") if payload.get("replication_factor") is not None else (pol_in or {}).get("replication_factor")
-            cp = payload.get("cache_policy") if payload.get("cache_policy") is not None else (pol_in or {}).get("cache_policy")
-            rd = payload.get("retention_days") if payload.get("retention_days") is not None else (pol_in or {}).get("retention_days")
+            rf = (
+                payload.get("replication_factor")
+                if payload.get("replication_factor") is not None
+                else (pol_in or {}).get("replication_factor")
+            )
+            cp = (
+                payload.get("cache_policy")
+                if payload.get("cache_policy") is not None
+                else (pol_in or {}).get("cache_policy")
+            )
+            rd = (
+                payload.get("retention_days")
+                if payload.get("retention_days") is not None
+                else (pol_in or {}).get("retention_days")
+            )
             if rf is not None:
                 try:
                     rf = int(rf)
@@ -2404,13 +2567,17 @@ class ConsolidatedMCPDashboard:
             for i, b in enumerate(items):
                 if b.get("name") == name:
                     pol = dict(b.get("policy") or {})
-                    if rf is not None: pol['replication_factor'] = rf
-                    if cp is not None: pol['cache_policy'] = cp
-                    if rd is not None: pol['retention_days'] = rd
-                    pol.setdefault('replication_factor', 1)
-                    pol.setdefault('cache_policy', 'none')
-                    pol.setdefault('retention_days', 0)
-                    nb = dict(b); nb['policy'] = pol
+                    if rf is not None:
+                        pol["replication_factor"] = rf
+                    if cp is not None:
+                        pol["cache_policy"] = cp
+                    if rd is not None:
+                        pol["retention_days"] = rd
+                    pol.setdefault("replication_factor", 1)
+                    pol.setdefault("cache_policy", "none")
+                    pol.setdefault("retention_days", 0)
+                    nb = dict(b)
+                    nb["policy"] = pol
                     items[i] = nb
                     updated = True
                     break
@@ -2429,7 +2596,7 @@ class ConsolidatedMCPDashboard:
             return {"ok": True}
 
         # ---- Enhanced Bucket File Management Endpoints ----
-        
+
         @app.get("/api/buckets/{bucket_name}")
         async def get_bucket_details(bucket_name: str) -> Dict[str, Any]:
             """Get bucket details with file list and advanced settings."""
@@ -2440,32 +2607,36 @@ class ConsolidatedMCPDashboard:
                 if b.get("name") == bucket_name:
                     bucket = b
                     break
-            
+
             if not bucket:
                 raise HTTPException(404, "Bucket not found")
-            
+
             # Get bucket directory
             bucket_path = self.paths.vfs_root / bucket_name
             bucket_path.mkdir(parents=True, exist_ok=True)
-            
+
             # List files in bucket
             files = []
             if bucket_path.exists():
                 for item in bucket_path.iterdir():
                     stat_info = item.stat()
-                    files.append({
-                        "name": item.name,
-                        "path": str(item.relative_to(bucket_path)),
-                        "size": stat_info.st_size,
-                        "type": "directory" if item.is_dir() else "file",
-                        "mime_type": mimetypes.guess_type(item.name)[0] if item.is_file() else None,
-                        "modified": datetime.fromtimestamp(stat_info.st_mtime, UTC).isoformat(),
-                        "created": datetime.fromtimestamp(stat_info.st_ctime, UTC).isoformat()
-                    })
-            
+                    files.append(
+                        {
+                            "name": item.name,
+                            "path": str(item.relative_to(bucket_path)),
+                            "size": stat_info.st_size,
+                            "type": "directory" if item.is_dir() else "file",
+                            "mime_type": mimetypes.guess_type(item.name)[0]
+                            if item.is_file()
+                            else None,
+                            "modified": datetime.fromtimestamp(stat_info.st_mtime, UTC).isoformat(),
+                            "created": datetime.fromtimestamp(stat_info.st_ctime, UTC).isoformat(),
+                        }
+                    )
+
             # Calculate storage usage
             total_size = sum(f["size"] for f in files if f["type"] == "file")
-            
+
             # Load bucket config with advanced settings
             bucket_config_path = self.paths.data_dir / "bucket_configs" / f"{bucket_name}.yaml"
             advanced_settings = {
@@ -2475,25 +2646,25 @@ class ConsolidatedMCPDashboard:
                 "storage_quota": None,
                 "max_files": None,
                 "cache_ttl": 3600,
-                "public_access": False
+                "public_access": False,
             }
-            
+
             if bucket_config_path.exists() and yaml:
                 try:
-                    with bucket_config_path.open('r') as f:
+                    with bucket_config_path.open("r") as f:
                         config = yaml.safe_load(f) or {}
                         settings = config.get("settings", {})
                         advanced_settings.update(settings)
                 except Exception:
                     pass
-            
+
             return {
                 "bucket": bucket,
                 "files": sorted(files, key=lambda x: (x["type"] != "directory", x["name"].lower())),
                 "file_count": len([f for f in files if f["type"] == "file"]),
                 "folder_count": len([f for f in files if f["type"] == "directory"]),
                 "total_size": total_size,
-                "settings": advanced_settings
+                "settings": advanced_settings,
             }
 
         @app.get("/api/buckets/{bucket_name}/files")
@@ -2503,61 +2674,65 @@ class ConsolidatedMCPDashboard:
             items = _normalize_buckets(_read_json(self.paths.buckets_file, default=[]))
             if not any(b.get("name") == bucket_name for b in items):
                 raise HTTPException(404, "Bucket not found")
-            
+
             bucket_path = self.paths.vfs_root / bucket_name
             if path:
-                bucket_path = bucket_path / path.lstrip('/')
-                
+                bucket_path = bucket_path / path.lstrip("/")
+
             if not bucket_path.exists():
                 return {"files": []}
-                
+
             files = []
             for item in bucket_path.iterdir():
                 stat_info = item.stat()
-                files.append({
-                    "name": item.name,
-                    "path": str(item.relative_to(self.paths.vfs_root / bucket_name)),
-                    "size": stat_info.st_size,
-                    "type": "directory" if item.is_dir() else "file",
-                    "mime_type": mimetypes.guess_type(item.name)[0] if item.is_file() else None,
-                    "modified": datetime.fromtimestamp(stat_info.st_mtime, UTC).isoformat()
-                })
-            
-            return {"items": sorted(files, key=lambda x: (x["type"] != "directory", x["name"].lower()))}
+                files.append(
+                    {
+                        "name": item.name,
+                        "path": str(item.relative_to(self.paths.vfs_root / bucket_name)),
+                        "size": stat_info.st_size,
+                        "type": "directory" if item.is_dir() else "file",
+                        "mime_type": mimetypes.guess_type(item.name)[0] if item.is_file() else None,
+                        "modified": datetime.fromtimestamp(stat_info.st_mtime, UTC).isoformat(),
+                    }
+                )
+
+            return {
+                "items": sorted(files, key=lambda x: (x["type"] != "directory", x["name"].lower()))
+            }
 
         @app.post("/api/buckets/{bucket_name}/upload")
         async def upload_file_to_bucket(
-            bucket_name: str, 
-            file: UploadFile = File(...),
-            path: str = Form("")
+            bucket_name: str, file: UploadFile = File(...), path: str = Form("")
         ) -> Dict[str, Any]:
             """Upload a file to a bucket."""
             # Verify bucket exists
             items = _normalize_buckets(_read_json(self.paths.buckets_file, default=[]))
             if not any(b.get("name") == bucket_name for b in items):
                 raise HTTPException(404, "Bucket not found")
-            
+
             # Create bucket directory
             bucket_path = self.paths.vfs_root / bucket_name
             if path:
-                bucket_path = bucket_path / path.lstrip('/')
+                bucket_path = bucket_path / path.lstrip("/")
             bucket_path.mkdir(parents=True, exist_ok=True)
-            
+
             # Check file size limits (500MB default)
             max_size = 500 * 1024 * 1024  # 500MB
             content = await file.read()
             if len(content) > max_size:
-                raise HTTPException(413, f"File too large. Maximum size: {max_size // (1024*1024)}MB")
-            
+                raise HTTPException(
+                    413, f"File too large. Maximum size: {max_size // (1024 * 1024)}MB"
+                )
+
             # Save file
             file_path = bucket_path / file.filename
             if file_path.exists():
                 raise HTTPException(409, f"File '{file.filename}' already exists")
-            
+
             try:
-                with file_path.open('wb') as f:
+                with file_path.open("wb") as f:
                     f.write(content)
-                
+
                 stat_info = file_path.stat()
                 return {
                     "success": True,
@@ -2565,9 +2740,13 @@ class ConsolidatedMCPDashboard:
                         "name": file.filename,
                         "path": str(file_path.relative_to(self.paths.vfs_root / bucket_name)),
                         "size": stat_info.st_size,
-                        "mime_type": (mimetypes.guess_type(file.filename or "")[0] if (file and getattr(file, 'filename', None)) else None),
-                        "uploaded": datetime.now(UTC).isoformat()
-                    }
+                        "mime_type": (
+                            mimetypes.guess_type(file.filename or "")[0]
+                            if (file and getattr(file, "filename", None))
+                            else None
+                        ),
+                        "uploaded": datetime.now(UTC).isoformat(),
+                    },
                 }
             except Exception as e:
                 raise HTTPException(500, f"Failed to save file: {str(e)}")
@@ -2579,30 +2758,28 @@ class ConsolidatedMCPDashboard:
             items = _normalize_buckets(_read_json(self.paths.buckets_file, default=[]))
             if not any(b.get("name") == bucket_name for b in items):
                 raise HTTPException(404, "Bucket not found")
-            
-            full_path = self.paths.vfs_root / bucket_name / file_path.lstrip('/')
+
+            full_path = self.paths.vfs_root / bucket_name / file_path.lstrip("/")
             if not full_path.exists() or not full_path.is_file():
                 raise HTTPException(404, "File not found")
-            
+
             mime_type = mimetypes.guess_type(full_path)[0] or "application/octet-stream"
-            return FileResponse(
-                path=str(full_path),
-                filename=full_path.name,
-                media_type=mime_type
-            )
+            return FileResponse(path=str(full_path), filename=full_path.name, media_type=mime_type)
 
         @app.delete("/api/buckets/{bucket_name}/files/{file_path:path}")
-        async def delete_file_from_bucket(bucket_name: str, file_path: str, _auth=Depends(_auth_dep)) -> Dict[str, Any]:
+        async def delete_file_from_bucket(
+            bucket_name: str, file_path: str, _auth=Depends(_auth_dep)
+        ) -> Dict[str, Any]:
             """Delete a file or directory from a bucket."""
             # Verify bucket exists
             items = _normalize_buckets(_read_json(self.paths.buckets_file, default=[]))
             if not any(b.get("name") == bucket_name for b in items):
                 raise HTTPException(404, "Bucket not found")
-            
-            full_path = self.paths.vfs_root / bucket_name / file_path.lstrip('/')
+
+            full_path = self.paths.vfs_root / bucket_name / file_path.lstrip("/")
             if not full_path.exists():
                 raise HTTPException(404, "File or directory not found")
-            
+
             try:
                 if full_path.is_dir():
                     shutil.rmtree(full_path)
@@ -2614,78 +2791,70 @@ class ConsolidatedMCPDashboard:
 
         @app.post("/api/buckets/{bucket_name}/files/{file_path:path}/rename")
         async def rename_file_in_bucket(
-            bucket_name: str, 
-            file_path: str, 
-            new_name: str = Form(...),
-            _auth=Depends(_auth_dep)
+            bucket_name: str, file_path: str, new_name: str = Form(...), _auth=Depends(_auth_dep)
         ) -> Dict[str, Any]:
             """Rename a file or directory in a bucket."""
             # Verify bucket exists
             items = _normalize_buckets(_read_json(self.paths.buckets_file, default=[]))
             if not any(b.get("name") == bucket_name for b in items):
                 raise HTTPException(404, "Bucket not found")
-            
-            old_path = self.paths.vfs_root / bucket_name / file_path.lstrip('/')
+
+            old_path = self.paths.vfs_root / bucket_name / file_path.lstrip("/")
             if not old_path.exists():
                 raise HTTPException(404, "File or directory not found")
-            
+
             new_path = old_path.parent / new_name
             if new_path.exists():
                 raise HTTPException(409, f"'{new_name}' already exists")
-            
+
             try:
                 old_path.rename(new_path)
                 return {
-                    "success": True, 
+                    "success": True,
                     "old_name": old_path.name,
                     "new_name": new_name,
-                    "path": str(new_path.relative_to(self.paths.vfs_root / bucket_name))
+                    "path": str(new_path.relative_to(self.paths.vfs_root / bucket_name)),
                 }
             except Exception as e:
                 raise HTTPException(500, f"Failed to rename: {str(e)}")
 
         @app.post("/api/buckets/{bucket_name}/files/{file_path:path}/move")
         async def move_file_in_bucket(
-            bucket_name: str, 
-            file_path: str, 
-            destination: str = Form(...),
-            _auth=Depends(_auth_dep)
+            bucket_name: str, file_path: str, destination: str = Form(...), _auth=Depends(_auth_dep)
         ) -> Dict[str, Any]:
             """Move a file or directory to a different location within the bucket."""
             # Verify bucket exists
             items = _normalize_buckets(_read_json(self.paths.buckets_file, default=[]))
             if not any(b.get("name") == bucket_name for b in items):
                 raise HTTPException(404, "Bucket not found")
-            
+
             bucket_base = self.paths.vfs_root / bucket_name
-            source_path = bucket_base / file_path.lstrip('/')
-            dest_path = bucket_base / destination.lstrip('/')
-            
+            source_path = bucket_base / file_path.lstrip("/")
+            dest_path = bucket_base / destination.lstrip("/")
+
             if not source_path.exists():
                 raise HTTPException(404, "Source file or directory not found")
-            
+
             # Create destination directory if needed
             dest_path.parent.mkdir(parents=True, exist_ok=True)
-            
+
             if dest_path.exists():
                 raise HTTPException(409, f"Destination '{destination}' already exists")
-            
+
             try:
                 source_path.rename(dest_path)
                 return {
                     "success": True,
                     "source": file_path,
                     "destination": destination,
-                    "new_path": str(dest_path.relative_to(bucket_base))
+                    "new_path": str(dest_path.relative_to(bucket_base)),
                 }
             except Exception as e:
                 raise HTTPException(500, f"Failed to move: {str(e)}")
 
         @app.put("/api/buckets/{bucket_name}/settings")
         async def update_bucket_settings(
-            bucket_name: str, 
-            settings: Dict[str, Any],
-            _auth=Depends(_auth_dep)
+            bucket_name: str, settings: Dict[str, Any], _auth=Depends(_auth_dep)
         ) -> Dict[str, Any]:
             """Update advanced bucket settings including vector search and knowledge graph."""
             # Verify bucket exists
@@ -2695,35 +2864,35 @@ class ConsolidatedMCPDashboard:
                 if b.get("name") == bucket_name:
                     bucket_found = True
                     break
-            
+
             if not bucket_found:
                 raise HTTPException(404, "Bucket not found")
-            
+
             # Update bucket config file
             bucket_config_path = self.paths.data_dir / "bucket_configs" / f"{bucket_name}.yaml"
             bucket_config_path.parent.mkdir(exist_ok=True)
-            
+
             config = {"name": bucket_name, "settings": {}}
             if bucket_config_path.exists() and yaml:
                 try:
-                    with bucket_config_path.open('r') as f:
+                    with bucket_config_path.open("r") as f:
                         config = yaml.safe_load(f) or config
                 except Exception:
                     pass
-            
+
             # Update settings
             current_settings = config.get("settings", {})
             current_settings.update(settings)
             config["settings"] = current_settings
-            
+
             # Save config
             if yaml:
                 try:
-                    with bucket_config_path.open('w') as f:
+                    with bucket_config_path.open("w") as f:
                         yaml.safe_dump(config, f)
                 except Exception as e:
                     raise HTTPException(500, f"Failed to save bucket config: {str(e)}")
-            
+
             return {"success": True, "settings": current_settings}
 
         @app.get("/api/buckets/{bucket_name}/settings")
@@ -2733,7 +2902,7 @@ class ConsolidatedMCPDashboard:
             items = _normalize_buckets(_read_json(self.paths.buckets_file, default=[]))
             if not any(b.get("name") == bucket_name for b in items):
                 raise HTTPException(404, "Bucket not found")
-            
+
             bucket_config_path = self.paths.data_dir / "bucket_configs" / f"{bucket_name}.yaml"
             settings = {
                 "vector_search": False,
@@ -2742,17 +2911,17 @@ class ConsolidatedMCPDashboard:
                 "storage_quota": None,
                 "max_files": None,
                 "cache_ttl": 3600,
-                "public_access": False
+                "public_access": False,
             }
-            
+
             if bucket_config_path.exists() and yaml:
                 try:
-                    with bucket_config_path.open('r') as f:
+                    with bucket_config_path.open("r") as f:
                         config = yaml.safe_load(f) or {}
                         settings.update(config.get("settings", {}))
                 except Exception:
                     pass
-            
+
             return {"settings": settings}
 
         # ---- End Enhanced Bucket File Management ----
@@ -2798,7 +2967,7 @@ class ConsolidatedMCPDashboard:
                 if bucket_exists:
                     base = self.paths.vfs_root / bucket
                     base.mkdir(parents=True, exist_ok=True)
-            
+
             p = _safe_vfs_path(base, path)
             if not p.exists():
                 return {"path": str(path), "bucket": bucket, "items": []}
@@ -2807,15 +2976,21 @@ class ConsolidatedMCPDashboard:
             items = []
             for child in sorted(p.iterdir()):
                 stat_info = child.stat() if child.exists() else None
-                items.append({
-                    "name": child.name,
-                    "is_dir": child.is_dir(),
-                    "size": stat_info.st_size if stat_info and child.is_file() else None,
-                    "modified": datetime.fromtimestamp(stat_info.st_mtime, UTC).isoformat() if stat_info else None,
-                    "created": datetime.fromtimestamp(stat_info.st_ctime, UTC).isoformat() if stat_info else None,
-                    "permissions": oct(stat_info.st_mode)[-3:] if stat_info else None,
-                    "type": "file" if child.is_file() else "directory",
-                })
+                items.append(
+                    {
+                        "name": child.name,
+                        "is_dir": child.is_dir(),
+                        "size": stat_info.st_size if stat_info and child.is_file() else None,
+                        "modified": datetime.fromtimestamp(stat_info.st_mtime, UTC).isoformat()
+                        if stat_info
+                        else None,
+                        "created": datetime.fromtimestamp(stat_info.st_ctime, UTC).isoformat()
+                        if stat_info
+                        else None,
+                        "permissions": oct(stat_info.st_mode)[-3:] if stat_info else None,
+                        "type": "file" if child.is_file() else "directory",
+                    }
+                )
             return {"path": str(path), "bucket": bucket, "items": items, "total_items": len(items)}
 
         @app.get("/api/files/read")
@@ -2827,7 +3002,7 @@ class ConsolidatedMCPDashboard:
                 bucket_exists = any(b.get("name") == bucket for b in buckets_data)
                 if bucket_exists:
                     base = self.paths.vfs_root / bucket
-                    
+
             p = _safe_vfs_path(base, path)
             if not p.exists() or not p.is_file():
                 raise HTTPException(404, "File not found")
@@ -2837,7 +3012,7 @@ class ConsolidatedMCPDashboard:
             except UnicodeDecodeError:
                 content = p.read_bytes().hex()
                 mode = "hex"
-            
+
             stat_info = p.stat()
             return {
                 "path": path,
@@ -2858,7 +3033,7 @@ class ConsolidatedMCPDashboard:
             bucket = payload.get("bucket")
             if not path:
                 raise HTTPException(400, "Missing path")
-                
+
             base = self.paths.vfs_root
             if bucket:
                 # Check if bucket exists, create if not
@@ -2870,14 +3045,14 @@ class ConsolidatedMCPDashboard:
                     buckets_data.append(new_bucket)
                     _atomic_write_json(self.paths.buckets_file, buckets_data)
                 base = self.paths.vfs_root / bucket
-                
+
             p = _safe_vfs_path(base, path)
             p.parent.mkdir(parents=True, exist_ok=True)
             if mode == "hex":
                 p.write_bytes(bytes.fromhex(content))
             else:
                 p.write_text(str(content), encoding="utf-8")
-            
+
             # Update metadata in ~/.ipfs_kit/ before calling library
             try:
                 metadata_file = self.paths.data_dir / "file_metadata.json"
@@ -2891,31 +3066,34 @@ class ConsolidatedMCPDashboard:
                     "modified": datetime.fromtimestamp(stat_info.st_mtime, UTC).isoformat(),
                     "created": datetime.fromtimestamp(stat_info.st_ctime, UTC).isoformat(),
                     "operation": "write",
-                    "timestamp": datetime.now(UTC).isoformat()
+                    "timestamp": datetime.now(UTC).isoformat(),
                 }
                 _atomic_write_json(metadata_file, metadata)
             except Exception as e:
                 self.log.warning(f"Failed to update file metadata: {e}")
-                
+
             return {"ok": True, "path": path, "bucket": bucket}
 
         @app.delete("/api/files/delete")
-        async def files_delete(path: str, bucket: Optional[str] = None, _auth=Depends(_auth_dep)) -> Dict[str, Any]:
+        async def files_delete(
+            path: str, bucket: Optional[str] = None, _auth=Depends(_auth_dep)
+        ) -> Dict[str, Any]:
             base = self.paths.vfs_root
             if bucket:
                 base = self.paths.vfs_root / bucket
-            
+
             p = _safe_vfs_path(base, path)
             if not p.exists():
                 raise HTTPException(404, "File or directory not found")
-            
+
             try:
                 if p.is_file():
                     p.unlink()
                 else:
                     import shutil
+
                     shutil.rmtree(p)
-                
+
                 # Update metadata
                 metadata_file = self.paths.data_dir / "file_metadata.json"
                 metadata = _read_json(metadata_file, {})
@@ -2923,7 +3101,7 @@ class ConsolidatedMCPDashboard:
                 if file_key in metadata:
                     del metadata[file_key]
                 _atomic_write_json(metadata_file, metadata)
-                
+
                 return {"ok": True, "path": path, "bucket": bucket, "deleted": True}
             except Exception as e:
                 raise HTTPException(500, f"Failed to delete: {str(e)}")
@@ -2934,14 +3112,14 @@ class ConsolidatedMCPDashboard:
             bucket = payload.get("bucket")
             if not path:
                 raise HTTPException(400, "Missing path")
-                
+
             base = self.paths.vfs_root
             if bucket:
                 base = self.paths.vfs_root / bucket
-                
+
             p = _safe_vfs_path(base, path)
             p.mkdir(parents=True, exist_ok=True)
-            
+
             return {"ok": True, "path": path, "bucket": bucket, "created": True}
 
         @app.get("/api/files/buckets")
@@ -2949,16 +3127,18 @@ class ConsolidatedMCPDashboard:
             """List available buckets for virtual filesystem"""
             buckets_data = _read_json(self.paths.buckets_file, [])
             vfs_buckets = []
-            
+
             # Add default bucket
-            vfs_buckets.append({
-                "name": "default",
-                "display_name": "Default",
-                "path": str(self.paths.vfs_root),
-                "file_count": len(list(self.paths.vfs_root.glob("**/*"))),
-                "is_default": True
-            })
-            
+            vfs_buckets.append(
+                {
+                    "name": "default",
+                    "display_name": "Default",
+                    "path": str(self.paths.vfs_root),
+                    "file_count": len(list(self.paths.vfs_root.glob("**/*"))),
+                    "is_default": True,
+                }
+            )
+
             # Add configured buckets
             for bucket in buckets_data:
                 bucket_path = self.paths.vfs_root / bucket["name"]
@@ -2966,16 +3146,18 @@ class ConsolidatedMCPDashboard:
                     file_count = len(list(bucket_path.glob("**/*")))
                 else:
                     file_count = 0
-                    
-                vfs_buckets.append({
-                    "name": bucket["name"],
-                    "display_name": bucket.get("display_name", bucket["name"]),
-                    "path": str(bucket_path),
-                    "file_count": file_count,
-                    "is_default": False,
-                    "created": bucket.get("created")
-                })
-                
+
+                vfs_buckets.append(
+                    {
+                        "name": bucket["name"],
+                        "display_name": bucket.get("display_name", bucket["name"]),
+                        "path": str(bucket_path),
+                        "file_count": file_count,
+                        "is_default": False,
+                        "created": bucket.get("created"),
+                    }
+                )
+
             return {"buckets": vfs_buckets}
 
         @app.get("/api/files/stats")
@@ -2984,11 +3166,11 @@ class ConsolidatedMCPDashboard:
             base = self.paths.vfs_root
             if bucket:
                 base = self.paths.vfs_root / bucket
-            
+
             p = _safe_vfs_path(base, path)
             if not p.exists():
                 raise HTTPException(404, "Path not found")
-            
+
             stat_info = p.stat()
             stats = {
                 "path": path,
@@ -3003,13 +3185,13 @@ class ConsolidatedMCPDashboard:
                 "owner_uid": stat_info.st_uid,
                 "group_gid": stat_info.st_gid,
             }
-            
+
             if p.is_dir():
                 # Directory stats
                 total_size = 0
                 file_count = 0
                 dir_count = 0
-                
+
                 for item in p.rglob("*"):
                     if item.is_file():
                         file_count += 1
@@ -3019,13 +3201,11 @@ class ConsolidatedMCPDashboard:
                             pass
                     elif item.is_dir():
                         dir_count += 1
-                        
-                stats.update({
-                    "total_size": total_size,
-                    "file_count": file_count,
-                    "dir_count": dir_count
-                })
-            
+
+                stats.update(
+                    {"total_size": total_size, "file_count": file_count, "dir_count": dir_count}
+                )
+
             return stats
 
         # Peers endpoint for JavaScript compatibility
@@ -3034,12 +3214,19 @@ class ConsolidatedMCPDashboard:
             """List peers using the simple PeerManager when available."""
             mgr = self._get_peer_manager()
             if not mgr:
-                return {"peers": [], "total": 0, "connected": 0, "status": "Peer manager unavailable"}
+                return {
+                    "peers": [],
+                    "total": 0,
+                    "connected": 0,
+                    "status": "Peer manager unavailable",
+                }
             data = mgr.list_peers() or {"peers": [], "total": 0}
             peers = data.get("peers") or []
             total = data.get("total") or len(peers)
             connected = sum(1 for p in peers if (p or {}).get("connection_status") == "connected")
-            status = ("Connected" if connected else ("Discovered" if total else "No IPFS peers connected"))
+            status = (
+                "Connected" if connected else ("Discovered" if total else "No IPFS peers connected")
+            )
             return {"peers": peers, "total": total, "connected": connected, "status": status}
 
         @app.get("/api/peers/stats")
@@ -3053,7 +3240,7 @@ class ConsolidatedMCPDashboard:
             connected = sum(1 for p in peers if (p or {}).get("connection_status") == "connected")
             by_tag: Dict[str, int] = {}
             for p in peers:
-                for t in (p.get("tags") or []):
+                for t in p.get("tags") or []:
                     by_tag[t] = by_tag.get(t, 0) + 1
             return {"total": total, "connected": connected, "by_tag": by_tag, "peers": peers}
 
@@ -3079,13 +3266,18 @@ class ConsolidatedMCPDashboard:
                 # Try high-level API based discovery (libp2p)
                 try:
                     from ipfs_kit_py.high_level_api import ipfs_kit  # type: ignore
+
                     api = ipfs_kit()
                     if hasattr(api, "discover_peers"):
                         result = api.discover_peers(max_peers=limit, timeout=timeout)
                         peers: list = []
                         if isinstance(result, dict):
                             # Common shapes: {"peers": [...]}, or mapping
-                            maybe = result.get("peers") or result.get("discovered") or result.get("results")
+                            maybe = (
+                                result.get("peers")
+                                or result.get("discovered")
+                                or result.get("results")
+                            )
                             if isinstance(maybe, list):
                                 peers = maybe
                             elif isinstance(maybe, dict):
@@ -3102,7 +3294,12 @@ class ConsolidatedMCPDashboard:
                                 ]
                         elif isinstance(result, list):
                             peers = result
-                        return {"status": "ok", "source": "libp2p", "peers": peers, "total": len(peers)}
+                        return {
+                            "status": "ok",
+                            "source": "libp2p",
+                            "peers": peers,
+                            "total": len(peers),
+                        }
                 except Exception as e:  # pragma: no cover
                     self.log.warning(f"libp2p peer discovery failed: {e}")
 
@@ -3152,6 +3349,7 @@ class ConsolidatedMCPDashboard:
             peer_address = payload.get("peer_address")
             try:
                 from ipfs_kit_py.libp2p.peer_manager import get_global_peer_manager  # type: ignore
+
                 libp2p_mgr = get_global_peer_manager()
             except Exception:
                 libp2p_mgr = None
@@ -3177,7 +3375,11 @@ class ConsolidatedMCPDashboard:
                     if not ipfs:
                         raise HTTPException(404, "ipfs binary not found")
                     out = _run_cmd([ipfs, "bootstrap", "list"])  # safe list
-                    return {"ok": out.get("code") == 0, "out": out.get("out"), "err": out.get("err")}
+                    return {
+                        "ok": out.get("code") == 0,
+                        "out": out.get("out"),
+                        "err": out.get("err"),
+                    }
                 if action == "from_cluster":
                     if libp2p_mgr and hasattr(libp2p_mgr, "bootstrap_from_cluster"):
                         return libp2p_mgr.bootstrap_from_cluster() or {"ok": True}
@@ -3185,7 +3387,11 @@ class ConsolidatedMCPDashboard:
                     if not ctl:
                         raise HTTPException(404, "ipfs-cluster-ctl binary not found")
                     out = _run_cmd([ctl, "peers", "ls"])  # safe list
-                    return {"ok": out.get("code") == 0, "out": out.get("out"), "err": out.get("err")}
+                    return {
+                        "ok": out.get("code") == 0,
+                        "out": out.get("out"),
+                        "err": out.get("err"),
+                    }
                 if action == "add":
                     if not peer_address:
                         raise HTTPException(400, "peer_address is required for action=add")
@@ -3195,7 +3401,11 @@ class ConsolidatedMCPDashboard:
                     if not ipfs:
                         raise HTTPException(404, "ipfs binary not found")
                     out = _run_cmd([ipfs, "bootstrap", "add", peer_address])
-                    return {"ok": out.get("code") == 0, "out": out.get("out"), "err": out.get("err")}
+                    return {
+                        "ok": out.get("code") == 0,
+                        "out": out.get("out"),
+                        "err": out.get("err"),
+                    }
                 raise HTTPException(400, f"Unknown action: {action}")
             except HTTPException:
                 raise
@@ -3225,7 +3435,11 @@ class ConsolidatedMCPDashboard:
                         code=int(err.get("code", -32000) or -32000),
                         data=err.get("data"),
                     )
-                if isinstance(res, dict) and "result" in res and set(res.keys()) <= {"jsonrpc", "result", "id"}:
+                if (
+                    isinstance(res, dict)
+                    and "result" in res
+                    and set(res.keys()) <= {"jsonrpc", "result", "id"}
+                ):
                     return res["result"]
                 return res
 
@@ -3248,6 +3462,7 @@ class ConsolidatedMCPDashboard:
             if request.query_params.get("full") in ("1", "true", "yes"):
                 return self._tools_list()
             return self._hierarchical_tools_list()
+
         @app.post("/mcp/tools/list")
         async def mcp_tools_list(request: Request) -> Dict[str, Any]:
             if request.query_params.get("full") in ("1", "true", "yes"):
@@ -3255,7 +3470,9 @@ class ConsolidatedMCPDashboard:
             return self._hierarchical_tools_list()
 
         @app.post("/mcp/tools/call")
-        async def mcp_tools_call(payload: Dict[str, Any], _auth=Depends(_auth_dep)) -> Dict[str, Any]:
+        async def mcp_tools_call(
+            payload: Dict[str, Any], _auth=Depends(_auth_dep)
+        ) -> Dict[str, Any]:
             # Accept both the JSON-RPC envelope and the direct format, honouring a
             # top-level ``arguments`` key so stock MCP clients that POST
             # {"name", "arguments"} without a JSON-RPC wrapper are not silently
@@ -3284,18 +3501,24 @@ class ConsolidatedMCPDashboard:
 
         # Add compatibility endpoint for JavaScript SDK
         @app.post("/api/call_mcp_tool")
-        async def api_call_mcp_tool(payload: Dict[str, Any], _auth=Depends(_auth_dep)) -> Dict[str, Any]:
+        async def api_call_mcp_tool(
+            payload: Dict[str, Any], _auth=Depends(_auth_dep)
+        ) -> Dict[str, Any]:
             """JavaScript SDK compatibility endpoint."""
             tool_name = payload.get("tool_name")
             arguments = payload.get("arguments", {})
             req_id = payload.get("id", "1")
-            
+
             if not tool_name:
-                return {"jsonrpc": "2.0", "error": {"code": -32602, "message": "Missing tool_name"}, "id": req_id}
-            
+                return {
+                    "jsonrpc": "2.0",
+                    "error": {"code": -32602, "message": "Missing tool_name"},
+                    "id": req_id,
+                }
+
             try:
                 result = await self._tools_call(tool_name, arguments)
-                
+
                 # Ensure proper JSON-RPC response format
                 if isinstance(result, dict) and result.get("jsonrpc") == "2.0":
                     result["id"] = req_id
@@ -3346,12 +3569,56 @@ class ConsolidatedMCPDashboard:
     # The dashboard UI requests ?full=1 to keep rendering rich input forms.
     # ------------------------------------------------------------------
     _HIER_META_TOOLS = [
-        {"name": "tools_list_categories", "description": "Hierarchical facade: list all tool categories (optionally with per-category counts). Start here to discover the surface without loading every schema.", "inputSchema": {"type": "object", "properties": {"include_count": {"type": "boolean", "default": False}}}},
-        {"name": "tools_list_tools", "description": "Hierarchical facade: list the tools in a category (name + description). Use after tools_list_categories.", "inputSchema": {"type": "object", "required": ["category"], "properties": {"category": {"type": "string"}}}},
-        {"name": "tools_get_schema", "description": "Hierarchical facade: get the full input schema for a single tool. Accepts (category, tool) or a bare/dotted name.", "inputSchema": {"type": "object", "properties": {"category": {"type": "string"}, "tool": {"type": "string"}, "name": {"type": "string"}}}},
-        {"name": "tools_dispatch", "description": "Hierarchical facade: execute a tool by category+tool (or name) with params. Equivalent to calling the tool directly.", "inputSchema": {"type": "object", "properties": {"category": {"type": "string"}, "tool": {"type": "string"}, "name": {"type": "string"}, "params": {"type": "object"}, "arguments": {"type": "object"}}}},
+        {
+            "name": "tools_list_categories",
+            "description": "Hierarchical facade: list all tool categories (optionally with per-category counts). Start here to discover the surface without loading every schema.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {"include_count": {"type": "boolean", "default": False}},
+            },
+        },
+        {
+            "name": "tools_list_tools",
+            "description": "Hierarchical facade: list the tools in a category (name + description). Use after tools_list_categories.",
+            "inputSchema": {
+                "type": "object",
+                "required": ["category"],
+                "properties": {"category": {"type": "string"}},
+            },
+        },
+        {
+            "name": "tools_get_schema",
+            "description": "Hierarchical facade: get the full input schema for a single tool. Accepts (category, tool) or a bare/dotted name.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "category": {"type": "string"},
+                    "tool": {"type": "string"},
+                    "name": {"type": "string"},
+                },
+            },
+        },
+        {
+            "name": "tools_dispatch",
+            "description": "Hierarchical facade: execute a tool by category+tool (or name) with params. Equivalent to calling the tool directly.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "category": {"type": "string"},
+                    "tool": {"type": "string"},
+                    "name": {"type": "string"},
+                    "params": {"type": "object"},
+                    "arguments": {"type": "object"},
+                },
+            },
+        },
     ]
-    _HIER_META_NAMES = {"tools_list_categories", "tools_list_tools", "tools_get_schema", "tools_dispatch"}
+    _HIER_META_NAMES = {
+        "tools_list_categories",
+        "tools_list_tools",
+        "tools_get_schema",
+        "tools_dispatch",
+    }
 
     def _categorize_tool(self, name: str) -> str:
         """Map a tool name to a display category (grouping only; dispatch is by name)."""
@@ -3366,7 +3633,13 @@ class ConsolidatedMCPDashboard:
             return "IPFS"
         if "peer" in n:
             return "Peers"
-        if n.startswith("files_") or n in ("read_file", "write_file", "list_files", "resolve_bucket_path", "create_folder"):
+        if n.startswith("files_") or n in (
+            "read_file",
+            "write_file",
+            "list_files",
+            "resolve_bucket_path",
+            "create_folder",
+        ):
             return "Files"
         if "pin" in n:
             return "Pins"
@@ -3385,7 +3658,9 @@ class ConsolidatedMCPDashboard:
         groups: Dict[str, List[Dict[str, Any]]] = {}
         for t in self._tools_list().get("result", {}).get("tools", []):
             cat = self._categorize_tool(t.get("name", ""))
-            groups.setdefault(cat, []).append({"name": t.get("name"), "description": t.get("description", "")})
+            groups.setdefault(cat, []).append(
+                {"name": t.get("name"), "description": t.get("description", "")}
+            )
         for cat in groups:
             groups[cat].sort(key=lambda x: x["name"])
         return groups
@@ -3395,11 +3670,13 @@ class ConsolidatedMCPDashboard:
         tools = list(self._HIER_META_TOOLS)
         for cat, entries in sorted(self._tool_category_map().items()):
             for e in entries:
-                tools.append({
-                    "name": f"{cat}.{e['name']}",
-                    "description": e.get("description", "") or f"{e['name']} (category: {cat})",
-                    "inputSchema": {"type": "object"},
-                })
+                tools.append(
+                    {
+                        "name": f"{cat}.{e['name']}",
+                        "description": e.get("description", "") or f"{e['name']} (category: {cat})",
+                        "inputSchema": {"type": "object"},
+                    }
+                )
         return {"jsonrpc": "2.0", "result": {"tools": tools}, "id": None}
 
     def _resolve_tool_name(self, name: Optional[str]) -> Optional[str]:
@@ -3415,7 +3692,9 @@ class ConsolidatedMCPDashboard:
                 return tool
         return name
 
-    async def _handle_hierarchical_meta(self, name: str, args: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    async def _handle_hierarchical_meta(
+        self, name: str, args: Dict[str, Any]
+    ) -> Optional[Dict[str, Any]]:
         """Handle the 4 hierarchical facade meta-tools; return None if not a meta-tool."""
         if name == "tools_list_categories":
             cmap = self._tool_category_map()
@@ -3426,21 +3705,56 @@ class ConsolidatedMCPDashboard:
                 if include:
                     info["tool_count"] = len(cmap[c])
                 cats.append(info)
-            return {"jsonrpc": "2.0", "result": {"status": "success", "category_count": len(cats), "categories": cats}, "id": None}
+            return {
+                "jsonrpc": "2.0",
+                "result": {"status": "success", "category_count": len(cats), "categories": cats},
+                "id": None,
+            }
         if name == "tools_list_tools":
             cmap = self._tool_category_map()
             category = args.get("category")
             if category not in cmap:
-                return {"jsonrpc": "2.0", "result": {"status": "error", "error": f"Category '{category}' not found", "available_categories": sorted(cmap)}, "id": None}
-            return {"jsonrpc": "2.0", "result": {"status": "success", "category": category, "tool_count": len(cmap[category]), "tools": cmap[category]}, "id": None}
+                return {
+                    "jsonrpc": "2.0",
+                    "result": {
+                        "status": "error",
+                        "error": f"Category '{category}' not found",
+                        "available_categories": sorted(cmap),
+                    },
+                    "id": None,
+                }
+            return {
+                "jsonrpc": "2.0",
+                "result": {
+                    "status": "success",
+                    "category": category,
+                    "tool_count": len(cmap[category]),
+                    "tools": cmap[category],
+                },
+                "id": None,
+            }
         if name == "tools_get_schema":
             tool = args.get("tool") or args.get("name") or args.get("category")
             resolved = self._resolve_tool_name(tool)
             full = self._tools_list().get("result", {}).get("tools", [])
             meta = next((x for x in full if x.get("name") == resolved), None)
             if meta is None:
-                return {"jsonrpc": "2.0", "result": {"status": "error", "error": f"Tool '{tool}' not found"}, "id": None}
-            return {"jsonrpc": "2.0", "result": {"status": "success", "name": resolved, "category": self._categorize_tool(resolved), "description": meta.get("description", ""), "schema": meta.get("inputSchema") or {"type": "object"}}, "id": None}
+                return {
+                    "jsonrpc": "2.0",
+                    "result": {"status": "error", "error": f"Tool '{tool}' not found"},
+                    "id": None,
+                }
+            return {
+                "jsonrpc": "2.0",
+                "result": {
+                    "status": "success",
+                    "name": resolved,
+                    "category": self._categorize_tool(resolved),
+                    "description": meta.get("description", ""),
+                    "schema": meta.get("inputSchema") or {"type": "object"},
+                },
+                "id": None,
+            }
         if name == "tools_dispatch":
             target = args.get("tool") or args.get("name") or args.get("category")
             params = args.get("params")
@@ -3452,106 +3766,1177 @@ class ConsolidatedMCPDashboard:
 
     def _tools_list(self) -> Dict[str, Any]:
         tools = [
-            {"name": "health_check", "description": "Simple health check for MCP connection", "inputSchema": {}},
-            {"name": "get_system_status", "description": "System health and versions", "inputSchema": {}},
-            {"name": "list_services", "description": "List local services and probes", "inputSchema": {}},
-            {"name": "service_control", "description": "Control a local service (start/stop/restart/status)", "inputSchema": {"service": "string", "action": "string"}},
-            {"name": "service_status", "description": "Probe service status (ipfs)", "inputSchema": {"service": "string"}},
+            {
+                "name": "health_check",
+                "description": "Simple health check for MCP connection",
+                "inputSchema": {},
+            },
+            {
+                "name": "get_system_status",
+                "description": "System health and versions",
+                "inputSchema": {},
+            },
+            {
+                "name": "list_services",
+                "description": "List local services and probes",
+                "inputSchema": {},
+            },
+            {
+                "name": "service_control",
+                "description": "Control a local service (start/stop/restart/status)",
+                "inputSchema": {"service": "string", "action": "string"},
+            },
+            {
+                "name": "service_status",
+                "description": "Probe service status (ipfs)",
+                "inputSchema": {"service": "string"},
+            },
             {"name": "list_backends", "description": "List configured backends", "inputSchema": {}},
-            {"name": "create_backend", "description": "Create backend", "inputSchema": {"name": "string", "config": "object"}},
-            {"name": "update_backend", "description": "Update backend", "inputSchema": {"type":"object", "required":["name","config"], "properties": {"name": {"type":"string", "title":"Backend", "ui": {"enumFrom":"backends", "valueKey":"name", "labelKey":"name"}}, "config": {"type":"object", "title":"Config", "properties": {"type": {"type": "string"}}}}}},
-            {"name": "delete_backend", "description": "Delete backend", "inputSchema": {"type":"object", "required":["name"], "confirm": {"message":"This will remove the backend. Continue?"}, "properties": {"name": {"type":"string", "title":"Backend", "ui": {"enumFrom":"backends", "valueKey":"name", "labelKey":"name"}}}}},
-            {"name": "test_backend", "description": "Test backend reachability", "inputSchema": {"type":"object", "required":["name"], "properties": {"name": {"type":"string", "title":"Backend", "ui": {"enumFrom":"backends", "valueKey":"name", "labelKey":"name"}}}}},
-            {"name": "get_backend", "description": "Get backend by name", "inputSchema": {"type":"object", "required":["name"], "properties": {"name": {"type":"string", "title":"Backend", "ui": {"enumFrom":"backends", "valueKey":"name", "labelKey":"name"}}}}},
+            {
+                "name": "create_backend",
+                "description": "Create backend",
+                "inputSchema": {"name": "string", "config": "object"},
+            },
+            {
+                "name": "update_backend",
+                "description": "Update backend",
+                "inputSchema": {
+                    "type": "object",
+                    "required": ["name", "config"],
+                    "properties": {
+                        "name": {
+                            "type": "string",
+                            "title": "Backend",
+                            "ui": {"enumFrom": "backends", "valueKey": "name", "labelKey": "name"},
+                        },
+                        "config": {
+                            "type": "object",
+                            "title": "Config",
+                            "properties": {"type": {"type": "string"}},
+                        },
+                    },
+                },
+            },
+            {
+                "name": "delete_backend",
+                "description": "Delete backend",
+                "inputSchema": {
+                    "type": "object",
+                    "required": ["name"],
+                    "confirm": {"message": "This will remove the backend. Continue?"},
+                    "properties": {
+                        "name": {
+                            "type": "string",
+                            "title": "Backend",
+                            "ui": {"enumFrom": "backends", "valueKey": "name", "labelKey": "name"},
+                        }
+                    },
+                },
+            },
+            {
+                "name": "test_backend",
+                "description": "Test backend reachability",
+                "inputSchema": {
+                    "type": "object",
+                    "required": ["name"],
+                    "properties": {
+                        "name": {
+                            "type": "string",
+                            "title": "Backend",
+                            "ui": {"enumFrom": "backends", "valueKey": "name", "labelKey": "name"},
+                        }
+                    },
+                },
+            },
+            {
+                "name": "get_backend",
+                "description": "Get backend by name",
+                "inputSchema": {
+                    "type": "object",
+                    "required": ["name"],
+                    "properties": {
+                        "name": {
+                            "type": "string",
+                            "title": "Backend",
+                            "ui": {"enumFrom": "backends", "valueKey": "name", "labelKey": "name"},
+                        }
+                    },
+                },
+            },
             {"name": "list_buckets", "description": "List buckets", "inputSchema": {}},
-            {"name": "create_bucket", "description": "Create bucket", "inputSchema": {"type":"object", "required":["name"], "properties": {"name": {"type":"string", "title":"Bucket Name", "ui": {"placeholder":"my-bucket"}}, "backend": {"type":"string", "title":"Backend", "description":"Optional backend id", "ui": {"enumFrom":"backends", "valueKey":"name", "labelKey":"name"}}}}},
-            {"name": "delete_bucket", "description": "Delete bucket", "inputSchema": {"type":"object", "required":["name"], "confirm": {"message":"This will delete the bucket record. Continue?"}, "properties": {"name": {"type":"string", "title":"Bucket", "ui": {"enumFrom":"buckets", "valueKey":"name", "labelKey":"name"}}}}},
-            {"name": "get_bucket", "description": "Get bucket by name", "inputSchema": {"type":"object", "required":["name"], "properties": {"name": {"type":"string", "title":"Bucket", "ui": {"enumFrom":"buckets", "valueKey":"name", "labelKey":"name"}}}}},
-            {"name": "update_bucket", "description": "Update bucket (merge fields)", "inputSchema": {"type":"object", "required":["name","patch"], "properties": {"name": {"type":"string", "title":"Bucket", "ui": {"enumFrom":"buckets", "valueKey":"name", "labelKey":"name"}}, "patch": {"type":"object", "title":"Patch"}}}},
-            {"name": "get_bucket_policy", "description": "Get bucket policy", "inputSchema": {"type":"object", "required":["name"], "properties": {"name": {"type":"string", "title":"Bucket", "ui": {"enumFrom":"buckets", "valueKey":"name", "labelKey":"name"}}}}},
-            {"name": "update_bucket_policy", "description": "Update bucket policy", "inputSchema": {"type":"object", "required":["name"], "properties": {"name": {"type":"string", "title":"Bucket", "ui": {"enumFrom":"buckets", "valueKey":"name", "labelKey":"name"}}, "replication_factor": {"type":"number", "title":"Replication", "default":1}, "cache_policy": {"type":"string", "title":"Cache", "enum":["none","memory","disk"], "default":"none"}, "retention_days": {"type":"number", "title":"Retention Days", "default":0}}}},
+            {
+                "name": "create_bucket",
+                "description": "Create bucket",
+                "inputSchema": {
+                    "type": "object",
+                    "required": ["name"],
+                    "properties": {
+                        "name": {
+                            "type": "string",
+                            "title": "Bucket Name",
+                            "ui": {"placeholder": "my-bucket"},
+                        },
+                        "backend": {
+                            "type": "string",
+                            "title": "Backend",
+                            "description": "Optional backend id",
+                            "ui": {"enumFrom": "backends", "valueKey": "name", "labelKey": "name"},
+                        },
+                    },
+                },
+            },
+            {
+                "name": "delete_bucket",
+                "description": "Delete bucket",
+                "inputSchema": {
+                    "type": "object",
+                    "required": ["name"],
+                    "confirm": {"message": "This will delete the bucket record. Continue?"},
+                    "properties": {
+                        "name": {
+                            "type": "string",
+                            "title": "Bucket",
+                            "ui": {"enumFrom": "buckets", "valueKey": "name", "labelKey": "name"},
+                        }
+                    },
+                },
+            },
+            {
+                "name": "get_bucket",
+                "description": "Get bucket by name",
+                "inputSchema": {
+                    "type": "object",
+                    "required": ["name"],
+                    "properties": {
+                        "name": {
+                            "type": "string",
+                            "title": "Bucket",
+                            "ui": {"enumFrom": "buckets", "valueKey": "name", "labelKey": "name"},
+                        }
+                    },
+                },
+            },
+            {
+                "name": "update_bucket",
+                "description": "Update bucket (merge fields)",
+                "inputSchema": {
+                    "type": "object",
+                    "required": ["name", "patch"],
+                    "properties": {
+                        "name": {
+                            "type": "string",
+                            "title": "Bucket",
+                            "ui": {"enumFrom": "buckets", "valueKey": "name", "labelKey": "name"},
+                        },
+                        "patch": {"type": "object", "title": "Patch"},
+                    },
+                },
+            },
+            {
+                "name": "get_bucket_policy",
+                "description": "Get bucket policy",
+                "inputSchema": {
+                    "type": "object",
+                    "required": ["name"],
+                    "properties": {
+                        "name": {
+                            "type": "string",
+                            "title": "Bucket",
+                            "ui": {"enumFrom": "buckets", "valueKey": "name", "labelKey": "name"},
+                        }
+                    },
+                },
+            },
+            {
+                "name": "update_bucket_policy",
+                "description": "Update bucket policy",
+                "inputSchema": {
+                    "type": "object",
+                    "required": ["name"],
+                    "properties": {
+                        "name": {
+                            "type": "string",
+                            "title": "Bucket",
+                            "ui": {"enumFrom": "buckets", "valueKey": "name", "labelKey": "name"},
+                        },
+                        "replication_factor": {
+                            "type": "number",
+                            "title": "Replication",
+                            "default": 1,
+                        },
+                        "cache_policy": {
+                            "type": "string",
+                            "title": "Cache",
+                            "enum": ["none", "memory", "disk"],
+                            "default": "none",
+                        },
+                        "retention_days": {
+                            "type": "number",
+                            "title": "Retention Days",
+                            "default": 0,
+                        },
+                    },
+                },
+            },
             # Comprehensive bucket file management tools
-            {"name": "bucket_list_files", "description": "List files in bucket with metadata priority", "inputSchema": {"type":"object", "required":["bucket"], "properties": {"bucket": {"type":"string", "title":"Bucket", "ui": {"enumFrom":"buckets", "valueKey":"name", "labelKey":"name"}}, "path": {"type":"string", "title":"Path", "default":"."}, "show_metadata": {"type":"boolean", "title":"Show Metadata", "default":True}}}},
-            {"name": "list_bucket_files", "description": "List files in bucket (alias for bucket_list_files)", "inputSchema": {"type":"object", "required":["bucket"], "properties": {"bucket": {"type":"string", "title":"Bucket"}, "path": {"type":"string", "title":"Path", "default":""}, "metadata_first": {"type":"boolean", "title":"Metadata First", "default":True}}}},
-            {"name": "create_folder", "description": "Create a new folder in bucket", "inputSchema": {"type":"object", "required":["bucket","name"], "properties": {"bucket": {"type":"string", "title":"Bucket"}, "name": {"type":"string", "title":"Folder Name"}}}},
-            {"name": "bucket_upload_file", "description": "Upload file to bucket with replication policy", "inputSchema": {"type":"object", "required":["bucket","path","content"], "properties": {"bucket": {"type":"string", "title":"Bucket", "ui": {"enumFrom":"buckets", "valueKey":"name", "labelKey":"name"}}, "path": {"type":"string", "title":"File Path"}, "content": {"type":"string", "title":"Content", "ui": {"widget":"textarea", "rows":6}}, "mode": {"type":"string", "title":"Mode", "enum":["text","hex","base64"], "default":"text"}, "apply_policy": {"type":"boolean", "title":"Apply Bucket Policy", "default":True}}}},
-            {"name": "bucket_download_file", "description": "Download file from bucket", "inputSchema": {"type":"object", "required":["bucket","path"], "properties": {"bucket": {"type":"string", "title":"Bucket", "ui": {"enumFrom":"buckets", "valueKey":"name", "labelKey":"name"}}, "path": {"type":"string", "title":"File Path"}, "format": {"type":"string", "title":"Format", "enum":["text","hex","base64"], "default":"text"}}}},
-            {"name": "bucket_delete_file", "description": "Delete file from bucket", "inputSchema": {"type":"object", "required":["bucket","path"], "confirm": {"message":"This will delete the file from the bucket. Continue?"}, "properties": {"bucket": {"type":"string", "title":"Bucket", "ui": {"enumFrom":"buckets", "valueKey":"name", "labelKey":"name"}}, "path": {"type":"string", "title":"File Path"}, "remove_replicas": {"type":"boolean", "title":"Remove Replicas", "default":True}}}},
-            {"name": "bucket_rename_file", "description": "Rename/move file in bucket", "inputSchema": {"type":"object", "required":["bucket","src","dst"], "properties": {"bucket": {"type":"string", "title":"Bucket", "ui": {"enumFrom":"buckets", "valueKey":"name", "labelKey":"name"}}, "src": {"type":"string", "title":"Source Path"}, "dst": {"type":"string", "title":"Destination Path"}, "update_replicas": {"type":"boolean", "title":"Update Replicas", "default":True}}}},
-            {"name": "bucket_mkdir", "description": "Create directory in bucket", "inputSchema": {"type":"object", "required":["bucket","path"], "properties": {"bucket": {"type":"string", "title":"Bucket", "ui": {"enumFrom":"buckets", "valueKey":"name", "labelKey":"name"}}, "path": {"type":"string", "title":"Directory Path"}, "create_parents": {"type":"boolean", "title":"Create Parents", "default":True}}}},
-            {"name": "bucket_copy_file", "description": "Copy file within or between buckets", "inputSchema": {"type":"object", "required":["src_bucket","src_path","dst_bucket","dst_path"], "properties": {"src_bucket": {"type":"string", "title":"Source Bucket", "ui": {"enumFrom":"buckets", "valueKey":"name", "labelKey":"name"}}, "src_path": {"type":"string", "title":"Source Path"}, "dst_bucket": {"type":"string", "title":"Destination Bucket", "ui": {"enumFrom":"buckets", "valueKey":"name", "labelKey":"name"}}, "dst_path": {"type":"string", "title":"Destination Path"}, "apply_dst_policy": {"type":"boolean", "title":"Apply Destination Policy", "default":True}}}},
-            {"name": "bucket_sync_replicas", "description": "Sync bucket files to replicas according to policy", "inputSchema": {"type":"object", "required":["bucket"], "properties": {"bucket": {"type":"string", "title":"Bucket", "ui": {"enumFrom":"buckets", "valueKey":"name", "labelKey":"name"}}, "force_sync": {"type":"boolean", "title":"Force Full Sync", "default":False}}}},
-            {"name": "bucket_get_metadata", "description": "Get comprehensive metadata for bucket file", "inputSchema": {"type":"object", "required":["bucket","path"], "properties": {"bucket": {"type":"string", "title":"Bucket", "ui": {"enumFrom":"buckets", "valueKey":"name", "labelKey":"name"}}, "path": {"type":"string", "title":"File Path"}, "include_replicas": {"type":"boolean", "title":"Include Replica Info", "default":True}}}},
-            {"name": "bucket_get_full_metadata", "description": "Get complete metadata for entire bucket including all file CID hashes for IPFS reconstruction", "inputSchema": {"type":"object", "required":["bucket"], "properties": {"bucket": {"type":"string", "title":"Bucket", "ui": {"enumFrom":"buckets", "valueKey":"name", "labelKey":"name"}}}}},
+            {
+                "name": "bucket_list_files",
+                "description": "List files in bucket with metadata priority",
+                "inputSchema": {
+                    "type": "object",
+                    "required": ["bucket"],
+                    "properties": {
+                        "bucket": {
+                            "type": "string",
+                            "title": "Bucket",
+                            "ui": {"enumFrom": "buckets", "valueKey": "name", "labelKey": "name"},
+                        },
+                        "path": {"type": "string", "title": "Path", "default": "."},
+                        "show_metadata": {
+                            "type": "boolean",
+                            "title": "Show Metadata",
+                            "default": True,
+                        },
+                    },
+                },
+            },
+            {
+                "name": "list_bucket_files",
+                "description": "List files in bucket (alias for bucket_list_files)",
+                "inputSchema": {
+                    "type": "object",
+                    "required": ["bucket"],
+                    "properties": {
+                        "bucket": {"type": "string", "title": "Bucket"},
+                        "path": {"type": "string", "title": "Path", "default": ""},
+                        "metadata_first": {
+                            "type": "boolean",
+                            "title": "Metadata First",
+                            "default": True,
+                        },
+                    },
+                },
+            },
+            {
+                "name": "create_folder",
+                "description": "Create a new folder in bucket",
+                "inputSchema": {
+                    "type": "object",
+                    "required": ["bucket", "name"],
+                    "properties": {
+                        "bucket": {"type": "string", "title": "Bucket"},
+                        "name": {"type": "string", "title": "Folder Name"},
+                    },
+                },
+            },
+            {
+                "name": "bucket_upload_file",
+                "description": "Upload file to bucket with replication policy",
+                "inputSchema": {
+                    "type": "object",
+                    "required": ["bucket", "path", "content"],
+                    "properties": {
+                        "bucket": {
+                            "type": "string",
+                            "title": "Bucket",
+                            "ui": {"enumFrom": "buckets", "valueKey": "name", "labelKey": "name"},
+                        },
+                        "path": {"type": "string", "title": "File Path"},
+                        "content": {
+                            "type": "string",
+                            "title": "Content",
+                            "ui": {"widget": "textarea", "rows": 6},
+                        },
+                        "mode": {
+                            "type": "string",
+                            "title": "Mode",
+                            "enum": ["text", "hex", "base64"],
+                            "default": "text",
+                        },
+                        "apply_policy": {
+                            "type": "boolean",
+                            "title": "Apply Bucket Policy",
+                            "default": True,
+                        },
+                    },
+                },
+            },
+            {
+                "name": "bucket_download_file",
+                "description": "Download file from bucket",
+                "inputSchema": {
+                    "type": "object",
+                    "required": ["bucket", "path"],
+                    "properties": {
+                        "bucket": {
+                            "type": "string",
+                            "title": "Bucket",
+                            "ui": {"enumFrom": "buckets", "valueKey": "name", "labelKey": "name"},
+                        },
+                        "path": {"type": "string", "title": "File Path"},
+                        "format": {
+                            "type": "string",
+                            "title": "Format",
+                            "enum": ["text", "hex", "base64"],
+                            "default": "text",
+                        },
+                    },
+                },
+            },
+            {
+                "name": "bucket_delete_file",
+                "description": "Delete file from bucket",
+                "inputSchema": {
+                    "type": "object",
+                    "required": ["bucket", "path"],
+                    "confirm": {"message": "This will delete the file from the bucket. Continue?"},
+                    "properties": {
+                        "bucket": {
+                            "type": "string",
+                            "title": "Bucket",
+                            "ui": {"enumFrom": "buckets", "valueKey": "name", "labelKey": "name"},
+                        },
+                        "path": {"type": "string", "title": "File Path"},
+                        "remove_replicas": {
+                            "type": "boolean",
+                            "title": "Remove Replicas",
+                            "default": True,
+                        },
+                    },
+                },
+            },
+            {
+                "name": "bucket_rename_file",
+                "description": "Rename/move file in bucket",
+                "inputSchema": {
+                    "type": "object",
+                    "required": ["bucket", "src", "dst"],
+                    "properties": {
+                        "bucket": {
+                            "type": "string",
+                            "title": "Bucket",
+                            "ui": {"enumFrom": "buckets", "valueKey": "name", "labelKey": "name"},
+                        },
+                        "src": {"type": "string", "title": "Source Path"},
+                        "dst": {"type": "string", "title": "Destination Path"},
+                        "update_replicas": {
+                            "type": "boolean",
+                            "title": "Update Replicas",
+                            "default": True,
+                        },
+                    },
+                },
+            },
+            {
+                "name": "bucket_mkdir",
+                "description": "Create directory in bucket",
+                "inputSchema": {
+                    "type": "object",
+                    "required": ["bucket", "path"],
+                    "properties": {
+                        "bucket": {
+                            "type": "string",
+                            "title": "Bucket",
+                            "ui": {"enumFrom": "buckets", "valueKey": "name", "labelKey": "name"},
+                        },
+                        "path": {"type": "string", "title": "Directory Path"},
+                        "create_parents": {
+                            "type": "boolean",
+                            "title": "Create Parents",
+                            "default": True,
+                        },
+                    },
+                },
+            },
+            {
+                "name": "bucket_copy_file",
+                "description": "Copy file within or between buckets",
+                "inputSchema": {
+                    "type": "object",
+                    "required": ["src_bucket", "src_path", "dst_bucket", "dst_path"],
+                    "properties": {
+                        "src_bucket": {
+                            "type": "string",
+                            "title": "Source Bucket",
+                            "ui": {"enumFrom": "buckets", "valueKey": "name", "labelKey": "name"},
+                        },
+                        "src_path": {"type": "string", "title": "Source Path"},
+                        "dst_bucket": {
+                            "type": "string",
+                            "title": "Destination Bucket",
+                            "ui": {"enumFrom": "buckets", "valueKey": "name", "labelKey": "name"},
+                        },
+                        "dst_path": {"type": "string", "title": "Destination Path"},
+                        "apply_dst_policy": {
+                            "type": "boolean",
+                            "title": "Apply Destination Policy",
+                            "default": True,
+                        },
+                    },
+                },
+            },
+            {
+                "name": "bucket_sync_replicas",
+                "description": "Sync bucket files to replicas according to policy",
+                "inputSchema": {
+                    "type": "object",
+                    "required": ["bucket"],
+                    "properties": {
+                        "bucket": {
+                            "type": "string",
+                            "title": "Bucket",
+                            "ui": {"enumFrom": "buckets", "valueKey": "name", "labelKey": "name"},
+                        },
+                        "force_sync": {
+                            "type": "boolean",
+                            "title": "Force Full Sync",
+                            "default": False,
+                        },
+                    },
+                },
+            },
+            {
+                "name": "bucket_get_metadata",
+                "description": "Get comprehensive metadata for bucket file",
+                "inputSchema": {
+                    "type": "object",
+                    "required": ["bucket", "path"],
+                    "properties": {
+                        "bucket": {
+                            "type": "string",
+                            "title": "Bucket",
+                            "ui": {"enumFrom": "buckets", "valueKey": "name", "labelKey": "name"},
+                        },
+                        "path": {"type": "string", "title": "File Path"},
+                        "include_replicas": {
+                            "type": "boolean",
+                            "title": "Include Replica Info",
+                            "default": True,
+                        },
+                    },
+                },
+            },
+            {
+                "name": "bucket_get_full_metadata",
+                "description": "Get complete metadata for entire bucket including all file CID hashes for IPFS reconstruction",
+                "inputSchema": {
+                    "type": "object",
+                    "required": ["bucket"],
+                    "properties": {
+                        "bucket": {
+                            "type": "string",
+                            "title": "Bucket",
+                            "ui": {"enumFrom": "buckets", "valueKey": "name", "labelKey": "name"},
+                        }
+                    },
+                },
+            },
             # Enhanced bucket management tools
-            {"name": "get_bucket_usage", "description": "Get bucket usage statistics", "inputSchema": {"type":"object", "required":["name"], "properties": {"name": {"type":"string", "title":"Bucket", "ui": {"enumFrom":"buckets", "valueKey":"name", "labelKey":"name"}}}}},
-            {"name": "generate_bucket_share_link", "description": "Generate shareable link for bucket", "inputSchema": {"type":"object", "required":["bucket"], "properties": {"bucket": {"type":"string", "title":"Bucket", "ui": {"enumFrom":"buckets", "valueKey":"name", "labelKey":"name"}}, "access_type": {"type":"string", "title":"Access Type", "enum":["read_only","read_write","admin"], "default":"read_only"}, "expiration": {"type":"string", "title":"Expiration", "enum":["never","1h","24h","7d","30d"], "default":"never"}}}},
-            {"name": "bucket_selective_sync", "description": "Sync selected files in bucket", "inputSchema": {"type":"object", "required":["bucket","files"], "properties": {"bucket": {"type":"string", "title":"Bucket", "ui": {"enumFrom":"buckets", "valueKey":"name", "labelKey":"name"}}, "files": {"type":"array", "title":"Files to Sync", "items": {"type":"string"}}, "options": {"type":"object", "title":"Sync Options", "properties": {"force_update": {"type":"boolean", "default":False}, "verify_checksums": {"type":"boolean", "default":True}, "create_backup": {"type":"boolean", "default":False}}}}}},
+            {
+                "name": "get_bucket_usage",
+                "description": "Get bucket usage statistics",
+                "inputSchema": {
+                    "type": "object",
+                    "required": ["name"],
+                    "properties": {
+                        "name": {
+                            "type": "string",
+                            "title": "Bucket",
+                            "ui": {"enumFrom": "buckets", "valueKey": "name", "labelKey": "name"},
+                        }
+                    },
+                },
+            },
+            {
+                "name": "generate_bucket_share_link",
+                "description": "Generate shareable link for bucket",
+                "inputSchema": {
+                    "type": "object",
+                    "required": ["bucket"],
+                    "properties": {
+                        "bucket": {
+                            "type": "string",
+                            "title": "Bucket",
+                            "ui": {"enumFrom": "buckets", "valueKey": "name", "labelKey": "name"},
+                        },
+                        "access_type": {
+                            "type": "string",
+                            "title": "Access Type",
+                            "enum": ["read_only", "read_write", "admin"],
+                            "default": "read_only",
+                        },
+                        "expiration": {
+                            "type": "string",
+                            "title": "Expiration",
+                            "enum": ["never", "1h", "24h", "7d", "30d"],
+                            "default": "never",
+                        },
+                    },
+                },
+            },
+            {
+                "name": "bucket_selective_sync",
+                "description": "Sync selected files in bucket",
+                "inputSchema": {
+                    "type": "object",
+                    "required": ["bucket", "files"],
+                    "properties": {
+                        "bucket": {
+                            "type": "string",
+                            "title": "Bucket",
+                            "ui": {"enumFrom": "buckets", "valueKey": "name", "labelKey": "name"},
+                        },
+                        "files": {
+                            "type": "array",
+                            "title": "Files to Sync",
+                            "items": {"type": "string"},
+                        },
+                        "options": {
+                            "type": "object",
+                            "title": "Sync Options",
+                            "properties": {
+                                "force_update": {"type": "boolean", "default": False},
+                                "verify_checksums": {"type": "boolean", "default": True},
+                                "create_backup": {"type": "boolean", "default": False},
+                            },
+                        },
+                    },
+                },
+            },
             {"name": "list_pins", "description": "List pins", "inputSchema": {}},
-            {"name": "create_pin", "description": "Create pin", "inputSchema": {"type":"object", "required":["cid"], "properties": {"cid": {"type":"string", "title":"CID"}, "name": {"type":"string", "title":"Name"}}}},
-            {"name": "delete_pin", "description": "Delete pin", "inputSchema": {"type":"object", "required":["cid"], "confirm": {"message":"This will unpin the CID. Continue?"}, "properties": {"cid": {"type":"string", "title":"CID", "ui": {"enumFrom":"pins", "valueKey":"cid", "labelFormat":"{name} ({cid})"}}}}},
+            {
+                "name": "create_pin",
+                "description": "Create pin",
+                "inputSchema": {
+                    "type": "object",
+                    "required": ["cid"],
+                    "properties": {
+                        "cid": {"type": "string", "title": "CID"},
+                        "name": {"type": "string", "title": "Name"},
+                    },
+                },
+            },
+            {
+                "name": "delete_pin",
+                "description": "Delete pin",
+                "inputSchema": {
+                    "type": "object",
+                    "required": ["cid"],
+                    "confirm": {"message": "This will unpin the CID. Continue?"},
+                    "properties": {
+                        "cid": {
+                            "type": "string",
+                            "title": "CID",
+                            "ui": {
+                                "enumFrom": "pins",
+                                "valueKey": "cid",
+                                "labelFormat": "{name} ({cid})",
+                            },
+                        }
+                    },
+                },
+            },
             {"name": "pins_export", "description": "Export pins (raw list)", "inputSchema": {}},
-            {"name": "pins_import", "description": "Import pins (merge without duplicates)", "inputSchema": {"items": "array"}},
-            {"name": "files_list", "description": "List VFS", "inputSchema": {"type":"object", "required":["path"], "properties": {"path": {"type":"string", "title":"Path", "ui": {"widget":"path", "placeholder":"."}}}}},
-            {"name": "files_read", "description": "Read VFS file", "inputSchema": {"type":"object", "required":["path"], "properties": {"path": {"type":"string", "title":"Path"}}}},
-            {"name": "files_write", "description": "Write VFS file", "inputSchema": {"type":"object", "required":["path","content"], "properties": {"path": {"type":"string", "title":"Path"}, "content": {"type":"string", "title":"Content", "ui": {"widget":"textarea", "rows":4}}, "mode": {"type":"string", "title":"Mode", "enum":["text","hex"], "default":"text"}}}},
-            {"name": "files_mkdir", "description": "Create directory in VFS", "inputSchema": {"type":"object", "required":["path"], "properties": {"path": {"type":"string", "title":"Path"}}}},
-            {"name": "files_rm", "description": "Remove file/dir in VFS", "inputSchema": {"type":"object", "required":["path"], "confirm": {"message":"This will delete files. Continue?"}, "properties": {"path": {"type":"string", "title":"Path"}, "recursive": {"type":"boolean", "title":"Recursive", "default": False}}}},
-            {"name": "files_mv", "description": "Move/Rename in VFS", "inputSchema": {"type":"object", "required":["src","dst"], "properties": {"src": {"type":"string", "title":"Source"}, "dst": {"type":"string", "title":"Destination"}}}},
-            {"name": "files_stat", "description": "Stat a VFS path", "inputSchema": {"type":"object", "required":["path"], "properties": {"path": {"type":"string", "title":"Path"}}}},
-            {"name": "files_copy", "description": "Copy file/dir in VFS", "inputSchema": {"type":"object", "required":["src","dst"], "properties": {"src": {"type":"string", "title":"Source"}, "dst": {"type":"string", "title":"Destination"}, "recursive": {"type":"boolean", "title":"Recursive", "default": False}}}},
-            {"name": "files_touch", "description": "Create empty file in VFS", "inputSchema": {"type":"object", "required":["path"], "properties": {"path": {"type":"string", "title":"Path"}}}},
-            {"name": "files_tree", "description": "Recursive tree listing (depth-limited)", "inputSchema": {"type":"object", "required":["path"], "properties": {"path": {"type":"string", "title":"Path", "default": "."}, "depth": {"type":"number", "title":"Depth", "default": 2}}}},
-            {"name": "ipfs_add", "description": "Add a VFS path to IPFS", "inputSchema": {"path": "string"}},
-            {"name": "ipfs_pin", "description": "Pin a CID via IPFS", "inputSchema": {"type":"object", "required":["cid"], "properties": {"cid": {"type":"string", "title":"CID", "ui": {"enumFrom":"pins", "valueKey":"cid", "labelFormat":"{name} ({cid})"}}, "name": {"type":"string", "title":"Name"}}}},
-            {"name": "ipfs_cat", "description": "Cat a CID via IPFS", "inputSchema": {"cid": "string"}},
-            {"name": "ipfs_ls", "description": "List links for CID", "inputSchema": {"cid": "string"}},
+            {
+                "name": "pins_import",
+                "description": "Import pins (merge without duplicates)",
+                "inputSchema": {"items": "array"},
+            },
+            {
+                "name": "files_list",
+                "description": "List VFS",
+                "inputSchema": {
+                    "type": "object",
+                    "required": ["path"],
+                    "properties": {
+                        "path": {
+                            "type": "string",
+                            "title": "Path",
+                            "ui": {"widget": "path", "placeholder": "."},
+                        }
+                    },
+                },
+            },
+            {
+                "name": "files_read",
+                "description": "Read VFS file",
+                "inputSchema": {
+                    "type": "object",
+                    "required": ["path"],
+                    "properties": {"path": {"type": "string", "title": "Path"}},
+                },
+            },
+            {
+                "name": "files_write",
+                "description": "Write VFS file",
+                "inputSchema": {
+                    "type": "object",
+                    "required": ["path", "content"],
+                    "properties": {
+                        "path": {"type": "string", "title": "Path"},
+                        "content": {
+                            "type": "string",
+                            "title": "Content",
+                            "ui": {"widget": "textarea", "rows": 4},
+                        },
+                        "mode": {
+                            "type": "string",
+                            "title": "Mode",
+                            "enum": ["text", "hex"],
+                            "default": "text",
+                        },
+                    },
+                },
+            },
+            {
+                "name": "files_mkdir",
+                "description": "Create directory in VFS",
+                "inputSchema": {
+                    "type": "object",
+                    "required": ["path"],
+                    "properties": {"path": {"type": "string", "title": "Path"}},
+                },
+            },
+            {
+                "name": "files_rm",
+                "description": "Remove file/dir in VFS",
+                "inputSchema": {
+                    "type": "object",
+                    "required": ["path"],
+                    "confirm": {"message": "This will delete files. Continue?"},
+                    "properties": {
+                        "path": {"type": "string", "title": "Path"},
+                        "recursive": {"type": "boolean", "title": "Recursive", "default": False},
+                    },
+                },
+            },
+            {
+                "name": "files_mv",
+                "description": "Move/Rename in VFS",
+                "inputSchema": {
+                    "type": "object",
+                    "required": ["src", "dst"],
+                    "properties": {
+                        "src": {"type": "string", "title": "Source"},
+                        "dst": {"type": "string", "title": "Destination"},
+                    },
+                },
+            },
+            {
+                "name": "files_stat",
+                "description": "Stat a VFS path",
+                "inputSchema": {
+                    "type": "object",
+                    "required": ["path"],
+                    "properties": {"path": {"type": "string", "title": "Path"}},
+                },
+            },
+            {
+                "name": "files_copy",
+                "description": "Copy file/dir in VFS",
+                "inputSchema": {
+                    "type": "object",
+                    "required": ["src", "dst"],
+                    "properties": {
+                        "src": {"type": "string", "title": "Source"},
+                        "dst": {"type": "string", "title": "Destination"},
+                        "recursive": {"type": "boolean", "title": "Recursive", "default": False},
+                    },
+                },
+            },
+            {
+                "name": "files_touch",
+                "description": "Create empty file in VFS",
+                "inputSchema": {
+                    "type": "object",
+                    "required": ["path"],
+                    "properties": {"path": {"type": "string", "title": "Path"}},
+                },
+            },
+            {
+                "name": "files_tree",
+                "description": "Recursive tree listing (depth-limited)",
+                "inputSchema": {
+                    "type": "object",
+                    "required": ["path"],
+                    "properties": {
+                        "path": {"type": "string", "title": "Path", "default": "."},
+                        "depth": {"type": "number", "title": "Depth", "default": 2},
+                    },
+                },
+            },
+            {
+                "name": "ipfs_add",
+                "description": "Add a VFS path to IPFS",
+                "inputSchema": {"path": "string"},
+            },
+            {
+                "name": "ipfs_pin",
+                "description": "Pin a CID via IPFS",
+                "inputSchema": {
+                    "type": "object",
+                    "required": ["cid"],
+                    "properties": {
+                        "cid": {
+                            "type": "string",
+                            "title": "CID",
+                            "ui": {
+                                "enumFrom": "pins",
+                                "valueKey": "cid",
+                                "labelFormat": "{name} ({cid})",
+                            },
+                        },
+                        "name": {"type": "string", "title": "Name"},
+                    },
+                },
+            },
+            {
+                "name": "ipfs_cat",
+                "description": "Cat a CID via IPFS",
+                "inputSchema": {"cid": "string"},
+            },
+            {
+                "name": "ipfs_ls",
+                "description": "List links for CID",
+                "inputSchema": {"cid": "string"},
+            },
             {"name": "ipfs_version", "description": "IPFS version info", "inputSchema": {}},
             {"name": "cars_list", "description": "List CAR files", "inputSchema": {}},
-            {"name": "car_export", "description": "Export a VFS path to CAR", "inputSchema": {"path": "string", "car": "string"}},
-            {"name": "car_import", "description": "Import a CAR to VFS", "inputSchema": {"car": "string", "dest": "string"}},
-            {"name": "state_snapshot", "description": "Snapshot key state files", "inputSchema": {}},
+            {
+                "name": "car_export",
+                "description": "Export a VFS path to CAR",
+                "inputSchema": {"path": "string", "car": "string"},
+            },
+            {
+                "name": "car_import",
+                "description": "Import a CAR to VFS",
+                "inputSchema": {"car": "string", "dest": "string"},
+            },
+            {
+                "name": "state_snapshot",
+                "description": "Snapshot key state files",
+                "inputSchema": {},
+            },
             {"name": "state_backup", "description": "Backup state to tar.gz", "inputSchema": {}},
-            {"name": "state_reset", "description": "Reset state JSON files (with backups)", "inputSchema": {}},
-            {"name": "get_parquet_summary", "description": "Summarize expected parquet index locations (pins/buckets)", "inputSchema": {}},
-            {"name": "get_logs", "description": "Get recent logs", "inputSchema": {"limit": "number"}},
+            {
+                "name": "state_reset",
+                "description": "Reset state JSON files (with backups)",
+                "inputSchema": {},
+            },
+            {
+                "name": "get_parquet_summary",
+                "description": "Summarize expected parquet index locations (pins/buckets)",
+                "inputSchema": {},
+            },
+            {
+                "name": "get_logs",
+                "description": "Get recent logs",
+                "inputSchema": {"limit": "number"},
+            },
             {"name": "clear_logs", "description": "Clear logs", "inputSchema": {}},
-            {"name": "server_shutdown", "description": "Shutdown this MCP server", "inputSchema": {}},
+            {
+                "name": "server_shutdown",
+                "description": "Shutdown this MCP server",
+                "inputSchema": {},
+            },
             # Enhanced backend configuration tools for multi-instance support
-            {"name": "configure_backend_instance", "description": "Configure backend instance with advanced settings", "inputSchema": {"type":"object", "required":["instance_name", "service_type"], "properties": {"instance_name": {"type":"string", "title":"Instance Name"}, "service_type": {"type":"string", "title":"Service Type", "enum":["s3", "github", "ipfs_cluster", "huggingface", "gdrive", "ftp", "sshfs", "apache_arrow", "parquet"]}, "config": {"type":"object", "title":"Configuration", "properties": {"description": {"type":"string", "title":"Description"}, "cache_policy": {"type":"string", "title":"Cache Policy", "enum":["none", "memory", "disk", "hybrid"], "default":"none"}, "cache_size_mb": {"type":"number", "title":"Cache Size (MB)", "default":1024}, "cache_ttl_seconds": {"type":"number", "title":"Cache TTL (seconds)", "default":3600}, "storage_quota_gb": {"type":"number", "title":"Storage Quota (GB)", "default":100}, "max_files": {"type":"number", "title":"Max Files", "default":10000}, "max_file_size_mb": {"type":"number", "title":"Max File Size (MB)", "default":500}, "retention_days": {"type":"number", "title":"Retention Days", "default":365}, "auto_cleanup": {"type":"boolean", "title":"Auto Cleanup", "default":False}, "versioning": {"type":"boolean", "title":"Versioning", "default":False}, "replication_factor": {"type":"number", "title":"Replication Factor", "enum":[1,2,3,5,10], "default":3}, "sync_strategy": {"type":"string", "title":"Sync Strategy", "enum":["immediate", "scheduled", "manual"], "default":"immediate"}}}}}},
-            {"name": "create_backend_instance", "description": "Create new backend instance", "inputSchema": {"type":"object", "required":["service_type", "instance_name"], "properties": {"service_type": {"type":"string", "title":"Service Type", "enum":["s3", "github", "ipfs_cluster", "huggingface", "gdrive", "ftp", "sshfs", "apache_arrow", "parquet"]}, "instance_name": {"type":"string", "title":"Instance Name"}, "description": {"type":"string", "title":"Description"}}}},
-            {"name": "list_backend_instances", "description": "List all backend instances with configurations", "inputSchema": {}},
-            {"name": "backend_health_check", "description": "Run comprehensive health check on all backends", "inputSchema": {"type":"object", "properties": {"detailed": {"type":"boolean", "title":"Detailed Report", "default":False}}}},
-            {"name": "sync_backend_replicas", "description": "Sync backend replicas using metadata-first approach", "inputSchema": {"type":"object", "required":["name"], "properties": {"name": {"type":"string", "title":"Backend Name"}, "use_metadata_first": {"type":"boolean", "title":"Use Metadata First", "default":True}, "force_sync": {"type":"boolean", "title":"Force Sync", "default":False}}}},
-            {"name": "test_backend_config", "description": "Test backend configuration without saving", "inputSchema": {"type":"object", "required":["name"], "properties": {"name": {"type":"string", "title":"Backend Name"}, "config": {"type":"object", "title":"Configuration to Test"}}}},
-            {"name": "apply_backend_policy", "description": "Apply policy to backend with replication sync", "inputSchema": {"type":"object", "required":["name", "policy"], "properties": {"name": {"type":"string", "title":"Backend Name"}, "policy": {"type":"object", "title":"Policy Configuration"}, "force_sync": {"type":"boolean", "title":"Force Sync", "default":False}}}},
-            {"name": "update_backend_policy", "description": "Update backend policy configuration", "inputSchema": {"type":"object", "required":["name", "policy"], "properties": {"name": {"type":"string", "title":"Backend Name"}, "policy": {"type":"object", "title":"Policy Updates"}}}},
+            {
+                "name": "configure_backend_instance",
+                "description": "Configure backend instance with advanced settings",
+                "inputSchema": {
+                    "type": "object",
+                    "required": ["instance_name", "service_type"],
+                    "properties": {
+                        "instance_name": {"type": "string", "title": "Instance Name"},
+                        "service_type": {
+                            "type": "string",
+                            "title": "Service Type",
+                            "enum": [
+                                "s3",
+                                "github",
+                                "ipfs_cluster",
+                                "huggingface",
+                                "gdrive",
+                                "ftp",
+                                "sshfs",
+                                "apache_arrow",
+                                "parquet",
+                            ],
+                        },
+                        "config": {
+                            "type": "object",
+                            "title": "Configuration",
+                            "properties": {
+                                "description": {"type": "string", "title": "Description"},
+                                "cache_policy": {
+                                    "type": "string",
+                                    "title": "Cache Policy",
+                                    "enum": ["none", "memory", "disk", "hybrid"],
+                                    "default": "none",
+                                },
+                                "cache_size_mb": {
+                                    "type": "number",
+                                    "title": "Cache Size (MB)",
+                                    "default": 1024,
+                                },
+                                "cache_ttl_seconds": {
+                                    "type": "number",
+                                    "title": "Cache TTL (seconds)",
+                                    "default": 3600,
+                                },
+                                "storage_quota_gb": {
+                                    "type": "number",
+                                    "title": "Storage Quota (GB)",
+                                    "default": 100,
+                                },
+                                "max_files": {
+                                    "type": "number",
+                                    "title": "Max Files",
+                                    "default": 10000,
+                                },
+                                "max_file_size_mb": {
+                                    "type": "number",
+                                    "title": "Max File Size (MB)",
+                                    "default": 500,
+                                },
+                                "retention_days": {
+                                    "type": "number",
+                                    "title": "Retention Days",
+                                    "default": 365,
+                                },
+                                "auto_cleanup": {
+                                    "type": "boolean",
+                                    "title": "Auto Cleanup",
+                                    "default": False,
+                                },
+                                "versioning": {
+                                    "type": "boolean",
+                                    "title": "Versioning",
+                                    "default": False,
+                                },
+                                "replication_factor": {
+                                    "type": "number",
+                                    "title": "Replication Factor",
+                                    "enum": [1, 2, 3, 5, 10],
+                                    "default": 3,
+                                },
+                                "sync_strategy": {
+                                    "type": "string",
+                                    "title": "Sync Strategy",
+                                    "enum": ["immediate", "scheduled", "manual"],
+                                    "default": "immediate",
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+            {
+                "name": "create_backend_instance",
+                "description": "Create new backend instance",
+                "inputSchema": {
+                    "type": "object",
+                    "required": ["service_type", "instance_name"],
+                    "properties": {
+                        "service_type": {
+                            "type": "string",
+                            "title": "Service Type",
+                            "enum": [
+                                "s3",
+                                "github",
+                                "ipfs_cluster",
+                                "huggingface",
+                                "gdrive",
+                                "ftp",
+                                "sshfs",
+                                "apache_arrow",
+                                "parquet",
+                            ],
+                        },
+                        "instance_name": {"type": "string", "title": "Instance Name"},
+                        "description": {"type": "string", "title": "Description"},
+                    },
+                },
+            },
+            {
+                "name": "list_backend_instances",
+                "description": "List all backend instances with configurations",
+                "inputSchema": {},
+            },
+            {
+                "name": "backend_health_check",
+                "description": "Run comprehensive health check on all backends",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "detailed": {
+                            "type": "boolean",
+                            "title": "Detailed Report",
+                            "default": False,
+                        }
+                    },
+                },
+            },
+            {
+                "name": "sync_backend_replicas",
+                "description": "Sync backend replicas using metadata-first approach",
+                "inputSchema": {
+                    "type": "object",
+                    "required": ["name"],
+                    "properties": {
+                        "name": {"type": "string", "title": "Backend Name"},
+                        "use_metadata_first": {
+                            "type": "boolean",
+                            "title": "Use Metadata First",
+                            "default": True,
+                        },
+                        "force_sync": {"type": "boolean", "title": "Force Sync", "default": False},
+                    },
+                },
+            },
+            {
+                "name": "test_backend_config",
+                "description": "Test backend configuration without saving",
+                "inputSchema": {
+                    "type": "object",
+                    "required": ["name"],
+                    "properties": {
+                        "name": {"type": "string", "title": "Backend Name"},
+                        "config": {"type": "object", "title": "Configuration to Test"},
+                    },
+                },
+            },
+            {
+                "name": "apply_backend_policy",
+                "description": "Apply policy to backend with replication sync",
+                "inputSchema": {
+                    "type": "object",
+                    "required": ["name", "policy"],
+                    "properties": {
+                        "name": {"type": "string", "title": "Backend Name"},
+                        "policy": {"type": "object", "title": "Policy Configuration"},
+                        "force_sync": {"type": "boolean", "title": "Force Sync", "default": False},
+                    },
+                },
+            },
+            {
+                "name": "update_backend_policy",
+                "description": "Update backend policy configuration",
+                "inputSchema": {
+                    "type": "object",
+                    "required": ["name", "policy"],
+                    "properties": {
+                        "name": {"type": "string", "title": "Backend Name"},
+                        "policy": {"type": "object", "title": "Policy Updates"},
+                    },
+                },
+            },
             # Advanced Feature 8: Real-Time Performance Metrics
-            {"name": "get_backend_performance_metrics", "description": "Get real-time performance metrics for backends", "inputSchema": {"type":"object", "properties": {"backend_name": {"type":"string", "title":"Backend Name (optional, all if empty)"}, "time_range": {"type":"string", "title":"Time Range", "enum":["1h", "6h", "24h", "7d"], "default":"1h"}, "include_history": {"type":"boolean", "title":"Include Historical Data", "default":True}}}},
+            {
+                "name": "get_backend_performance_metrics",
+                "description": "Get real-time performance metrics for backends",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "backend_name": {
+                            "type": "string",
+                            "title": "Backend Name (optional, all if empty)",
+                        },
+                        "time_range": {
+                            "type": "string",
+                            "title": "Time Range",
+                            "enum": ["1h", "6h", "24h", "7d"],
+                            "default": "1h",
+                        },
+                        "include_history": {
+                            "type": "boolean",
+                            "title": "Include Historical Data",
+                            "default": True,
+                        },
+                    },
+                },
+            },
             # Advanced Feature 9: Advanced Configuration Management & Policy Editor
-            {"name": "get_backend_configuration_template", "description": "Get configuration templates and policy presets", "inputSchema": {"type":"object", "properties": {"backend_type": {"type":"string", "title":"Backend Type", "enum":["s3", "github", "ipfs", "huggingface", "gdrive", "parquet"]}, "template_type": {"type":"string", "title":"Template Type", "enum":["basic", "enterprise", "high_performance", "backup"], "default":"basic"}}}},
-            {"name": "clone_backend_configuration", "description": "Clone backend configuration to create new backend", "inputSchema": {"type":"object", "required":["source_backend", "new_backend_name"], "properties": {"source_backend": {"type":"string", "title":"Source Backend Name"}, "new_backend_name": {"type":"string", "title":"New Backend Name"}, "modify_config": {"type":"object", "title":"Configuration Modifications"}}}},
-            {"name": "backup_backend_configuration", "description": "Backup backend configuration with versioning", "inputSchema": {"type":"object", "required":["backend_name"], "properties": {"backend_name": {"type":"string", "title":"Backend Name"}, "backup_name": {"type":"string", "title":"Backup Name (optional)"}, "include_data": {"type":"boolean", "title":"Include Data Backup", "default":False}}}},
-            {"name": "restore_backend_configuration", "description": "Restore backend configuration from backup", "inputSchema": {"type":"object", "required":["backend_name", "backup_id"], "properties": {"backend_name": {"type":"string", "title":"Backend Name"}, "backup_id": {"type":"string", "title":"Backup ID"}, "force_restore": {"type":"boolean", "title":"Force Restore", "default":False}}}},
-            # Configuration management tools with metadata-first approach  
-            {"name": "list_config_files", "description": "List configuration files with metadata-first approach", "inputSchema": {}},
-            {"name": "read_config_file", "description": "Read configuration file with metadata-first approach", "inputSchema": {"type":"object", "required":["filename"], "properties": {"filename": {"type":"string", "title":"Configuration File"}}}},
-            {"name": "write_config_file", "description": "Write configuration file with metadata-first approach", "inputSchema": {"type":"object", "required":["filename","content"], "properties": {"filename": {"type":"string", "title":"Configuration File"}, "content": {"type":"string", "title":"File Content", "ui": {"widget":"textarea", "rows":10}}}}},
-            {"name": "get_config_metadata", "description": "Get configuration file metadata", "inputSchema": {"type":"object", "required":["filename"], "properties": {"filename": {"type":"string", "title":"Configuration File"}}}},
+            {
+                "name": "get_backend_configuration_template",
+                "description": "Get configuration templates and policy presets",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "backend_type": {
+                            "type": "string",
+                            "title": "Backend Type",
+                            "enum": ["s3", "github", "ipfs", "huggingface", "gdrive", "parquet"],
+                        },
+                        "template_type": {
+                            "type": "string",
+                            "title": "Template Type",
+                            "enum": ["basic", "enterprise", "high_performance", "backup"],
+                            "default": "basic",
+                        },
+                    },
+                },
+            },
+            {
+                "name": "clone_backend_configuration",
+                "description": "Clone backend configuration to create new backend",
+                "inputSchema": {
+                    "type": "object",
+                    "required": ["source_backend", "new_backend_name"],
+                    "properties": {
+                        "source_backend": {"type": "string", "title": "Source Backend Name"},
+                        "new_backend_name": {"type": "string", "title": "New Backend Name"},
+                        "modify_config": {"type": "object", "title": "Configuration Modifications"},
+                    },
+                },
+            },
+            {
+                "name": "backup_backend_configuration",
+                "description": "Backup backend configuration with versioning",
+                "inputSchema": {
+                    "type": "object",
+                    "required": ["backend_name"],
+                    "properties": {
+                        "backend_name": {"type": "string", "title": "Backend Name"},
+                        "backup_name": {"type": "string", "title": "Backup Name (optional)"},
+                        "include_data": {
+                            "type": "boolean",
+                            "title": "Include Data Backup",
+                            "default": False,
+                        },
+                    },
+                },
+            },
+            {
+                "name": "restore_backend_configuration",
+                "description": "Restore backend configuration from backup",
+                "inputSchema": {
+                    "type": "object",
+                    "required": ["backend_name", "backup_id"],
+                    "properties": {
+                        "backend_name": {"type": "string", "title": "Backend Name"},
+                        "backup_id": {"type": "string", "title": "Backup ID"},
+                        "force_restore": {
+                            "type": "boolean",
+                            "title": "Force Restore",
+                            "default": False,
+                        },
+                    },
+                },
+            },
+            # Configuration management tools with metadata-first approach
+            {
+                "name": "list_config_files",
+                "description": "List configuration files with metadata-first approach",
+                "inputSchema": {},
+            },
+            {
+                "name": "read_config_file",
+                "description": "Read configuration file with metadata-first approach",
+                "inputSchema": {
+                    "type": "object",
+                    "required": ["filename"],
+                    "properties": {"filename": {"type": "string", "title": "Configuration File"}},
+                },
+            },
+            {
+                "name": "write_config_file",
+                "description": "Write configuration file with metadata-first approach",
+                "inputSchema": {
+                    "type": "object",
+                    "required": ["filename", "content"],
+                    "properties": {
+                        "filename": {"type": "string", "title": "Configuration File"},
+                        "content": {
+                            "type": "string",
+                            "title": "File Content",
+                            "ui": {"widget": "textarea", "rows": 10},
+                        },
+                    },
+                },
+            },
+            {
+                "name": "get_config_metadata",
+                "description": "Get configuration file metadata",
+                "inputSchema": {
+                    "type": "object",
+                    "required": ["filename"],
+                    "properties": {"filename": {"type": "string", "title": "Configuration File"}},
+                },
+            },
             # Peer management tools (file-backed by default; integrates with libp2p when present)
             {"name": "list_peers", "description": "List known peers", "inputSchema": {}},
-            {"name": "get_peer_stats", "description": "Get peer statistics and summary", "inputSchema": {}},
-            {"name": "connect_peer", "description": "Connect or add a peer", "inputSchema": {"type":"object", "properties": {"peer_id": {"type":"string", "title":"Peer ID"}, "peer_address": {"type":"string", "title":"Peer Multiaddr"}, "tags": {"type":"array", "items": {"type":"string"}}}}},
-            {"name": "disconnect_peer", "description": "Disconnect or remove a peer", "inputSchema": {"type":"object", "required":["peer_id"], "properties": {"peer_id": {"type":"string", "title":"Peer ID"}}}},
-            {"name": "get_peer_info", "description": "Get peer details", "inputSchema": {"type":"object", "required":["peer_id"], "properties": {"peer_id": {"type":"string", "title":"Peer ID"}}}},
-            {"name": "discover_peers", "description": "Discover peers via libp2p/ipfs_kit when available", "inputSchema": {"type":"object", "properties": {"limit": {"type":"number", "default": 20}, "timeout": {"type":"number", "default": 10}}}},
-            {"name": "bootstrap_peers", "description": "Manage bootstrap peers (list/from_ipfs/from_cluster/add)", "inputSchema": {"type":"object", "properties": {"action": {"type":"string", "enum":["list","from_ipfs","from_cluster","add"], "default":"list"}, "peer_address": {"type":"string"}}}},
+            {
+                "name": "get_peer_stats",
+                "description": "Get peer statistics and summary",
+                "inputSchema": {},
+            },
+            {
+                "name": "connect_peer",
+                "description": "Connect or add a peer",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "peer_id": {"type": "string", "title": "Peer ID"},
+                        "peer_address": {"type": "string", "title": "Peer Multiaddr"},
+                        "tags": {"type": "array", "items": {"type": "string"}},
+                    },
+                },
+            },
+            {
+                "name": "disconnect_peer",
+                "description": "Disconnect or remove a peer",
+                "inputSchema": {
+                    "type": "object",
+                    "required": ["peer_id"],
+                    "properties": {"peer_id": {"type": "string", "title": "Peer ID"}},
+                },
+            },
+            {
+                "name": "get_peer_info",
+                "description": "Get peer details",
+                "inputSchema": {
+                    "type": "object",
+                    "required": ["peer_id"],
+                    "properties": {"peer_id": {"type": "string", "title": "Peer ID"}},
+                },
+            },
+            {
+                "name": "discover_peers",
+                "description": "Discover peers via libp2p/ipfs_kit when available",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "limit": {"type": "number", "default": 20},
+                        "timeout": {"type": "number", "default": 10},
+                    },
+                },
+            },
+            {
+                "name": "bootstrap_peers",
+                "description": "Manage bootstrap peers (list/from_ipfs/from_cluster/add)",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "action": {
+                            "type": "string",
+                            "enum": ["list", "from_ipfs", "from_cluster", "add"],
+                            "default": "list",
+                        },
+                        "peer_address": {"type": "string"},
+                    },
+                },
+            },
         ]
         return {"jsonrpc": "2.0", "result": {"tools": tools}, "id": None}
 
     async def _tools_call(self, name: Optional[str], args: Dict[str, Any]) -> Dict[str, Any]:  # noqa: C901 - large dispatch function
         if not name:
-            return {"jsonrpc": "2.0", "error": {"code": -32601, "message": "Missing tool name"}, "id": None}
+            return {
+                "jsonrpc": "2.0",
+                "error": {"code": -32601, "message": "Missing tool name"},
+                "id": None,
+            }
 
         # Hierarchical facade: handle meta-tools, then resolve <category>.<tool>.
         if name in self._HIER_META_NAMES:
@@ -3580,14 +4965,24 @@ class ConsolidatedMCPDashboard:
                     maybe = await maybe  # type: ignore
                 if maybe is not None:
                     return maybe  # type: ignore
-            return {"jsonrpc": "2.0", "error": {"code": -32601, "message": f"Unknown tool: {name}"}, "id": None}
+            return {
+                "jsonrpc": "2.0",
+                "error": {"code": -32601, "message": f"Unknown tool: {name}"},
+                "id": None,
+            }
         except HTTPException as e:
-            return {"jsonrpc": "2.0", "error": {"code": e.status_code, "message": e.detail}, "id": None}
+            return {
+                "jsonrpc": "2.0",
+                "error": {"code": e.status_code, "message": e.detail},
+                "id": None,
+            }
         except Exception as e:  # pragma: no cover
             return {"jsonrpc": "2.0", "error": {"code": -32000, "message": str(e)}, "id": None}
 
     # Domain handlers (return JSON-RPC dict or None if not applicable)
-    async def _handle_system_services(self, name: str, args: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    async def _handle_system_services(
+        self, name: str, args: Dict[str, Any]
+    ) -> Optional[Dict[str, Any]]:
         if name == "control_service":
             # Legacy alias used by older tests/clients.
             res = await self._handle_system_services("service_control", args)
@@ -3596,10 +4991,7 @@ class ConsolidatedMCPDashboard:
                 res["result"]["status"] = "ok"
             return res
         if name == "health_check":
-            result = {
-                "status": "healthy",
-                "timestamp": datetime.now(UTC).isoformat()
-            }
+            result = {"status": "healthy", "timestamp": datetime.now(UTC).isoformat()}
             return {"jsonrpc": "2.0", "result": result, "id": None}
         if name == "get_system_status":
             result: Dict[str, Any] = {
@@ -3612,16 +5004,18 @@ class ConsolidatedMCPDashboard:
                     result["cpu_percent"] = round(psutil.cpu_percent(interval=1), 1)
                     memory = psutil.virtual_memory()
                     result["memory_percent"] = round(memory.percent, 1)
-                    
+
                     # Get disk usage for root filesystem
                     try:
-                        disk = psutil.disk_usage('/')
+                        disk = psutil.disk_usage("/")
                         result["disk_percent"] = round((disk.used / disk.total) * 100, 1)
                     except Exception:
                         result["disk_percent"] = 0.0
-                    
+
                     result["status"] = "running"
-                    result["uptime"] = str(datetime.now(UTC) - datetime.fromtimestamp(psutil.boot_time(), UTC))
+                    result["uptime"] = str(
+                        datetime.now(UTC) - datetime.fromtimestamp(psutil.boot_time(), UTC)
+                    )
             else:
                 # Fallback when psutil is not available
                 result["cpu_percent"] = "N/A"
@@ -3635,10 +5029,12 @@ class ConsolidatedMCPDashboard:
             if service_manager:
                 try:
                     # Get all services (enabled and disabled) for comprehensive dashboard view
-                    services_data = await service_manager.list_all_services()  # Call service manager's method directly
+                    services_data = (
+                        await service_manager.list_all_services()
+                    )  # Call service manager's method directly
                     # Transform the service manager format to match the expected dashboard format
                     services: Dict[str, Any] = {"services": {}}
-                    
+
                     for service in services_data.get("services", []):
                         service_id = service.get("id")
                         if service_id:
@@ -3656,30 +5052,34 @@ class ConsolidatedMCPDashboard:
                                 "config_keys": service.get("config_keys"),
                                 "config_hints": service.get("config_hints"),
                                 # Add compatibility fields for existing UI
-                                "bin": service.get("details", {}).get("binary_path") if service.get("type") == "daemon" else None,
-                                "api_port_open": service.get("details", {}).get("api_port_open", False) if service.get("type") == "daemon" else None
+                                "bin": service.get("details", {}).get("binary_path")
+                                if service.get("type") == "daemon"
+                                else None,
+                                "api_port_open": service.get("details", {}).get(
+                                    "api_port_open", False
+                                )
+                                if service.get("type") == "daemon"
+                                else None,
                             }
-                    
+
                     # Add summary information nested to avoid heterogeneous dict values at top level
                     services["metadata"] = {
                         "summary": services_data.get("summary", {}),
-                        "total": services_data.get("total", 0)
+                        "total": services_data.get("total", 0),
                     }
-                    
+
                     return {"jsonrpc": "2.0", "result": services, "id": None}
                 except Exception as e:
                     self.log.error(f"Error using service manager: {e}")
                     import traceback
+
                     self.log.error(f"Traceback: {traceback.format_exc()}")
                     # Fall back to the old implementation if service manager fails
-            
-            
+
             # If service manager fails or returns no services, return minimal IPFS check
             # Don't include docker/kubectl as they're not relevant to IPFS Kit
-            services: Dict[str, Any] = {
-                "services": {}
-            }
-            
+            services: Dict[str, Any] = {"services": {}}
+
             # Only check for IPFS as fallback
             ipfs_bin = _which("ipfs")
             if ipfs_bin:
@@ -3691,15 +5091,19 @@ class ConsolidatedMCPDashboard:
                     "description": "InterPlanetary File System daemon",
                     "bin": ipfs_bin,
                     "api_port_open": ipfs_api_open,
-                    "actions": ["start", "stop", "restart"] if ipfs_bin else []
+                    "actions": ["start", "stop", "restart"] if ipfs_bin else [],
                 }
-            
+
             total = len(services["services"])
             services["metadata"] = {
                 "total": total,
-                "running": sum(1 for v in services["services"].values() if v.get("status") == "running"),
-                "stopped": sum(1 for v in services["services"].values() if v.get("status") == "stopped"),
-                "configured": sum(1 for v in services["services"].values() if v.get("bin"))
+                "running": sum(
+                    1 for v in services["services"].values() if v.get("status") == "running"
+                ),
+                "stopped": sum(
+                    1 for v in services["services"].values() if v.get("status") == "stopped"
+                ),
+                "configured": sum(1 for v in services["services"].values() if v.get("bin")),
             }
             return {"jsonrpc": "2.0", "result": services, "id": None}
         if name == "service_control":
@@ -3710,7 +5114,7 @@ class ConsolidatedMCPDashboard:
             svc_key = svc.strip().lower()
             if svc_key in {"ipfs daemon", "ipfs", "kubo", "go-ipfs"}:
                 svc = "ipfs"
-            
+
             # Try to use the comprehensive service manager first
             service_manager = self._get_service_manager()
             if service_manager:
@@ -3719,7 +5123,15 @@ class ConsolidatedMCPDashboard:
                         # Get the service details for status
                         result = await service_manager.get_service_details(svc)
                         return {"jsonrpc": "2.0", "result": result, "id": None}
-                    elif action in ("start", "stop", "restart", "configure", "health_check", "view_logs", "enable"):
+                    elif action in (
+                        "start",
+                        "stop",
+                        "restart",
+                        "configure",
+                        "health_check",
+                        "view_logs",
+                        "enable",
+                    ):
                         # Handle enable action separately
                         if action == "enable":
                             result = service_manager.enable_service(svc)
@@ -3728,45 +5140,74 @@ class ConsolidatedMCPDashboard:
                             # Only pass the inner params payload to the service layer
                             params = None
                             if isinstance(args, dict):
-                                params = args.get("params") if action == "configure" else args.get("params", None)
-                            result = await service_manager.perform_service_action(svc, action, params)
+                                params = (
+                                    args.get("params")
+                                    if action == "configure"
+                                    else args.get("params", None)
+                                )
+                            result = await service_manager.perform_service_action(
+                                svc, action, params
+                            )
                         return {"jsonrpc": "2.0", "result": result, "id": None}
                     else:
-                        return {"jsonrpc": "2.0", "error": {"code": 400, "message": f"Unsupported action: {action}"}, "id": None}
+                        return {
+                            "jsonrpc": "2.0",
+                            "error": {"code": 400, "message": f"Unsupported action: {action}"},
+                            "id": None,
+                        }
                 except Exception as e:
                     self.log.error(f"Service manager action failed for {svc}.{action}: {e}")
                     # For configuration actions, provide a helpful response instead of falling through
                     if action == "configure":
                         return {
-                            "jsonrpc": "2.0", 
+                            "jsonrpc": "2.0",
                             "result": {
                                 "success": False,
                                 "error": f"Configuration for {svc} requires manual setup. See service documentation.",
-                                "message": f"Service {svc} configuration is not yet fully automated."
-                            }, 
-                            "id": None
+                                "message": f"Service {svc} configuration is not yet fully automated.",
+                            },
+                            "id": None,
                         }
                     # Fall through to legacy IPFS handling for other actions
-            
+
             # Legacy fallback for IPFS only
             if svc not in ("ipfs",):
-                return {"jsonrpc": "2.0", "error": {"code": 400, "message": f"Service '{svc}' is managed by the comprehensive service manager but encountered an error. Check logs for details."}, "id": None}
+                return {
+                    "jsonrpc": "2.0",
+                    "error": {
+                        "code": 400,
+                        "message": f"Service '{svc}' is managed by the comprehensive service manager but encountered an error. Check logs for details.",
+                    },
+                    "id": None,
+                }
             ipfs_bin = _which("ipfs")
             if not ipfs_bin:
                 # In many CI/test environments, the ipfs binary won't be present.
                 # Return a successful no-op for start/stop/restart so tool-level tests can pass.
                 if action in ("start", "stop", "restart"):
-                    return {"jsonrpc": "2.0", "result": {"status": "ok", "success": True, "message": "ipfs binary not found; noop"}, "id": None}
-                return {"jsonrpc": "2.0", "error": {"code": 404, "message": "ipfs binary not found"}, "id": None}
+                    return {
+                        "jsonrpc": "2.0",
+                        "result": {
+                            "status": "ok",
+                            "success": True,
+                            "message": "ipfs binary not found; noop",
+                        },
+                        "id": None,
+                    }
+                return {
+                    "jsonrpc": "2.0",
+                    "error": {"code": 404, "message": "ipfs binary not found"},
+                    "id": None,
+                }
             if action == "status":
                 ok = _port_open("127.0.0.1", 5001)
                 return {"jsonrpc": "2.0", "result": {"ok": ok, "api_port_open": ok}, "id": None}
             elif action in ("start", "stop", "restart"):
                 if action == "restart":
-                    _ = _run_cmd([ipfs_bin, 'stop'], timeout=20)
-                    res = _run_cmd([ipfs_bin, 'start', '--init'], timeout=25.0)
+                    _ = _run_cmd([ipfs_bin, "stop"], timeout=20)
+                    res = _run_cmd([ipfs_bin, "start", "--init"], timeout=25.0)
                 else:
-                    cmd = [ipfs_bin, action] if action != 'start' else [ipfs_bin, 'start', '--init']
+                    cmd = [ipfs_bin, action] if action != "start" else [ipfs_bin, "start", "--init"]
                     res = _run_cmd(cmd, timeout=25.0)
                 # Provide a stable status field for legacy callers.
                 out = dict(res) if isinstance(res, dict) else {"out": res}
@@ -3774,17 +5215,21 @@ class ConsolidatedMCPDashboard:
                 out.setdefault("success", True)
                 return {"jsonrpc": "2.0", "result": out, "id": None}
             else:
-                return {"jsonrpc": "2.0", "error": {"code": 400, "message": "Unsupported action"}, "id": None}
+                return {
+                    "jsonrpc": "2.0",
+                    "error": {"code": 400, "message": "Unsupported action"},
+                    "id": None,
+                }
         if name == "service_status":
             svc = str(args.get("service", "")).strip()
-            
+
             # Try to get status from ComprehensiveServiceManager if available
             service_manager = self._get_service_manager()
             if service_manager:
                 try:
                     # get_service_details returns detailed service information including config and status
                     status_result = await service_manager.get_service_details(svc)
-                    
+
                     # Check for success flag instead of absence of error
                     if status_result and status_result.get("success"):
                         # Extract the actual status and config for the response
@@ -3792,12 +5237,14 @@ class ConsolidatedMCPDashboard:
                             **status_result.get("details", {}),
                             "config": status_result.get("config", {}),
                             "actions": status_result.get("actions", []),
-                            "status": status_result.get("status", "unknown")
+                            "status": status_result.get("status", "unknown"),
                         }
                         return {"jsonrpc": "2.0", "result": result, "id": None}
                 except Exception as e:
-                    self.log.warning(f"Error getting service status from service_manager for {svc}: {e}")
-            
+                    self.log.warning(
+                        f"Error getting service status from service_manager for {svc}: {e}"
+                    )
+
             # Fallback for ipfs only if service_manager not available
             if svc == "ipfs":
                 info = {
@@ -3805,7 +5252,7 @@ class ConsolidatedMCPDashboard:
                     "api_port_open": _port_open("127.0.0.1", 5001),
                 }
                 return {"jsonrpc": "2.0", "result": info, "id": None}
-            
+
             # Return error for unsupported services
             raise HTTPException(400, "Unsupported service")
         return None
@@ -3823,7 +5270,11 @@ class ConsolidatedMCPDashboard:
                         return {"jsonrpc": "2.0", "result": {"error": "not found"}, "id": None}
                     v = data[bname]
                     if isinstance(v, dict) and "type" in v and "config" in v:
-                        result = {"name": bname, "type": v.get("type", "unknown"), "config": v.get("config", {})}
+                        result = {
+                            "name": bname,
+                            "type": v.get("type", "unknown"),
+                            "config": v.get("config", {}),
+                        }
                     elif isinstance(v, dict):
                         # Legacy config-only
                         result = {"name": bname, "type": v.get("type", "unknown"), "config": v}
@@ -3836,13 +5287,25 @@ class ConsolidatedMCPDashboard:
                     btype = args.get("type")
                     cfg = args.get("config") or {}
                     if not bname:
-                        return {"jsonrpc": "2.0", "result": {"success": False, "error": "Missing name"}, "id": None}
+                        return {
+                            "jsonrpc": "2.0",
+                            "result": {"success": False, "error": "Missing name"},
+                            "id": None,
+                        }
                     if not isinstance(cfg, dict):
-                        return {"jsonrpc": "2.0", "result": {"success": False, "error": "config must be an object"}, "id": None}
+                        return {
+                            "jsonrpc": "2.0",
+                            "result": {"success": False, "error": "config must be an object"},
+                            "id": None,
+                        }
 
                     data = _read_json(self.paths.backends_file, default={})
                     if bname in data:
-                        return {"jsonrpc": "2.0", "result": {"success": False, "error": "exists"}, "id": None}
+                        return {
+                            "jsonrpc": "2.0",
+                            "result": {"success": False, "error": "exists"},
+                            "id": None,
+                        }
 
                     # Store in the "new" backend format so get_backend works consistently.
                     stored = {"type": btype or cfg.get("type") or "unknown", "config": cfg}
@@ -3854,14 +5317,30 @@ class ConsolidatedMCPDashboard:
                     bname = args.get("name")
                     patch = args.get("config") or {}
                     if not bname:
-                        return {"jsonrpc": "2.0", "result": {"success": False, "error": "Missing name"}, "id": None}
+                        return {
+                            "jsonrpc": "2.0",
+                            "result": {"success": False, "error": "Missing name"},
+                            "id": None,
+                        }
                     if not isinstance(patch, dict):
-                        return {"jsonrpc": "2.0", "result": {"success": False, "error": "config must be an object"}, "id": None}
+                        return {
+                            "jsonrpc": "2.0",
+                            "result": {"success": False, "error": "config must be an object"},
+                            "id": None,
+                        }
                     data = _read_json(self.paths.backends_file, default={})
                     if bname not in data:
-                        return {"jsonrpc": "2.0", "result": {"success": False, "error": "not found"}, "id": None}
+                        return {
+                            "jsonrpc": "2.0",
+                            "result": {"success": False, "error": "not found"},
+                            "id": None,
+                        }
                     existing = data.get(bname)
-                    if isinstance(existing, dict) and "config" in existing and isinstance(existing.get("config"), dict):
+                    if (
+                        isinstance(existing, dict)
+                        and "config" in existing
+                        and isinstance(existing.get("config"), dict)
+                    ):
                         existing["config"].update(patch)
                         data[bname] = existing
                     elif isinstance(existing, dict):
@@ -3876,10 +5355,18 @@ class ConsolidatedMCPDashboard:
                 if name == "backend_remove":
                     bname = args.get("name")
                     if not bname:
-                        return {"jsonrpc": "2.0", "result": {"success": False, "error": "Missing name"}, "id": None}
+                        return {
+                            "jsonrpc": "2.0",
+                            "result": {"success": False, "error": "Missing name"},
+                            "id": None,
+                        }
                     data = _read_json(self.paths.backends_file, default={})
                     if bname not in data:
-                        return {"jsonrpc": "2.0", "result": {"success": False, "error": "not found"}, "id": None}
+                        return {
+                            "jsonrpc": "2.0",
+                            "result": {"success": False, "error": "not found"},
+                            "id": None,
+                        }
                     data.pop(bname, None)
                     _atomic_write_json(self.paths.backends_file, data)
                     return {"jsonrpc": "2.0", "result": {"success": True}, "id": None}
@@ -3901,28 +5388,29 @@ class ConsolidatedMCPDashboard:
                         # Update health status and last_check time
                         current_health = self._check_backend_health(k, v)
                         now = datetime.now(UTC).isoformat()
-                        
+
                         backend_info = {
                             "name": k,
                             "type": v.get("type", "unknown"),
-                            "description": v.get("description", f"{v.get('type', 'unknown')} backend"),
+                            "description": v.get(
+                                "description", f"{v.get('type', 'unknown')} backend"
+                            ),
                             "status": v.get("status", "enabled"),
                             "config": v.get("config", {}),
                             "created_at": v.get("created_at", now),
                             "last_check": now,  # Always update to current time
                             "health": current_health,
                             "category": v.get("category", "storage"),
-                            "policy": v.get("policy", {
-                                "quota": "unlimited",
-                                "replication": 1,
-                                "retention": "30d",
-                                "cache": "enabled"
-                            }),
-                            "stats": v.get("stats", {
-                                "size": "0B",
-                                "files": 0,
-                                "last_sync": now
-                            })
+                            "policy": v.get(
+                                "policy",
+                                {
+                                    "quota": "unlimited",
+                                    "replication": 1,
+                                    "retention": "30d",
+                                    "cache": "enabled",
+                                },
+                            ),
+                            "stats": v.get("stats", {"size": "0B", "files": 0, "last_sync": now}),
                         }
                     else:
                         # Handle malformed entries
@@ -3941,27 +5429,23 @@ class ConsolidatedMCPDashboard:
                                 "quota": "unlimited",
                                 "replication": 1,
                                 "retention": "30d",
-                                "cache": "disabled"
+                                "cache": "disabled",
                             },
-                            "stats": {
-                                "size": "0B",
-                                "files": 0,
-                                "last_sync": "Never"
-                            }
+                            "stats": {"size": "0B", "files": 0, "last_sync": "Never"},
                         }
                     items.append(backend_info)
-                
+
                 # Return comprehensive backend data
                 return {
-                    "jsonrpc": "2.0", 
+                    "jsonrpc": "2.0",
                     "result": {
                         "items": items,
                         "total": len(items),
                         "healthy": len([b for b in items if b["health"] == "healthy"]),
                         "unhealthy": len([b for b in items if b["health"] == "error"]),
-                        "configured": len([b for b in items if b["status"] == "enabled"])
-                    }, 
-                    "id": None
+                        "configured": len([b for b in items if b["status"] == "enabled"]),
+                    },
+                    "id": None,
                 }
         if name == "create_backend":
             bname = args.get("name")
@@ -3997,24 +5481,29 @@ class ConsolidatedMCPDashboard:
             backend_config = data.get(bname)
             if backend_config is None:
                 raise HTTPException(404, "Not found")
-            
+
             # Perform comprehensive backend testing
-            backend_type = backend_config.get("type", "unknown") if isinstance(backend_config, dict) else "unknown"
+            backend_type = (
+                backend_config.get("type", "unknown")
+                if isinstance(backend_config, dict)
+                else "unknown"
+            )
             config = backend_config.get("config", {}) if isinstance(backend_config, dict) else {}
-            
+
             test_results = {
                 "name": bname,
                 "type": backend_type,
                 "reachable": False,
                 "response_time": None,
                 "details": {},
-                "errors": []
+                "errors": [],
             }
-            
+
             try:
                 import time
+
                 start_time = time.time()
-                
+
                 if backend_type == "local_storage":
                     path = Path(config.get("path", ""))
                     if path.exists():
@@ -4023,12 +5512,15 @@ class ConsolidatedMCPDashboard:
                         test_results["details"]["writable"] = os.access(path, os.W_OK)
                     else:
                         test_results["errors"].append(f"Path does not exist: {path}")
-                
+
                 elif backend_type == "ipfs":
                     import urllib.request
+
                     api_url = config.get("api_url", "http://127.0.0.1:5001")
                     try:
-                        with urllib.request.urlopen(f"{api_url}/api/v0/version", timeout=5) as response:
+                        with urllib.request.urlopen(
+                            f"{api_url}/api/v0/version", timeout=5
+                        ) as response:
                             if response.status == 200:
                                 test_results["reachable"] = True
                                 version_data = response.read().decode()
@@ -4037,7 +5529,7 @@ class ConsolidatedMCPDashboard:
                                 test_results["errors"].append(f"HTTP {response.status}")
                     except Exception as e:
                         test_results["errors"].append(f"Connection failed: {str(e)}")
-                
+
                 elif backend_type == "s3":
                     endpoint = config.get("endpoint")
                     bucket = config.get("bucket")
@@ -4047,7 +5539,7 @@ class ConsolidatedMCPDashboard:
                         test_results["details"]["bucket"] = bucket
                     else:
                         test_results["errors"].append("Missing endpoint or bucket configuration")
-                
+
                 elif backend_type == "git":
                     repo_url = config.get("repo_url", "")
                     if repo_url.startswith(("http://", "https://", "git@")):
@@ -4056,73 +5548,87 @@ class ConsolidatedMCPDashboard:
                         test_results["details"]["branch"] = config.get("branch", "main")
                     else:
                         test_results["errors"].append("Invalid repository URL")
-                
+
                 else:
                     test_results["errors"].append(f"Unknown backend type: {backend_type}")
-                
-                test_results["response_time"] = round((time.time() - start_time) * 1000, 2)  # milliseconds
-                
+
+                test_results["response_time"] = round(
+                    (time.time() - start_time) * 1000, 2
+                )  # milliseconds
+
             except Exception as e:
                 test_results["errors"].append(f"Test failed: {str(e)}")
-            
+
             return {"jsonrpc": "2.0", "result": test_results, "id": None}
-        
+
         # Advanced backend management tools
         if name == "list_backend_instances":
             data = _read_json(self.paths.backends_file, default={})
             instances = {}
             for backend_name, backend_config in data.items():
-                backend_type = backend_config.get("type", "unknown") if isinstance(backend_config, dict) else "unknown"
+                backend_type = (
+                    backend_config.get("type", "unknown")
+                    if isinstance(backend_config, dict)
+                    else "unknown"
+                )
                 if backend_type not in instances:
                     instances[backend_type] = []
-                instances[backend_type].append({
-                    "name": backend_name,
-                    "status": backend_config.get("status", "unknown") if isinstance(backend_config, dict) else "unknown",
-                    "health": self._check_backend_health(backend_name, backend_config)
-                })
+                instances[backend_type].append(
+                    {
+                        "name": backend_name,
+                        "status": backend_config.get("status", "unknown")
+                        if isinstance(backend_config, dict)
+                        else "unknown",
+                        "health": self._check_backend_health(backend_name, backend_config),
+                    }
+                )
             return {"jsonrpc": "2.0", "result": {"instances": instances}, "id": None}
-        
+
         if name == "create_backend_instance":
             service_type = args.get("service_type")
             instance_name = args.get("instance_name")
             description = args.get("description", f"{service_type} backend")
-            
+
             if not service_type or not instance_name:
                 raise HTTPException(400, "Missing service_type or instance_name")
-            
+
             data = _read_json(self.paths.backends_file, default={})
             if instance_name in data:
                 raise HTTPException(409, "Backend instance already exists")
-            
+
             # Create default configuration based on backend type
             default_config = self._get_default_backend_config(service_type)
-            
+
             new_backend = {
                 "type": service_type,
                 "description": description,
                 "config": default_config,
                 "status": "enabled",
                 "created_at": datetime.now(UTC).isoformat(),
-                "last_check": datetime.now(UTC).isoformat()
+                "last_check": datetime.now(UTC).isoformat(),
             }
-            
+
             data[instance_name] = new_backend
             _atomic_write_json(self.paths.backends_file, data)
-            
-            return {"jsonrpc": "2.0", "result": {"ok": True, "instance_name": instance_name, "type": service_type}, "id": None}
-        
+
+            return {
+                "jsonrpc": "2.0",
+                "result": {"ok": True, "instance_name": instance_name, "type": service_type},
+                "id": None,
+            }
+
         if name == "configure_backend_instance":
             instance_name = args.get("instance_name")
             service_type = args.get("service_type")
             config = args.get("config", {})
-            
+
             if not instance_name:
                 raise HTTPException(400, "Missing instance_name")
-            
+
             data = _read_json(self.paths.backends_file, default={})
             if instance_name not in data:
                 raise HTTPException(404, "Backend instance not found")
-            
+
             # Update configuration
             backend_config = data[instance_name]
             if isinstance(backend_config, dict):
@@ -4130,11 +5636,15 @@ class ConsolidatedMCPDashboard:
                     backend_config["type"] = service_type
                 backend_config["config"] = config
                 backend_config["last_check"] = datetime.now(UTC).isoformat()
-            
+
             _atomic_write_json(self.paths.backends_file, data)
-            
-            return {"jsonrpc": "2.0", "result": {"ok": True, "instance_name": instance_name}, "id": None}
-        
+
+            return {
+                "jsonrpc": "2.0",
+                "result": {"ok": True, "instance_name": instance_name},
+                "id": None,
+            }
+
         if name == "get_backend_performance_metrics":
             backend_name = args.get("backend_name")
             time_range = args.get("time_range", "1h")
@@ -4165,93 +5675,117 @@ class ConsolidatedMCPDashboard:
                 }
                 if include_history:
                     import random
+
                     history = []
                     for i in range(12):
-                        history.append({
-                            "timestamp": (datetime.now(UTC) - timedelta(minutes=i*5)).isoformat(),
-                            "response_time_ms": max(1.0, perf["response_time_ms"] + random.uniform(-10, 10)),
-                            "throughput_ops_per_sec": max(0.0, perf["throughput_ops_per_sec"] + random.uniform(-20, 20)),
-                            "error_rate_percent": max(0.0, perf["error_rate_percent"] + random.uniform(-0.5, 0.8)),
-                        })
+                        history.append(
+                            {
+                                "timestamp": (
+                                    datetime.now(UTC) - timedelta(minutes=i * 5)
+                                ).isoformat(),
+                                "response_time_ms": max(
+                                    1.0, perf["response_time_ms"] + random.uniform(-10, 10)
+                                ),
+                                "throughput_ops_per_sec": max(
+                                    0.0, perf["throughput_ops_per_sec"] + random.uniform(-20, 20)
+                                ),
+                                "error_rate_percent": max(
+                                    0.0, perf["error_rate_percent"] + random.uniform(-0.5, 0.8)
+                                ),
+                            }
+                        )
                     item["history"] = history
                 return item
 
             if backend_name:
                 if backend_name not in data:
                     raise HTTPException(404, "Backend not found")
-                return {"jsonrpc": "2.0", "result": _gen_metrics(backend_name, data.get(backend_name, {})), "id": None}
+                return {
+                    "jsonrpc": "2.0",
+                    "result": _gen_metrics(backend_name, data.get(backend_name, {})),
+                    "id": None,
+                }
             else:
                 # Aggregate metrics for all backends
                 items = [_gen_metrics(bname, binfo) for bname, binfo in data.items()]
                 return {"jsonrpc": "2.0", "result": {"metrics": items}, "id": None}
-        
+
         if name == "get_backend_configuration_template":
             backend_type = args.get("backend_type")
             template_type = args.get("template_type", "basic")
-            
+
             if not backend_type:
                 raise HTTPException(400, "Missing backend_type")
-            
+
             template = self._get_configuration_template(backend_type, template_type)
-            
-            return {"jsonrpc": "2.0", "result": {
-                "backend_type": backend_type,
-                "template_type": template_type,
-                "template": template
-            }, "id": None}
-        
+
+            return {
+                "jsonrpc": "2.0",
+                "result": {
+                    "backend_type": backend_type,
+                    "template_type": template_type,
+                    "template": template,
+                },
+                "id": None,
+            }
+
         if name == "clone_backend_configuration":
             source_backend = args.get("source_backend")
             new_backend_name = args.get("new_backend_name")
             modify_config = args.get("modify_config", False)
-            
+
             if not source_backend or not new_backend_name:
                 raise HTTPException(400, "Missing source_backend or new_backend_name")
-            
+
             data = _read_json(self.paths.backends_file, default={})
             if source_backend not in data:
                 raise HTTPException(404, "Source backend not found")
             if new_backend_name in data:
                 raise HTTPException(409, "New backend name already exists")
-            
+
             # Clone the configuration
             source_config = data[source_backend]
             new_config = json.loads(json.dumps(source_config))  # Deep copy
-            
+
             if isinstance(new_config, dict):
                 new_config["created_at"] = datetime.now(UTC).isoformat()
                 new_config["last_check"] = datetime.now(UTC).isoformat()
                 if "description" in new_config:
                     new_config["description"] = f"Cloned from {source_backend}"
-            
+
             data[new_backend_name] = new_config
             _atomic_write_json(self.paths.backends_file, data)
-            
-            return {"jsonrpc": "2.0", "result": {
-                "ok": True,
-                "source_backend": source_backend,
-                "new_backend_name": new_backend_name,
-                "modify_config": modify_config
-            }, "id": None}
-        
+
+            return {
+                "jsonrpc": "2.0",
+                "result": {
+                    "ok": True,
+                    "source_backend": source_backend,
+                    "new_backend_name": new_backend_name,
+                    "modify_config": modify_config,
+                },
+                "id": None,
+            }
+
         if name == "backup_backend_configuration":
             backend_name = args.get("backend_name")
             backup_name = args.get("backup_name")
             include_data = args.get("include_data", False)
-            
+
             if not backend_name:
                 raise HTTPException(400, "Missing backend_name")
-            
+
             data = _read_json(self.paths.backends_file, default={})
             if backend_name not in data:
                 raise HTTPException(404, "Backend not found")
-            
+
             # Create backup
             import time
+
             backup_id = f"backup_{backend_name}_{int(time.time())}"
             backup_dir = self.paths.data_dir / "backups" / "backends"
             backup_dir.mkdir(parents=True, exist_ok=True)
-            
+
             backup_file = backup_dir / f"{backup_id}.json"
             backup_data = {
                 "backup_id": backup_id,
@@ -4259,56 +5793,60 @@ class ConsolidatedMCPDashboard:
                 "backup_name": backup_name or f"Backup of {backend_name}",
                 "created_at": datetime.now(UTC).isoformat(),
                 "config": data[backend_name],
-                "include_data": include_data
+                "include_data": include_data,
             }
-            
-            with open(backup_file, 'w') as f:
+
+            with open(backup_file, "w") as f:
                 json.dump(backup_data, f, indent=2)
-            
-            return {"jsonrpc": "2.0", "result": {
-                "ok": True,
-                "backup_id": backup_id,
-                "backup_file": str(backup_file)
-            }, "id": None}
-        
+
+            return {
+                "jsonrpc": "2.0",
+                "result": {"ok": True, "backup_id": backup_id, "backup_file": str(backup_file)},
+                "id": None,
+            }
+
         if name == "restore_backend_configuration":
             backend_name = args.get("backend_name")
             backup_id = args.get("backup_id")
             force_restore = args.get("force_restore", False)
-            
+
             if not backend_name or not backup_id:
                 raise HTTPException(400, "Missing backend_name or backup_id")
-            
+
             backup_dir = self.paths.data_dir / "backups" / "backends"
             backup_file = backup_dir / f"{backup_id}.json"
-            
+
             if not backup_file.exists():
                 raise HTTPException(404, "Backup not found")
-            
-            with open(backup_file, 'r') as f:
+
+            with open(backup_file, "r") as f:
                 backup_data = json.load(f)
-            
+
             data = _read_json(self.paths.backends_file, default={})
-            
+
             if backend_name in data and not force_restore:
                 raise HTTPException(409, "Backend exists. Use force_restore=true to overwrite")
-            
+
             # Restore configuration
             data[backend_name] = backup_data["config"]
             _atomic_write_json(self.paths.backends_file, data)
-            
-            return {"jsonrpc": "2.0", "result": {
-                "ok": True,
-                "backend_name": backend_name,
-                "backup_id": backup_id,
-                "restored_at": datetime.now(UTC).isoformat()
-            }, "id": None}
-        
+
+            return {
+                "jsonrpc": "2.0",
+                "result": {
+                    "ok": True,
+                    "backend_name": backend_name,
+                    "backup_id": backup_id,
+                    "restored_at": datetime.now(UTC).isoformat(),
+                },
+                "id": None,
+            }
+
         if name == "get_backend":
             bname = args.get("name")
             if not bname:
                 raise HTTPException(400, "Missing backend name")
-            
+
             if self.backend_manager:
                 # Use enhanced backend manager
                 backend = self.backend_manager.get_backend_with_policies(bname)
@@ -4320,43 +5858,47 @@ class ConsolidatedMCPDashboard:
                 data = _read_json(self.paths.backends_file, default={})
                 if bname not in data:
                     raise HTTPException(404, "Not found")
-                
+
                 backend_config = data[bname]
                 # Handle both old and new format
-                if isinstance(backend_config, dict) and 'type' in backend_config:
+                if isinstance(backend_config, dict) and "type" in backend_config:
                     # New format with full backend information
                     result = {
                         "name": bname,
                         "type": backend_config.get("type", "unknown"),
-                        "description": backend_config.get("description", f"{backend_config.get('type', 'unknown')} backend"),
+                        "description": backend_config.get(
+                            "description", f"{backend_config.get('type', 'unknown')} backend"
+                        ),
                         "status": backend_config.get("status", "unknown"),
                         "config": backend_config.get("config", {}),
                         "created_at": backend_config.get("created_at", ""),
                         "last_check": backend_config.get("last_check", "Never"),
-                        "health": self._check_backend_health(bname, backend_config)
+                        "health": self._check_backend_health(bname, backend_config),
                     }
                 else:
                     # Old format (config only)
                     result = {
                         "name": bname,
-                        "type": backend_config.get("type", "unknown") if isinstance(backend_config, dict) else "unknown",
+                        "type": backend_config.get("type", "unknown")
+                        if isinstance(backend_config, dict)
+                        else "unknown",
                         "description": f"Legacy {bname} backend",
                         "status": "unknown",
                         "config": backend_config if isinstance(backend_config, dict) else {},
                         "created_at": "",
                         "last_check": "Never",
-                        "health": "unknown"
+                        "health": "unknown",
                     }
-                
+
                 return {"jsonrpc": "2.0", "result": result, "id": None}
-        
+
         if name == "test_backend_config":
             backend_name = args.get("name")
             test_config = args.get("config", {})
-            
+
             if not backend_name:
                 raise HTTPException(400, "Missing backend name")
-            
+
             try:
                 if self.backend_manager:
                     # Use enhanced backend manager
@@ -4369,22 +5911,26 @@ class ConsolidatedMCPDashboard:
                         try:
                             test_config = json.loads(test_config)
                         except json.JSONDecodeError as e:
-                            return {"jsonrpc": "2.0", "result": {
-                                "reachable": False,
-                                "valid": False,
-                                "errors": [f"Invalid config JSON: {str(e)}"],
-                                "backend": backend_name,
-                                "message": "Configuration test failed - invalid JSON"
-                            }, "id": None}
-                    
+                            return {
+                                "jsonrpc": "2.0",
+                                "result": {
+                                    "reachable": False,
+                                    "valid": False,
+                                    "errors": [f"Invalid config JSON: {str(e)}"],
+                                    "backend": backend_name,
+                                    "message": "Configuration test failed - invalid JSON",
+                                },
+                                "id": None,
+                            }
+
                     # Test configuration without saving
                     # For now, simulate a configuration test
                     backend_type = test_config.get("type", "unknown")
-                    
+
                     # Basic validation based on backend type
                     is_valid = True
                     errors = []
-                    
+
                     if backend_type == "s3":
                         required_fields = ["endpoint", "access_key", "secret_key", "bucket"]
                         for field in required_fields:
@@ -4403,35 +5949,47 @@ class ConsolidatedMCPDashboard:
                             if not test_config.get(field):
                                 is_valid = False
                                 errors.append(f"Missing required field: {field}")
-                    
-                    return {"jsonrpc": "2.0", "result": {
-                        "reachable": is_valid,
-                        "valid": is_valid,
-                        "errors": errors,
-                        "backend": backend_name,
-                        "message": "Configuration test completed" if is_valid else "Configuration test failed"
-                    }, "id": None}
-                    
+
+                    return {
+                        "jsonrpc": "2.0",
+                        "result": {
+                            "reachable": is_valid,
+                            "valid": is_valid,
+                            "errors": errors,
+                            "backend": backend_name,
+                            "message": "Configuration test completed"
+                            if is_valid
+                            else "Configuration test failed",
+                        },
+                        "id": None,
+                    }
+
             except Exception as e:
-                return {"jsonrpc": "2.0", "result": {
-                    "reachable": False,
-                    "valid": False,
-                    "error": str(e),
-                    "backend": backend_name
-                }, "id": None}
-        
+                return {
+                    "jsonrpc": "2.0",
+                    "result": {
+                        "reachable": False,
+                        "valid": False,
+                        "error": str(e),
+                        "backend": backend_name,
+                    },
+                    "id": None,
+                }
+
         if name == "apply_backend_policy":
             backend_name = args.get("name")
             policy = args.get("policy", {})
             force_sync = args.get("force_sync", False)
-            
+
             if not backend_name:
                 raise HTTPException(400, "Missing backend name")
-            
+
             try:
                 if self.backend_manager:
                     # Use enhanced backend manager
-                    result = self.backend_manager.apply_backend_policy(backend_name, policy, force_sync)
+                    result = self.backend_manager.apply_backend_policy(
+                        backend_name, policy, force_sync
+                    )
                     return {"jsonrpc": "2.0", "result": result, "id": None}
                 else:
                     # Fallback to original implementation
@@ -4440,58 +5998,68 @@ class ConsolidatedMCPDashboard:
                         try:
                             policy = json.loads(policy)
                         except json.JSONDecodeError as e:
-                            return {"jsonrpc": "2.0", "result": {
-                                "ok": False,
-                                "error": f"Invalid policy JSON: {str(e)}",
-                                "backend": backend_name
-                            }, "id": None}
-                    
+                            return {
+                                "jsonrpc": "2.0",
+                                "result": {
+                                    "ok": False,
+                                    "error": f"Invalid policy JSON: {str(e)}",
+                                    "backend": backend_name,
+                                },
+                                "id": None,
+                            }
+
                     # Update backend policy and apply it
                     backends_data = _read_json(self.paths.backends_file, default=[])
                     updated = False
-                    
+
                     for backend in backends_data:
-                        if backend.get('name') == backend_name:
-                            backend['policy'] = {**backend.get('policy', {}), **policy}
-                            backend['last_updated'] = datetime.now(UTC).isoformat()
+                        if backend.get("name") == backend_name:
+                            backend["policy"] = {**backend.get("policy", {}), **policy}
+                            backend["last_updated"] = datetime.now(UTC).isoformat()
                             updated = True
                             break
-                    
+
                     if updated:
                         _atomic_write_json(self.paths.backends_file, backends_data)
-                        
+
                         # If force_sync, trigger replica sync (simplified for non-recursion)
                         if force_sync:
                             self.log.info(f"Force sync requested for backend {backend_name}")
-                        
-                        return {"jsonrpc": "2.0", "result": {
-                            "ok": True,
-                            "backend": backend_name,
-                            "policy": policy,
-                            "synced": force_sync,
-                            "message": f"Policy applied successfully to '{backend_name}'"
-                        }, "id": None}
+
+                        return {
+                            "jsonrpc": "2.0",
+                            "result": {
+                                "ok": True,
+                                "backend": backend_name,
+                                "policy": policy,
+                                "synced": force_sync,
+                                "message": f"Policy applied successfully to '{backend_name}'",
+                            },
+                            "id": None,
+                        }
                     else:
                         raise HTTPException(404, f"Backend '{backend_name}' not found")
-                        
+
             except Exception as e:
-                return {"jsonrpc": "2.0", "result": {
-                    "ok": False,
-                    "error": str(e),
-                    "backend": backend_name
-                }, "id": None}
-        
+                return {
+                    "jsonrpc": "2.0",
+                    "result": {"ok": False, "error": str(e), "backend": backend_name},
+                    "id": None,
+                }
+
         if name == "update_backend_policy":
             backend_name = args.get("name")
             policy_updates = args.get("policy", {})
-            
+
             if not backend_name:
                 raise HTTPException(400, "Missing backend name")
-            
+
             try:
                 if self.backend_manager:
                     # Use enhanced backend manager
-                    result = self.backend_manager.update_backend_policy(backend_name, policy_updates)
+                    result = self.backend_manager.update_backend_policy(
+                        backend_name, policy_updates
+                    )
                     return {"jsonrpc": "2.0", "result": result, "id": None}
                 else:
                     # Fallback to original implementation
@@ -4500,43 +6068,51 @@ class ConsolidatedMCPDashboard:
                         try:
                             policy_updates = json.loads(policy_updates)
                         except json.JSONDecodeError as e:
-                            return {"jsonrpc": "2.0", "result": {
-                                "ok": False,
-                                "error": f"Invalid policy JSON: {str(e)}",
-                                "backend": backend_name
-                            }, "id": None}
-                    
+                            return {
+                                "jsonrpc": "2.0",
+                                "result": {
+                                    "ok": False,
+                                    "error": f"Invalid policy JSON: {str(e)}",
+                                    "backend": backend_name,
+                                },
+                                "id": None,
+                            }
+
                     # Update backend policy configuration
                     backends_data = _read_json(self.paths.backends_file, default=[])
                     updated = False
-                    
+
                     for backend in backends_data:
-                        if backend.get('name') == backend_name:
-                            current_policy = backend.get('policy', {})
-                            backend['policy'] = {**current_policy, **policy_updates}
-                            backend['last_updated'] = datetime.now(UTC).isoformat()
+                        if backend.get("name") == backend_name:
+                            current_policy = backend.get("policy", {})
+                            backend["policy"] = {**current_policy, **policy_updates}
+                            backend["last_updated"] = datetime.now(UTC).isoformat()
                             updated = True
                             break
-                    
+
                     if updated:
                         _atomic_write_json(self.paths.backends_file, backends_data)
-                        
-                        return {"jsonrpc": "2.0", "result": {
-                            "ok": True,
-                            "backend": backend_name,
-                            "policy": policy_updates,
-                            "message": f"Policy updated successfully for '{backend_name}'"
-                        }, "id": None}
+
+                        return {
+                            "jsonrpc": "2.0",
+                            "result": {
+                                "ok": True,
+                                "backend": backend_name,
+                                "policy": policy_updates,
+                                "message": f"Policy updated successfully for '{backend_name}'",
+                            },
+                            "id": None,
+                        }
                     else:
                         raise HTTPException(404, f"Backend '{backend_name}' not found")
-                        
+
             except Exception as e:
-                return {"jsonrpc": "2.0", "result": {
-                    "ok": False,
-                    "error": str(e),
-                    "backend": backend_name
-                }, "id": None}
-        
+                return {
+                    "jsonrpc": "2.0",
+                    "result": {"ok": False, "error": str(e), "backend": backend_name},
+                    "id": None,
+                }
+
         return None
 
     def _get_default_backend_config(self, backend_type: str) -> Dict[str, Any]:
@@ -4544,29 +6120,20 @@ class ConsolidatedMCPDashboard:
         configs = {
             "local_storage": {
                 "path": str(self.paths.data_dir / "local_storage"),
-                "max_size": "10GB"
+                "max_size": "10GB",
             },
-            "ipfs": {
-                "api_url": "http://127.0.0.1:5001",
-                "gateway_url": "http://127.0.0.1:8080"
-            },
+            "ipfs": {"api_url": "http://127.0.0.1:5001", "gateway_url": "http://127.0.0.1:8080"},
             "s3": {
                 "endpoint": "https://s3.amazonaws.com",
                 "bucket": "my-bucket",
-                "region": "us-east-1"
+                "region": "us-east-1",
             },
-            "git": {
-                "repo_url": "https://github.com/example/repo",
-                "branch": "main"
-            },
+            "git": {"repo_url": "https://github.com/example/repo", "branch": "main"},
             "parquet": {
                 "path": str(self.paths.data_dir / "parquet_storage"),
-                "compression": "snappy"
+                "compression": "snappy",
             },
-            "ipfs_cluster": {
-                "cluster_api": "http://127.0.0.1:9094",
-                "peers": []
-            }
+            "ipfs_cluster": {"cluster_api": "http://127.0.0.1:9094", "peers": []},
         }
         return configs.get(backend_type, {})
 
@@ -4574,64 +6141,61 @@ class ConsolidatedMCPDashboard:
         """Get configuration template for backend type and template."""
         templates = {
             "local_storage": {
-                "basic": {
-                    "path": "/path/to/storage",
-                    "max_size": "10GB"
-                },
+                "basic": {"path": "/path/to/storage", "max_size": "10GB"},
                 "enterprise": {
                     "path": "/enterprise/storage",
                     "max_size": "1TB",
                     "backup_path": "/enterprise/backup",
-                    "encryption": True
+                    "encryption": True,
                 },
                 "high_performance": {
                     "path": "/fast/ssd/storage",
                     "max_size": "500GB",
                     "cache_size": "50GB",
-                    "threads": 16
-                }
+                    "threads": 16,
+                },
             },
             "ipfs": {
                 "basic": {
                     "api_url": "http://127.0.0.1:5001",
-                    "gateway_url": "http://127.0.0.1:8080"
+                    "gateway_url": "http://127.0.0.1:8080",
                 },
                 "enterprise": {
                     "api_url": "http://127.0.0.1:5001",
                     "gateway_url": "http://127.0.0.1:8080",
                     "swarm_peers": [],
-                    "bootstrap_nodes": []
+                    "bootstrap_nodes": [],
                 },
                 "high_performance": {
                     "api_url": "http://127.0.0.1:5001",
                     "gateway_url": "http://127.0.0.1:8080",
                     "datastore_type": "badger",
-                    "cache_size": "2GB"
-                }
+                    "cache_size": "2GB",
+                },
             },
             "s3": {
                 "basic": {
                     "endpoint": "https://s3.amazonaws.com",
                     "bucket": "my-bucket",
-                    "region": "us-east-1"
+                    "region": "us-east-1",
                 },
                 "enterprise": {
                     "endpoint": "https://s3.amazonaws.com",
                     "bucket": "enterprise-bucket",
                     "region": "us-east-1",
                     "encryption": "AES256",
-                    "versioning": True
+                    "versioning": True,
                 },
                 "high_performance": {
                     "endpoint": "https://s3.amazonaws.com",
                     "bucket": "high-perf-bucket",
                     "region": "us-east-1",
                     "storage_class": "STANDARD_IA",
-                    "multipart_threshold": "8MB"
-                }
-            }
+                    "multipart_threshold": "8MB",
+                },
+            },
         }
-        
+
         backend_templates = templates.get(backend_type, {})
         return backend_templates.get(template_type, {})
 
@@ -4640,17 +6204,18 @@ class ConsolidatedMCPDashboard:
         try:
             backend_type = backend_config.get("type", "unknown")
             config = backend_config.get("config", {})
-            
+
             if backend_type == "local_storage":
                 # Check if local path exists and is writable
                 path = config.get("path")
                 if path and Path(path).exists():
                     return "healthy"
                 return "error"
-            
+
             elif backend_type == "ipfs":
                 # Check IPFS node connectivity
                 import urllib.request
+
                 api_url = config.get("api_url", "http://127.0.0.1:5001")
                 try:
                     with urllib.request.urlopen(f"{api_url}/api/v0/version", timeout=2) as response:
@@ -4659,43 +6224,46 @@ class ConsolidatedMCPDashboard:
                 except:
                     pass
                 return "error"
-            
+
             elif backend_type == "s3":
                 # For S3, just check if config has required fields
                 if config.get("endpoint") and config.get("bucket"):
                     return "healthy"
                 return "error"
-            
+
             elif backend_type == "parquet":
                 # Check if parquet path exists
                 path = config.get("path")
                 if path and Path(path).exists():
                     return "healthy"
                 return "error"
-            
+
             elif backend_type == "git":
                 # Check if repo URL is valid format
                 repo_url = config.get("repo_url", "")
                 if repo_url.startswith(("http://", "https://", "git@")):
                     return "healthy"
                 return "error"
-            
+
             elif backend_type == "ipfs_cluster":
                 # Check cluster API connectivity
                 cluster_api = config.get("cluster_api")
                 if cluster_api:
                     try:
                         import urllib.request
-                        with urllib.request.urlopen(f"{cluster_api}/api/v0/version", timeout=2) as response:
+
+                        with urllib.request.urlopen(
+                            f"{cluster_api}/api/v0/version", timeout=2
+                        ) as response:
                             if response.status == 200:
                                 return "healthy"
                     except:
                         pass
                 return "error"
-            
+
             # Unknown backend type
             return "unknown"
-            
+
         except Exception:
             return "error"
 
@@ -4715,7 +6283,7 @@ class ConsolidatedMCPDashboard:
             entry = {"name": bname, "backend": backend, "created_at": datetime.now(UTC).isoformat()}
             items.append(entry)
             _atomic_write_json(self.paths.buckets_file, items)
-            
+
             # Create VFS directory for the new bucket
             bucket_dir = os.path.join(self.paths.data_dir, "vfs", bname)
             os.makedirs(bucket_dir, exist_ok=True)
@@ -4731,9 +6299,10 @@ class ConsolidatedMCPDashboard:
             if len(new_items) == len(items):
                 return {"status": "absent"}
             _atomic_write_json(self.paths.buckets_file, new_items)
-            
+
             # Remove VFS directory for deleted bucket
             import shutil
+
             bucket_dir = os.path.join(self.paths.data_dir, "vfs", bname)
             if os.path.exists(bucket_dir):
                 shutil.rmtree(bucket_dir)
@@ -4753,22 +6322,26 @@ class ConsolidatedMCPDashboard:
             folder_name = args.get("folder_name")
             if not bucket or not folder_name:
                 raise HTTPException(400, "Missing bucket or folder_name")
-                
+
             # Create folder in VFS
             bucket_dir = os.path.join(self.paths.data_dir, "vfs", bucket)
             folder_path = os.path.join(bucket_dir, folder_name)
-            
+
             if os.path.exists(folder_path):
                 raise HTTPException(409, f"Folder '{folder_name}' already exists")
-                
+
             os.makedirs(folder_path, exist_ok=True)
-            
+
             # Create a .gitkeep file to ensure the folder is tracked
             gitkeep_path = os.path.join(folder_path, ".gitkeep")
-            with open(gitkeep_path, 'w') as f:
+            with open(gitkeep_path, "w") as f:
                 f.write("")
-                
-            return {"jsonrpc": "2.0", "result": {"ok": True, "folder": folder_name, "path": folder_path}, "id": None}
+
+            return {
+                "jsonrpc": "2.0",
+                "result": {"ok": True, "folder": folder_name, "path": folder_path},
+                "id": None,
+            }
 
         if name == "update_bucket":
             bname = args.get("name")
@@ -4788,29 +6361,27 @@ class ConsolidatedMCPDashboard:
                 raise HTTPException(404, "Not found")
             _atomic_write_json(self.paths.buckets_file, items)
             return {"jsonrpc": "2.0", "result": {"ok": True}, "id": None}
-        
-
 
         if name == "bucket_create_folder":
             bucket = args.get("bucket")
             folder_name = args.get("folder_name") or args.get("name")
             if not bucket or not folder_name:
                 raise HTTPException(400, "Missing bucket or folder_name")
-            
+
             # Get VFS path
             bucket_path = self.paths.vfs_root / bucket
             if not bucket_path.exists():
                 bucket_path.mkdir(parents=True, exist_ok=True)
-            
+
             # Safe folder path
             folder_path = bucket_path / folder_name
             if not str(folder_path).startswith(str(bucket_path)):
                 raise HTTPException(400, "Invalid folder path")
-            
+
             # Create folder
             try:
                 folder_path.mkdir(parents=True, exist_ok=True)
-                
+
                 # Update metadata
                 metadata_file = self.paths.data_dir / "bucket_files.json"
                 metadata = _read_json(metadata_file, {})
@@ -4819,11 +6390,15 @@ class ConsolidatedMCPDashboard:
                     "created": datetime.now(UTC).isoformat(),
                     "type": "folder",
                     "cached": True,
-                    "replicas": ["local"]
+                    "replicas": ["local"],
                 }
                 _atomic_write_json(metadata_file, metadata)
-                
-                return {"jsonrpc": "2.0", "result": {"ok": True, "folder_name": folder_name}, "id": None}
+
+                return {
+                    "jsonrpc": "2.0",
+                    "result": {"ok": True, "folder_name": folder_name},
+                    "id": None,
+                }
             except Exception as e:
                 raise HTTPException(500, f"Failed to create folder: {str(e)}")
 
@@ -4834,26 +6409,26 @@ class ConsolidatedMCPDashboard:
             show_metadata = args.get("show_metadata", True)
             if not bucket:
                 raise HTTPException(400, "Missing bucket")
-            
+
             # FIXED: Use direct filesystem approach instead of complex SimpleBucketManager
             # This ensures uploaded files are immediately visible in the UI
-            
+
             # Direct filesystem approach - reliable and simple
             bucket_path = self.paths.vfs_root / bucket
             bucket_path.mkdir(parents=True, exist_ok=True)  # Ensure bucket directory exists
-            
+
             vfs_path = _safe_vfs_path(bucket_path, path)
             files = []
-            
+
             # List files directly from VFS directory
             if vfs_path.is_dir():
                 for item in sorted(vfs_path.iterdir()):
                     # Skip .gitkeep files
-                    if item.name == '.gitkeep':
+                    if item.name == ".gitkeep":
                         continue
-                        
+
                     rel_path = str(item.relative_to(bucket_path))
-                    
+
                     file_info = {
                         "name": item.name,
                         "path": rel_path,
@@ -4864,9 +6439,9 @@ class ConsolidatedMCPDashboard:
                         "created_at": datetime.fromtimestamp(item.stat().st_ctime, UTC).isoformat(),
                         "updated_at": datetime.fromtimestamp(item.stat().st_mtime, UTC).isoformat(),
                         "source": "vfs",
-                        "storage_path": f"buckets/{bucket}/{rel_path}"
+                        "storage_path": f"buckets/{bucket}/{rel_path}",
                     }
-                    
+
                     if not item.is_dir():
                         file_info["size"] = item.stat().st_size
                         file_info["mime_type"] = mimetypes.guess_type(item.name)[0]
@@ -4874,41 +6449,54 @@ class ConsolidatedMCPDashboard:
                     else:
                         file_info["size"] = 0
                         file_info["mime_type"] = None
-                    
+
                     # Add metadata if requested
                     if show_metadata:
                         file_info["metadata"] = {
                             "bucket_name": bucket,
                             "vfs_path": str(item),
-                            "source": "filesystem"
+                            "source": "filesystem",
                         }
-                    
+
                     files.append(file_info)
-                    
+
             elif vfs_path.is_file():
                 # Single file case
                 stat_info = vfs_path.stat()
-                files.append({
-                    "name": vfs_path.name,
+                files.append(
+                    {
+                        "name": vfs_path.name,
+                        "path": path,
+                        "type": mimetypes.guess_type(vfs_path.name)[0] or "text/plain",
+                        "is_directory": False,
+                        "is_dir": False,
+                        "size": stat_info.st_size,
+                        "mime_type": mimetypes.guess_type(vfs_path.name)[0],
+                        "modified": datetime.fromtimestamp(stat_info.st_mtime, UTC).isoformat(),
+                        "created_at": datetime.fromtimestamp(stat_info.st_ctime, UTC).isoformat(),
+                        "updated_at": datetime.fromtimestamp(stat_info.st_mtime, UTC).isoformat(),
+                        "source": "vfs",
+                        "storage_path": f"buckets/{bucket}/{path}",
+                        "metadata": {
+                            "bucket_name": bucket,
+                            "vfs_path": str(vfs_path),
+                            "source": "filesystem",
+                        }
+                        if show_metadata
+                        else {},
+                    }
+                )
+
+            return {
+                "jsonrpc": "2.0",
+                "result": {
+                    "bucket": bucket,
                     "path": path,
-                    "type": mimetypes.guess_type(vfs_path.name)[0] or "text/plain",
-                    "is_directory": False,
-                    "is_dir": False,
-                    "size": stat_info.st_size,
-                    "mime_type": mimetypes.guess_type(vfs_path.name)[0],
-                    "modified": datetime.fromtimestamp(stat_info.st_mtime, UTC).isoformat(),
-                    "created_at": datetime.fromtimestamp(stat_info.st_ctime, UTC).isoformat(),
-                    "updated_at": datetime.fromtimestamp(stat_info.st_mtime, UTC).isoformat(),
-                    "source": "vfs",
-                    "storage_path": f"buckets/{bucket}/{path}",
-                    "metadata": {
-                        "bucket_name": bucket,
-                        "vfs_path": str(vfs_path),
-                        "source": "filesystem"
-                    } if show_metadata else {}
-                })
-            
-            return {"jsonrpc": "2.0", "result": {"bucket": bucket, "path": path, "items": files, "total_count": len(files)}, "id": None}
+                    "items": files,
+                    "total_count": len(files),
+                },
+                "id": None,
+            }
 
         if name == "list_bucket_files":
             # Alias for bucket_list_files with parameter mapping
@@ -4917,35 +6505,43 @@ class ConsolidatedMCPDashboard:
             metadata_first = args.get("metadata_first", True)
             if not bucket:
                 raise HTTPException(400, "Missing bucket")
-            
+
             # Delegate to existing bucket_list_files implementation synchronously
             # to avoid awaiting inside a non-async context
             mapped_args = {"bucket": bucket, "path": path, "show_metadata": metadata_first}
             return self._handle_buckets("bucket_list_files", mapped_args)
-        
+
         if name == "create_folder":
             # Alias for bucket_create_folder
             bucket = args.get("bucket")
             folder_name = args.get("name") or args.get("folder_name")
             if not bucket or not folder_name:
                 raise HTTPException(400, "Missing bucket or folder name")
-            
+
             # Create folder in VFS
             bucket_dir = os.path.join(self.paths.data_dir, "vfs", bucket)
             os.makedirs(bucket_dir, exist_ok=True)
             folder_path = os.path.join(bucket_dir, folder_name)
-            
+
             if os.path.exists(folder_path):
-                return {"jsonrpc": "2.0", "result": {"ok": False, "error": f"Folder '{folder_name}' already exists"}, "id": None}
-                
+                return {
+                    "jsonrpc": "2.0",
+                    "result": {"ok": False, "error": f"Folder '{folder_name}' already exists"},
+                    "id": None,
+                }
+
             os.makedirs(folder_path, exist_ok=True)
-            
+
             # Create a .gitkeep file to ensure the folder is tracked
             gitkeep_path = os.path.join(folder_path, ".gitkeep")
-            with open(gitkeep_path, 'w') as f:
+            with open(gitkeep_path, "w") as f:
                 f.write("")
-            
-            return {"jsonrpc": "2.0", "result": {"ok": True, "folder": folder_name, "path": folder_path}, "id": None}
+
+            return {
+                "jsonrpc": "2.0",
+                "result": {"ok": True, "folder": folder_name, "path": folder_path},
+                "id": None,
+            }
             return self._handle_buckets("bucket_list_files", mapped_args)
 
         if name == "bucket_upload_file":
@@ -4954,36 +6550,37 @@ class ConsolidatedMCPDashboard:
             content = args.get("content")
             mode = args.get("mode", "text")
             apply_policy = args.get("apply_policy", True)
-            
+
             if not bucket or not path or content is None:
                 raise HTTPException(400, "Missing bucket, path, or content")
-            
+
             # Ensure bucket exists
             buckets_data = _read_json(self.paths.buckets_file, [])
             bucket_exists = any(b.get("name") == bucket for b in buckets_data)
             if not bucket_exists:
                 raise HTTPException(404, "Bucket not found")
-                
+
             # Create bucket directory
             bucket_path = self.paths.vfs_root / bucket
             bucket_path.mkdir(parents=True, exist_ok=True)
-            
+
             # Prepare content based on mode
             if mode == "hex":
                 file_content = bytes.fromhex(content)
             elif mode == "base64":
                 import base64
+
                 file_content = base64.b64decode(content)
             else:  # text
                 file_content = content.encode("utf-8") if isinstance(content, str) else content
-            
+
             # Save file to filesystem
             file_path = _safe_vfs_path(bucket_path, path)
             file_path.parent.mkdir(parents=True, exist_ok=True)
-            
-            with file_path.open('wb') as f:
+
+            with file_path.open("wb") as f:
                 f.write(file_content)
-            
+
             # Store metadata
             try:
                 metadata_file = self.paths.data_dir / "file_metadata.json"
@@ -4999,59 +6596,64 @@ class ConsolidatedMCPDashboard:
                     "operation": "upload",
                     "upload_mode": mode,
                     "mime_type": mimetypes.guess_type(file_path)[0],
-                    "timestamp": datetime.now(UTC).isoformat()
+                    "timestamp": datetime.now(UTC).isoformat(),
                 }
                 _atomic_write_json(metadata_file, metadata)
             except Exception as e:
                 # Don't fail upload if metadata update fails
                 self.log.warning(f"Failed to update file metadata: {e}")
-            
+
             return {
-                "jsonrpc": "2.0", 
+                "jsonrpc": "2.0",
                 "result": {
-                    "ok": True, 
+                    "ok": True,
                     "file_path": path,
                     "file_size": len(file_content),
                     "bucket_name": bucket,
                     "upload_method": "direct_vfs",
-                    "mode": mode
-                }, 
-                "id": None
+                    "mode": mode,
+                },
+                "id": None,
             }
 
         if name == "bucket_download_file":
             bucket = args.get("bucket")
             path = args.get("path")
             format = args.get("format", "text")
-            
+
             if not bucket or not path:
                 raise HTTPException(400, "Missing bucket or path")
-            
+
             # Check metadata first
             metadata_file = self.paths.data_dir / "bucket_files.json"
             metadata = _read_json(metadata_file, {})
             file_key = f"{bucket}:{path}"
             file_meta = metadata.get(file_key, {})
-            
+
             bucket_path = self.paths.vfs_root / bucket
             file_path = _safe_vfs_path(bucket_path, path)
-            
+
             if not file_path.exists():
                 raise HTTPException(404, "File not found")
-            
+
             if file_path.is_dir():
                 raise HTTPException(400, "Path is a directory")
-            
+
             try:
                 if format == "hex":
                     content = file_path.read_bytes().hex()
                 elif format == "base64":
                     import base64
-                    content = base64.b64encode(file_path.read_bytes()).decode('ascii')
+
+                    content = base64.b64encode(file_path.read_bytes()).decode("ascii")
                 else:  # text
                     content = file_path.read_text(encoding="utf-8")
-                
-                return {"jsonrpc": "2.0", "result": {"content": content, "format": format, "metadata": file_meta}, "id": None}
+
+                return {
+                    "jsonrpc": "2.0",
+                    "result": {"content": content, "format": format, "metadata": file_meta},
+                    "id": None,
+                }
             except Exception as e:
                 raise HTTPException(500, f"Failed to read file: {str(e)}")
 
@@ -5059,28 +6661,29 @@ class ConsolidatedMCPDashboard:
             bucket = args.get("bucket")
             path = args.get("path")
             remove_replicas = args.get("remove_replicas", True)
-            
+
             if not bucket or not path:
                 raise HTTPException(400, "Missing bucket or path")
-            
+
             bucket_path = self.paths.vfs_root / bucket
             file_path = _safe_vfs_path(bucket_path, path)
-            
+
             if not file_path.exists():
                 raise HTTPException(404, "File not found")
-            
+
             # Remove file
             if file_path.is_file():
                 file_path.unlink()
             else:
                 import shutil
+
                 shutil.rmtree(file_path)
-            
+
             # Update metadata
             metadata_file = self.paths.data_dir / "bucket_files.json"
             metadata = _read_json(metadata_file, {})
             file_key = f"{bucket}:{path}"
-            
+
             deleted_meta = {}
             if file_key in metadata:
                 deleted_meta = metadata[file_key]
@@ -5088,54 +6691,67 @@ class ConsolidatedMCPDashboard:
                     # In real implementation, would remove from backend replicas
                     deleted_meta["replicas_removed"] = len(deleted_meta.get("replicas", []))
                 del metadata[file_key]
-            
+
             _atomic_write_json(metadata_file, metadata)
-            
-            return {"jsonrpc": "2.0", "result": {"ok": True, "path": path, "bucket": bucket, "removed_metadata": deleted_meta}, "id": None}
+
+            return {
+                "jsonrpc": "2.0",
+                "result": {
+                    "ok": True,
+                    "path": path,
+                    "bucket": bucket,
+                    "removed_metadata": deleted_meta,
+                },
+                "id": None,
+            }
 
         if name == "bucket_rename_file":
             bucket = args.get("bucket")
             src = args.get("src")
             dst = args.get("dst")
             update_replicas = args.get("update_replicas", True)
-            
+
             if not bucket or not src or not dst:
                 raise HTTPException(400, "Missing bucket, src, or dst")
-            
+
             bucket_path = self.paths.vfs_root / bucket
             src_path = _safe_vfs_path(bucket_path, src)
             dst_path = _safe_vfs_path(bucket_path, dst)
-            
+
             if not src_path.exists():
                 raise HTTPException(404, "Source file not found")
-            
+
             # Move file
             dst_path.parent.mkdir(parents=True, exist_ok=True)
             src_path.rename(dst_path)
-            
+
             # Update metadata
             metadata_file = self.paths.data_dir / "bucket_files.json"
             metadata = _read_json(metadata_file, {})
             src_key = f"{bucket}:{src}"
             dst_key = f"{bucket}:{dst}"
-            
+
             if src_key in metadata:
                 file_meta = metadata[src_key]
                 file_meta["path"] = dst
                 file_meta["renamed_from"] = src
                 file_meta["rename_timestamp"] = datetime.now(UTC).isoformat()
-                
+
                 if update_replicas and "replicas" in file_meta:
                     for replica in file_meta["replicas"]:
                         replica["status"] = "sync_pending"
                         replica["update_needed"] = True
-                
+
                 metadata[dst_key] = file_meta
                 del metadata[src_key]
-            
+
             _atomic_write_json(metadata_file, metadata)
-            
-            return {"jsonrpc": "2.0", "result": {"ok": True, "src": src, "dst": dst, "bucket": bucket}, "id": None}
+
+            return {
+                "jsonrpc": "2.0",
+                "result": {"ok": True, "src": src, "dst": dst, "bucket": bucket},
+                "id": None,
+            }
 
         if name == "bucket_copy_file":
             src_bucket = args.get("src_bucket")
@@ -5177,31 +6793,45 @@ class ConsolidatedMCPDashboard:
                 metadata[dst_key] = file_meta
                 _atomic_write_json(metadata_file, metadata)
 
-            return {"jsonrpc": "2.0", "result": {"ok": True, "src_bucket": src_bucket, "src_path": src_path_arg, "dst_bucket": dst_bucket, "dst_path": dst_path_arg}, "id": None}
+            return {
+                "jsonrpc": "2.0",
+                "result": {
+                    "ok": True,
+                    "src_bucket": src_bucket,
+                    "src_path": src_path_arg,
+                    "dst_bucket": dst_bucket,
+                    "dst_path": dst_path_arg,
+                },
+                "id": None,
+            }
 
         if name == "bucket_mkdir":
             bucket = args.get("bucket")
             path = args.get("path")
             create_parents = args.get("create_parents", True)
-            
+
             if not bucket or not path:
                 raise HTTPException(400, "Missing bucket or path")
-            
+
             bucket_path = self.paths.vfs_root / bucket
             bucket_path.mkdir(parents=True, exist_ok=True)
-            
+
             dir_path = _safe_vfs_path(bucket_path, path)
             dir_path.mkdir(parents=create_parents, exist_ok=True)
-            
-            return {"jsonrpc": "2.0", "result": {"ok": True, "path": path, "bucket": bucket, "created": True}, "id": None}
+
+            return {
+                "jsonrpc": "2.0",
+                "result": {"ok": True, "path": path, "bucket": bucket, "created": True},
+                "id": None,
+            }
 
         if name == "bucket_sync_replicas":
             bucket = args.get("bucket")
             force_sync = args.get("force_sync", False)
-            
+
             if not bucket:
                 raise HTTPException(400, "Missing bucket")
-            
+
             # Get bucket policy
             buckets_data = _read_json(self.paths.buckets_file, [])
             bucket_config = None
@@ -5209,14 +6839,14 @@ class ConsolidatedMCPDashboard:
                 if b.get("name") == bucket:
                     bucket_config = b
                     break
-            
+
             if not bucket_config:
                 raise HTTPException(404, "Bucket not found")
-            
+
             # Get metadata for all files in bucket
             metadata_file = self.paths.data_dir / "bucket_files.json"
             metadata = _read_json(metadata_file, {})
-            
+
             synced_files = 0
             for file_key, file_meta in metadata.items():
                 if file_meta.get("bucket") == bucket:
@@ -5227,27 +6857,36 @@ class ConsolidatedMCPDashboard:
                                 replica["status"] = "synced"
                                 replica["last_sync"] = datetime.now(UTC).isoformat()
                         synced_files += 1
-            
+
             _atomic_write_json(metadata_file, metadata)
-            
-            return {"jsonrpc": "2.0", "result": {"ok": True, "bucket": bucket, "synced_files": synced_files, "force_sync": force_sync}, "id": None}
+
+            return {
+                "jsonrpc": "2.0",
+                "result": {
+                    "ok": True,
+                    "bucket": bucket,
+                    "synced_files": synced_files,
+                    "force_sync": force_sync,
+                },
+                "id": None,
+            }
 
         if name == "bucket_get_metadata":
             bucket = args.get("bucket")
             path = args.get("path")
             include_replicas = args.get("include_replicas", True)
             include_cid = args.get("include_cid", False)
-            
+
             if not bucket or not path:
                 raise HTTPException(400, "Missing bucket or path")
-            
+
             # Get file metadata from filesystem instead of relying on JSON file
             bucket_path = self.paths.vfs_root / bucket
             file_path = _safe_vfs_path(bucket_path, path)
-            
+
             if not file_path.exists():
                 raise HTTPException(404, "File not found")
-            
+
             # Get basic file stats
             stat_info = file_path.stat()
             result = {
@@ -5263,21 +6902,26 @@ class ConsolidatedMCPDashboard:
                 "permissions": oct(stat_info.st_mode)[-3:],
                 "mime_type": mimetypes.guess_type(file_path)[0] if file_path.is_file() else None,
                 "cached": True,  # Local files are considered cached
-                "cache_type": "local_vfs"
+                "cache_type": "local_vfs",
             }
-            
+
             # Calculate CID hash if requested (for content addressing)
             if include_cid and file_path.is_file():
                 try:
                     import hashlib
+
                     # Calculate multihash CID (simplified version - in production use proper multicodec)
-                    with open(file_path, 'rb') as f:
+                    with open(file_path, "rb") as f:
                         file_content = f.read()
                         # SHA256 hash
                         sha256_hash = hashlib.sha256(file_content).digest()
                         # Base58 encode (simplified - use multibase in production)
                         import base64
-                        cid_v0 = "Qm" + base64.b32encode(sha256_hash).decode('utf-8').rstrip('=').lower()[:44]
+
+                        cid_v0 = (
+                            "Qm"
+                            + base64.b32encode(sha256_hash).decode("utf-8").rstrip("=").lower()[:44]
+                        )
                         result["cid"] = cid_v0
                         result["cid_version"] = "0 (SHA-256)"
                         result["multihash"] = "sha2-256"
@@ -5285,16 +6929,18 @@ class ConsolidatedMCPDashboard:
                 except Exception as e:
                     result["cid_error"] = str(e)
                     result["cid"] = None
-            
+
             # Add replica info if requested
             if include_replicas:
-                result["replicas"] = [{
-                    "backend": "local_vfs",
-                    "status": "available",
-                    "path": str(file_path),
-                    "last_sync": datetime.now(UTC).isoformat()
-                }]
-            
+                result["replicas"] = [
+                    {
+                        "backend": "local_vfs",
+                        "status": "available",
+                        "path": str(file_path),
+                        "last_sync": datetime.now(UTC).isoformat(),
+                    }
+                ]
+
             # Try to get additional metadata from stored JSON if available
             try:
                 metadata_file = self.paths.data_dir / "file_metadata.json"
@@ -5310,86 +6956,106 @@ class ConsolidatedMCPDashboard:
             except Exception as e:
                 # Log but don't fail if we can't read additional metadata
                 pass
-            
+
             return {"jsonrpc": "2.0", "result": result, "id": None}
 
         if name == "bucket_get_full_metadata":
             """Get complete metadata for entire bucket including all file CID hashes."""
             bucket = args.get("bucket")
             if not bucket:
-                return {"jsonrpc": "2.0", "error": {"code": -32602, "message": "Missing bucket parameter"}, "id": None}
-            
+                return {
+                    "jsonrpc": "2.0",
+                    "error": {"code": -32602, "message": "Missing bucket parameter"},
+                    "id": None,
+                }
+
             try:
                 import hashlib
                 import base64
-                
+
                 bucket_path = self.paths.vfs_root / bucket
                 if not bucket_path.exists():
-                    return {"jsonrpc": "2.0", "error": {"code": -32602, "message": f"Bucket not found: {bucket}"}, "id": None}
-                
+                    return {
+                        "jsonrpc": "2.0",
+                        "error": {"code": -32602, "message": f"Bucket not found: {bucket}"},
+                        "id": None,
+                    }
+
                 # Recursively collect all files with CID hashes
                 def collect_files_recursive(directory_path, relative_path=""):
                     """Recursively collect file metadata with CID hashes."""
                     files_data = []
-                    
+
                     try:
                         for item in directory_path.iterdir():
-                            item_relative = f"{relative_path}/{item.name}".lstrip('/')
-                            
+                            item_relative = f"{relative_path}/{item.name}".lstrip("/")
+
                             if item.is_file():
                                 try:
                                     stat_info = item.stat()
-                                    
+
                                     # Calculate CID hash
-                                    with open(item, 'rb') as f:
+                                    with open(item, "rb") as f:
                                         file_content = f.read()
                                         sha256_hash = hashlib.sha256(file_content).digest()
-                                        cid_v0 = "Qm" + base64.b32encode(sha256_hash).decode('utf-8').rstrip('=').lower()[:44]
-                                    
+                                        cid_v0 = (
+                                            "Qm"
+                                            + base64.b32encode(sha256_hash)
+                                            .decode("utf-8")
+                                            .rstrip("=")
+                                            .lower()[:44]
+                                        )
+
                                     file_info = {
                                         "path": item_relative,
                                         "name": item.name,
                                         "size": stat_info.st_size,
                                         "is_file": True,
                                         "is_directory": False,
-                                        "created": datetime.fromtimestamp(stat_info.st_ctime, UTC).isoformat(),
-                                        "modified": datetime.fromtimestamp(stat_info.st_mtime, UTC).isoformat(),
+                                        "created": datetime.fromtimestamp(
+                                            stat_info.st_ctime, UTC
+                                        ).isoformat(),
+                                        "modified": datetime.fromtimestamp(
+                                            stat_info.st_mtime, UTC
+                                        ).isoformat(),
                                         "permissions": oct(stat_info.st_mode)[-3:],
                                         "mime_type": mimetypes.guess_type(item)[0],
                                         "cid": cid_v0,
                                         "cid_version": "0 (SHA-256)",
                                         "multihash": "sha2-256",
-                                        "content_addressable": True
+                                        "content_addressable": True,
                                     }
                                     files_data.append(file_info)
                                 except Exception as e:
                                     # Log but continue with other files
                                     print(f"Error processing file {item}: {e}")
-                            
+
                             elif item.is_dir():
                                 # Recursively process subdirectories
                                 subdir_files = collect_files_recursive(item, item_relative)
                                 files_data.extend(subdir_files)
-                    
+
                     except Exception as e:
                         print(f"Error reading directory {directory_path}: {e}")
-                    
+
                     return files_data
-                
+
                 # Collect all files
                 all_files = collect_files_recursive(bucket_path)
-                
+
                 # Calculate bucket statistics
                 total_size = sum(f["size"] for f in all_files)
                 bucket_stat = bucket_path.stat()
-                
+
                 # Build complete bucket metadata
                 result = {
                     "bucket": bucket,
                     "bucket_path": str(bucket_path),
                     "total_files": len(all_files),
                     "total_size": total_size,
-                    "total_size_human": f"{total_size / (1024*1024):.2f} MB" if total_size > 1024*1024 else f"{total_size / 1024:.2f} KB",
+                    "total_size_human": f"{total_size / (1024 * 1024):.2f} MB"
+                    if total_size > 1024 * 1024
+                    else f"{total_size / 1024:.2f} KB",
                     "created": datetime.fromtimestamp(bucket_stat.st_ctime, UTC).isoformat(),
                     "modified": datetime.fromtimestamp(bucket_stat.st_mtime, UTC).isoformat(),
                     "files": all_files,
@@ -5397,152 +7063,197 @@ class ConsolidatedMCPDashboard:
                         "description": "Use the CID hashes to retrieve files from IPFS and recreate the bucket structure",
                         "ipfs_command_template": "ipfs get {cid} -o {path}",
                         "content_addressable": True,
-                        "verification": "Each file can be verified by recomputing its SHA-256 hash and comparing to the CID"
-                    }
+                        "verification": "Each file can be verified by recomputing its SHA-256 hash and comparing to the CID",
+                    },
                 }
-                
+
                 return {"jsonrpc": "2.0", "result": result, "id": None}
-                
+
             except Exception as e:
                 import traceback
-                return {"jsonrpc": "2.0", "error": {"code": -32603, "message": f"Error getting full bucket metadata: {str(e)}\n{traceback.format_exc()}"}, "id": None}
-        
+
+                return {
+                    "jsonrpc": "2.0",
+                    "error": {
+                        "code": -32603,
+                        "message": f"Error getting full bucket metadata: {str(e)}\n{traceback.format_exc()}",
+                    },
+                    "id": None,
+                }
+
         if name == "get_bucket_usage":
             bucket_name = args.get("name")
             if not bucket_name:
-                return {"jsonrpc": "2.0", "error": {"code": -32602, "message": "Missing bucket name"}, "id": None}
-            
+                return {
+                    "jsonrpc": "2.0",
+                    "error": {"code": -32602, "message": "Missing bucket name"},
+                    "id": None,
+                }
+
             try:
                 # Get bucket files from metadata-first approach
                 metadata_files = []
                 metadata_file_path = self.paths.data_dir / "bucket_files.json"
                 if metadata_file_path.exists():
-                    with open(metadata_file_path, 'r', encoding='utf-8') as f:
+                    with open(metadata_file_path, "r", encoding="utf-8") as f:
                         all_metadata = json.load(f)
-                        metadata_files = [v for k, v in all_metadata.items() if k.startswith(f"{bucket_name}:")]
-                
+                        metadata_files = [
+                            v for k, v in all_metadata.items() if k.startswith(f"{bucket_name}:")
+                        ]
+
                 # Calculate usage statistics
                 total_size_bytes = 0
                 file_count = len(metadata_files)
-                
+
                 for file_info in metadata_files:
                     if isinstance(file_info, dict):
-                        size = file_info.get('size', 0)
+                        size = file_info.get("size", 0)
                         if isinstance(size, (int, float)) and size > 0:
                             total_size_bytes += size
-                
+
                 total_size_gb = total_size_bytes / (1024 * 1024 * 1024)
-                
-                return {"jsonrpc": "2.0", "result": {
-                    "total_size_bytes": total_size_bytes,
-                    "total_size_gb": round(total_size_gb, 3),
-                    "file_count": file_count,
-                    "bucket": bucket_name
-                }, "id": None}
-                
+
+                return {
+                    "jsonrpc": "2.0",
+                    "result": {
+                        "total_size_bytes": total_size_bytes,
+                        "total_size_gb": round(total_size_gb, 3),
+                        "file_count": file_count,
+                        "bucket": bucket_name,
+                    },
+                    "id": None,
+                }
+
             except Exception as e:
-                return {"jsonrpc": "2.0", "result": {
-                    "total_size_bytes": 0,
-                    "total_size_gb": 0,
-                    "file_count": 0,
-                    "bucket": bucket_name,
-                    "error": str(e)
-                }, "id": None}
+                return {
+                    "jsonrpc": "2.0",
+                    "result": {
+                        "total_size_bytes": 0,
+                        "total_size_gb": 0,
+                        "file_count": 0,
+                        "bucket": bucket_name,
+                        "error": str(e),
+                    },
+                    "id": None,
+                }
 
         if name == "generate_bucket_share_link":
             bucket = args.get("bucket")
             access_type = args.get("access_type", "read_only")
             expiration = args.get("expiration", "never")
-            
+
             if not bucket:
-                return {"jsonrpc": "2.0", "error": {"code": -32602, "message": "Missing bucket name"}, "id": None}
-            
+                return {
+                    "jsonrpc": "2.0",
+                    "error": {"code": -32602, "message": "Missing bucket name"},
+                    "id": None,
+                }
+
             # Generate a simple share link (in production, this would include proper token generation)
             import hashlib
             import time
-            
+
             token_data = f"{bucket}:{access_type}:{expiration}:{int(time.time())}"
             token = hashlib.md5(token_data.encode()).hexdigest()[:16]
-            
+
             # Store share link info (in production, this would go to a proper database)
             share_links_path = self.paths.data_dir / "share_links.json"
             share_links = {}
             if share_links_path.exists():
                 try:
-                    with open(share_links_path, 'r', encoding='utf-8') as f:
+                    with open(share_links_path, "r", encoding="utf-8") as f:
                         share_links = json.load(f)
                 except Exception:
                     pass
-            
+
             share_links[token] = {
                 "bucket": bucket,
                 "access_type": access_type,
                 "expiration": expiration,
-                "created_at": datetime.now(UTC).isoformat()
+                "created_at": datetime.now(UTC).isoformat(),
             }
-            
+
             try:
-                with open(share_links_path, 'w', encoding='utf-8') as f:
+                with open(share_links_path, "w", encoding="utf-8") as f:
                     json.dump(share_links, f, indent=2)
             except Exception:
                 pass
-            
+
             share_link = f"/shared/{bucket}?token={token}"
-            
-            return {"jsonrpc": "2.0", "result": {
-                "share_link": share_link,
-                "token": token,
-                "bucket": bucket,
-                "access_type": access_type,
-                "expiration": expiration
-            }, "id": None}
+
+            return {
+                "jsonrpc": "2.0",
+                "result": {
+                    "share_link": share_link,
+                    "token": token,
+                    "bucket": bucket,
+                    "access_type": access_type,
+                    "expiration": expiration,
+                },
+                "id": None,
+            }
 
         if name == "bucket_selective_sync":
             bucket = args.get("bucket")
             files = args.get("files", [])
             options = args.get("options", {})
-            
+
             if not bucket:
-                return {"jsonrpc": "2.0", "error": {"code": -32602, "message": "Missing bucket name"}, "id": None}
-            
+                return {
+                    "jsonrpc": "2.0",
+                    "error": {"code": -32602, "message": "Missing bucket name"},
+                    "id": None,
+                }
+
             if not files:
-                return {"jsonrpc": "2.0", "error": {"code": -32602, "message": "No files specified for sync"}, "id": None}
-            
+                return {
+                    "jsonrpc": "2.0",
+                    "error": {"code": -32602, "message": "No files specified for sync"},
+                    "id": None,
+                }
+
             force_update = options.get("force_update", False)
             verify_checksums = options.get("verify_checksums", True)
             create_backup = options.get("create_backup", False)
-            
+
             try:
                 synced_files = []
                 failed_files = []
-                
+
                 for file_path in files:
                     try:
                         # Simulate selective sync operation
                         # In production, this would sync the file according to bucket policy
-                        synced_files.append({
-                            "path": file_path,
-                            "status": "synced",
-                            "force_update": force_update,
-                            "verified": verify_checksums
-                        })
+                        synced_files.append(
+                            {
+                                "path": file_path,
+                                "status": "synced",
+                                "force_update": force_update,
+                                "verified": verify_checksums,
+                            }
+                        )
                     except Exception as e:
-                        failed_files.append({
-                            "path": file_path,
-                            "error": str(e)
-                        })
-                
-                return {"jsonrpc": "2.0", "result": {
-                    "bucket": bucket,
-                    "synced_files": synced_files,
-                    "failed_files": failed_files,
-                    "total_requested": len(files),
-                    "total_synced": len(synced_files),
-                    "options": options
-                }, "id": None}
-                
+                        failed_files.append({"path": file_path, "error": str(e)})
+
+                return {
+                    "jsonrpc": "2.0",
+                    "result": {
+                        "bucket": bucket,
+                        "synced_files": synced_files,
+                        "failed_files": failed_files,
+                        "total_requested": len(files),
+                        "total_synced": len(synced_files),
+                        "options": options,
+                    },
+                    "id": None,
+                }
+
             except Exception as e:
-                return {"jsonrpc": "2.0", "error": {"code": -32603, "message": f"Selective sync failed: {str(e)}"}, "id": None}
+                return {
+                    "jsonrpc": "2.0",
+                    "error": {"code": -32603, "message": f"Selective sync failed: {str(e)}"},
+                    "id": None,
+                }
 
         if name == "update_bucket_policy":
             bname = args.get("name")
@@ -5550,9 +7261,21 @@ class ConsolidatedMCPDashboard:
                 raise HTTPException(400, "Missing name")
             # Accept either flat keys or nested { policy: { ... } }
             pol_in = args.get("policy") if isinstance(args.get("policy"), dict) else None
-            rf = args.get("replication_factor") if args.get("replication_factor") is not None else (pol_in or {}).get("replication_factor")
-            cp = args.get("cache_policy") if args.get("cache_policy") is not None else (pol_in or {}).get("cache_policy")
-            rd = args.get("retention_days") if args.get("retention_days") is not None else (pol_in or {}).get("retention_days")
+            rf = (
+                args.get("replication_factor")
+                if args.get("replication_factor") is not None
+                else (pol_in or {}).get("replication_factor")
+            )
+            cp = (
+                args.get("cache_policy")
+                if args.get("cache_policy") is not None
+                else (pol_in or {}).get("cache_policy")
+            )
+            rd = (
+                args.get("retention_days")
+                if args.get("retention_days") is not None
+                else (pol_in or {}).get("retention_days")
+            )
             # validation / partial updates allowed
             if rf is not None:
                 try:
@@ -5576,14 +7299,18 @@ class ConsolidatedMCPDashboard:
             for i, b in enumerate(items):
                 if b.get("name") == bname:
                     pol = dict(b.get("policy") or {})
-                    if rf is not None: pol['replication_factor'] = rf
-                    if cp is not None: pol['cache_policy'] = cp
-                    if rd is not None: pol['retention_days'] = rd
+                    if rf is not None:
+                        pol["replication_factor"] = rf
+                    if cp is not None:
+                        pol["cache_policy"] = cp
+                    if rd is not None:
+                        pol["retention_days"] = rd
                     # ensure defaults
-                    pol.setdefault('replication_factor', 1)
-                    pol.setdefault('cache_policy', 'none')
-                    pol.setdefault('retention_days', 0)
-                    nb = dict(b); nb['policy'] = pol
+                    pol.setdefault("replication_factor", 1)
+                    pol.setdefault("cache_policy", "none")
+                    pol.setdefault("retention_days", 0)
+                    nb = dict(b)
+                    nb["policy"] = pol
                     items[i] = nb
                     updated = True
                     break
@@ -5630,16 +7357,26 @@ class ConsolidatedMCPDashboard:
             if not isinstance(items, list):
                 raise HTTPException(400, "items must be array")
             existing = _normalize_pins(_read_json(self.paths.pins_file, default=[]))
-            seen = {p.get('cid') for p in existing}
+            seen = {p.get("cid") for p in existing}
             merged = list(existing)
             for p in items:
-                cid = (p or {}).get('cid')
+                cid = (p or {}).get("cid")
                 if not cid or cid in seen:
                     continue
-                merged.append({"cid": cid, "name": (p or {}).get('name'), "created_at": datetime.now(UTC).isoformat()})
+                merged.append(
+                    {
+                        "cid": cid,
+                        "name": (p or {}).get("name"),
+                        "created_at": datetime.now(UTC).isoformat(),
+                    }
+                )
                 seen.add(cid)
             _atomic_write_json(self.paths.pins_file, merged)
-            return {"jsonrpc": "2.0", "result": {"ok": True, "added": len(merged)-len(existing)}, "id": None}
+            return {
+                "jsonrpc": "2.0",
+                "result": {"ok": True, "added": len(merged) - len(existing)},
+                "id": None,
+            }
         return None
 
     async def _handle_files(self, name: str, args: Dict[str, Any]) -> Optional[Dict[str, Any]]:  # type: ignore
@@ -5661,7 +7398,11 @@ class ConsolidatedMCPDashboard:
                 default_root = (Path(self.paths.data_dir) / "vfs" / str(bucket)).resolve()
                 if not backend_cfg:
                     return default_root
-                if isinstance(backend_cfg, dict) and "type" in backend_cfg and "config" in backend_cfg:
+                if (
+                    isinstance(backend_cfg, dict)
+                    and "type" in backend_cfg
+                    and "config" in backend_cfg
+                ):
                     btype = str(backend_cfg.get("type") or "").lower()
                     cfg = backend_cfg.get("config") or {}
                 elif isinstance(backend_cfg, dict):
@@ -5680,7 +7421,11 @@ class ConsolidatedMCPDashboard:
             root.mkdir(parents=True, exist_ok=True)
 
             if name == "resolve_bucket_path":
-                return {"jsonrpc": "2.0", "result": {"bucket": bucket, "backend": backend_name, "path": str(root)}, "id": None}
+                return {
+                    "jsonrpc": "2.0",
+                    "result": {"bucket": bucket, "backend": backend_name, "path": str(root)},
+                    "id": None,
+                }
 
             rel_path = args.get("path")
             if rel_path is None:
@@ -5699,12 +7444,20 @@ class ConsolidatedMCPDashboard:
                 else:
                     files = []
                     for child in sorted(target.iterdir(), key=lambda p: p.name):
-                        files.append({
-                            "name": child.name,
-                            "path": str((Path(str(rel_path)) / child.name).as_posix()).lstrip("/"),
-                            "type": "dir" if child.is_dir() else "file",
-                        })
-                return {"jsonrpc": "2.0", "result": {"bucket": bucket, "path": str(rel_path), "files": files}, "id": None}
+                        files.append(
+                            {
+                                "name": child.name,
+                                "path": str((Path(str(rel_path)) / child.name).as_posix()).lstrip(
+                                    "/"
+                                ),
+                                "type": "dir" if child.is_dir() else "file",
+                            }
+                        )
+                return {
+                    "jsonrpc": "2.0",
+                    "result": {"bucket": bucket, "path": str(rel_path), "files": files},
+                    "id": None,
+                }
 
             if name == "write_file":
                 if not rel_path:
@@ -5713,7 +7466,11 @@ class ConsolidatedMCPDashboard:
                 target.parent.mkdir(parents=True, exist_ok=True)
                 data = str(content).encode("utf-8")
                 target.write_bytes(data)
-                return {"jsonrpc": "2.0", "result": {"bucket": bucket, "path": str(rel_path), "bytes": len(data)}, "id": None}
+                return {
+                    "jsonrpc": "2.0",
+                    "result": {"bucket": bucket, "path": str(rel_path), "bytes": len(data)},
+                    "id": None,
+                }
 
             if name == "read_file":
                 if not rel_path:
@@ -5726,7 +7483,11 @@ class ConsolidatedMCPDashboard:
                 except Exception:
                     # fall back to latin-1 to keep tests/simple clients happy
                     text = raw.decode("latin-1")
-                return {"jsonrpc": "2.0", "result": {"bucket": bucket, "path": str(rel_path), "content": text}, "id": None}
+                return {
+                    "jsonrpc": "2.0",
+                    "result": {"bucket": bucket, "path": str(rel_path), "content": text},
+                    "id": None,
+                }
 
         if name == "files_list":
             path = args.get("path", ".")
@@ -5736,7 +7497,9 @@ class ConsolidatedMCPDashboard:
             res = await self._call_files_read(args.get("path"))
             return {"jsonrpc": "2.0", "result": res, "id": None}
         if name == "files_write":
-            await self._call_files_write(args.get("path"), args.get("content", ""), args.get("mode", "text"))
+            await self._call_files_write(
+                args.get("path"), args.get("content", ""), args.get("mode", "text")
+            )
             return {"jsonrpc": "2.0", "result": {"ok": True}, "id": None}
         if name == "files_mkdir":
             path = args.get("path")
@@ -5761,7 +7524,8 @@ class ConsolidatedMCPDashboard:
                 p.unlink()
             return {"jsonrpc": "2.0", "result": {"ok": True}, "id": None}
         if name == "files_mv":
-            src = args.get("src"); dst = args.get("dst")
+            src = args.get("src")
+            dst = args.get("dst")
             if not src or not dst:
                 raise HTTPException(400, "Missing src/dst")
             ps = _safe_vfs_path(self.paths.vfs_root, src)
@@ -5777,9 +7541,20 @@ class ConsolidatedMCPDashboard:
             if not p.exists():
                 raise HTTPException(404, "Not found")
             st = p.stat()
-            return {"jsonrpc": "2.0", "result": {"path": path, "is_dir": p.is_dir(), "size": st.st_size, "mtime": st.st_mtime}, "id": None}
+            return {
+                "jsonrpc": "2.0",
+                "result": {
+                    "path": path,
+                    "is_dir": p.is_dir(),
+                    "size": st.st_size,
+                    "mtime": st.st_mtime,
+                },
+                "id": None,
+            }
         if name == "files_copy":
-            src = args.get("src"); dst = args.get("dst"); rec = bool(args.get("recursive", False))
+            src = args.get("src")
+            dst = args.get("dst")
+            rec = bool(args.get("recursive", False))
             if not src or not dst:
                 raise HTTPException(400, "Missing src/dst")
             ps = _safe_vfs_path(self.paths.vfs_root, src)
@@ -5800,17 +7575,26 @@ class ConsolidatedMCPDashboard:
                 raise HTTPException(400, "Missing path")
             p = _safe_vfs_path(self.paths.vfs_root, path)
             p.parent.mkdir(parents=True, exist_ok=True)
-            with open(p, 'a', encoding='utf-8'):
+            with open(p, "a", encoding="utf-8"):
                 os.utime(p, None)
             return {"jsonrpc": "2.0", "result": {"ok": True}, "id": None}
         if name == "files_tree":
-            path = args.get("path", "."); depth = int(args.get("depth", 2))
+            path = args.get("path", ".")
+            depth = int(args.get("depth", 2))
             base = _safe_vfs_path(self.paths.vfs_root, path)
             if not base.exists():
                 return {"jsonrpc": "2.0", "result": {"path": path, "items": []}, "id": None}
             if base.is_file():
                 st = base.stat()
-                return {"jsonrpc": "2.0", "result": {"path": path, "items": [{"name": base.name, "is_dir": False, "size": st.st_size}]}, "id": None}
+                return {
+                    "jsonrpc": "2.0",
+                    "result": {
+                        "path": path,
+                        "items": [{"name": base.name, "is_dir": False, "size": st.st_size}],
+                    },
+                    "id": None,
+                }
+
             def walk(p: Path, d: int):
                 out = []
                 if d < 0:
@@ -5821,10 +7605,15 @@ class ConsolidatedMCPDashboard:
                         with suppress(Exception):
                             item["size"] = child.stat().st_size
                     if child.is_dir() and d > 0:
-                        item["children"] = walk(child, d-1)
+                        item["children"] = walk(child, d - 1)
                     out.append(item)
                 return out
-            return {"jsonrpc": "2.0", "result": {"path": path, "items": walk(base, depth)}, "id": None}
+
+            return {
+                "jsonrpc": "2.0",
+                "result": {"path": path, "items": walk(base, depth)},
+                "id": None,
+            }
         return None
 
     def _handle_ipfs(self, name: str, args: Dict[str, Any]) -> Optional[Dict[str, Any]]:
@@ -5836,7 +7625,7 @@ class ConsolidatedMCPDashboard:
             if not ipfs_bin:
                 raise HTTPException(404, "ipfs binary not found")
             p = _safe_vfs_path(self.paths.vfs_root, path)
-            res = _run_cmd([ipfs_bin, 'add', '-Qr', str(p)], timeout=120)
+            res = _run_cmd([ipfs_bin, "add", "-Qr", str(p)], timeout=120)
             return {"jsonrpc": "2.0", "result": res, "id": None}
         if name == "ipfs_pin":
             cid = args.get("cid")
@@ -5846,16 +7635,18 @@ class ConsolidatedMCPDashboard:
             ipfs_bin = _which("ipfs")
             if not ipfs_bin:
                 raise HTTPException(404, "ipfs binary not found")
-            res = _run_cmd([ipfs_bin, 'pin', 'add', cid], timeout=60)
+            res = _run_cmd([ipfs_bin, "pin", "add", cid], timeout=60)
             # If pin succeeded, update our local pins index for convenience
             try:
-                ok_code = int(res.get('code', 1))
+                ok_code = int(res.get("code", 1))
             except Exception:
                 ok_code = 1
             if ok_code == 0:
                 pins = _normalize_pins(_read_json(self.paths.pins_file, default=[]))
-                if not any(p.get('cid') == cid for p in pins):
-                    pins.append({"cid": cid, "name": label, "created_at": datetime.now(UTC).isoformat()})
+                if not any(p.get("cid") == cid for p in pins):
+                    pins.append(
+                        {"cid": cid, "name": label, "created_at": datetime.now(UTC).isoformat()}
+                    )
                     _atomic_write_json(self.paths.pins_file, pins)
             return {"jsonrpc": "2.0", "result": res, "id": None}
         if name == "ipfs_cat":
@@ -5865,7 +7656,7 @@ class ConsolidatedMCPDashboard:
             ipfs_bin = _which("ipfs")
             if not ipfs_bin:
                 raise HTTPException(404, "ipfs binary not found")
-            res = _run_cmd([ipfs_bin, 'cat', cid], timeout=60)
+            res = _run_cmd([ipfs_bin, "cat", cid], timeout=60)
             return {"jsonrpc": "2.0", "result": res, "id": None}
         if name == "ipfs_ls":
             cid = args.get("cid")
@@ -5874,73 +7665,87 @@ class ConsolidatedMCPDashboard:
             ipfs_bin = _which("ipfs")
             if not ipfs_bin:
                 raise HTTPException(404, "ipfs binary not found")
-            res = _run_cmd([ipfs_bin, 'ls', cid], timeout=60)
+            res = _run_cmd([ipfs_bin, "ls", cid], timeout=60)
             return {"jsonrpc": "2.0", "result": res, "id": None}
         if name == "ipfs_version":
             ipfs_bin = _which("ipfs")
             if not ipfs_bin:
                 raise HTTPException(404, "ipfs binary not found")
-            res = _run_cmd([ipfs_bin, 'version', '--all'], timeout=20)
+            res = _run_cmd([ipfs_bin, "version", "--all"], timeout=20)
             return {"jsonrpc": "2.0", "result": res, "id": None}
         if name == "get_bucket_policy":
             bname = args.get("name")
             items = _normalize_buckets(_read_json(self.paths.buckets_file, default=[]))
             for b in items:
                 if b.get("name") == bname:
-                    return {"jsonrpc": "2.0", "result": {"name": bname, "policy": b.get("policy")}, "id": None}
+                    return {
+                        "jsonrpc": "2.0",
+                        "result": {"name": bname, "policy": b.get("policy")},
+                        "id": None,
+                    }
             raise HTTPException(404, "Not found")
-        
+
         # Enhanced backend configuration tools for multi-instance support
         if name == "configure_backend_instance":
             instance_name = args.get("instance_name")
             service_type = args.get("service_type")
             config = args.get("config", {})
-            
+
             if not instance_name or not service_type:
                 raise HTTPException(400, "Missing instance_name or service_type")
-            
+
             # Enhanced configuration with multi-instance support
             enhanced_config = {
                 "basic": {
                     "instance_name": instance_name,
                     "service_type": service_type,
                     "description": config.get("description", f"Instance of {service_type}"),
-                    "enabled": config.get("enabled", True)
+                    "enabled": config.get("enabled", True),
                 },
                 "cache": {
                     "cache_policy": config.get("cache_policy", "none"),
                     "cache_size_mb": int(config.get("cache_size_mb", 1024)),
-                    "cache_ttl_seconds": int(config.get("cache_ttl_seconds", 3600))
+                    "cache_ttl_seconds": int(config.get("cache_ttl_seconds", 3600)),
                 },
                 "storage": {
                     "storage_quota_gb": float(config.get("storage_quota_gb", 100)),
                     "max_files": int(config.get("max_files", 10000)),
-                    "max_file_size_mb": int(config.get("max_file_size_mb", 500))
+                    "max_file_size_mb": int(config.get("max_file_size_mb", 500)),
                 },
                 "retention": {
                     "retention_days": int(config.get("retention_days", 365)),
                     "auto_cleanup": config.get("auto_cleanup", False),
-                    "versioning": config.get("versioning", False)
+                    "versioning": config.get("versioning", False),
                 },
                 "replication": {
                     "replication_factor": int(config.get("replication_factor", 3)),
-                    "sync_strategy": config.get("sync_strategy", "immediate")
+                    "sync_strategy": config.get("sync_strategy", "immediate"),
                 },
-                "service_specific": config.get("service_specific", {})
+                "service_specific": config.get("service_specific", {}),
             }
-            
+
             # Save enhanced configuration
             config_dir = self.paths.data_dir / "service_configs"
             config_dir.mkdir(exist_ok=True)
             config_file = config_dir / f"{instance_name}_config.json"
-            
-            with open(config_file, 'w') as f:
+
+            with open(config_file, "w") as f:
                 json.dump(enhanced_config, f, indent=2)
-            
+
             # Update backends if it's a storage service
-            if service_type in ["s3", "github", "ipfs_cluster", "huggingface", "gdrive", "ftp", "sshfs", "apache_arrow", "parquet"]:
+            if service_type in [
+                "s3",
+                "github",
+                "ipfs_cluster",
+                "huggingface",
+                "gdrive",
+                "ftp",
+                "sshfs",
+                "apache_arrow",
+                "parquet",
+            ]:
                 backends = _normalize_backends(_read_json(self.paths.backends_file, default=[]))
-                
+
                 # Update or create backend entry
                 backend_found = False
                 for i, backend in enumerate(backends):
@@ -5952,146 +7757,174 @@ class ConsolidatedMCPDashboard:
                             "description": enhanced_config["basic"]["description"],
                             "config": enhanced_config,
                             "policy": {
-                                "replication_factor": enhanced_config["replication"]["replication_factor"],
+                                "replication_factor": enhanced_config["replication"][
+                                    "replication_factor"
+                                ],
                                 "cache_policy": enhanced_config["cache"]["cache_policy"],
-                                "retention_days": enhanced_config["retention"]["retention_days"]
+                                "retention_days": enhanced_config["retention"]["retention_days"],
                             },
                             "enabled": enhanced_config["basic"]["enabled"],
-                            "last_updated": datetime.now(UTC).isoformat()
+                            "last_updated": datetime.now(UTC).isoformat(),
                         }
                         backend_found = True
                         break
-                
+
                 if not backend_found:
-                    backends.append({
-                        "name": instance_name,
-                        "type": service_type,
-                        "tier": "standard",
-                        "description": enhanced_config["basic"]["description"],
-                        "config": enhanced_config,
-                        "policy": {
-                            "replication_factor": enhanced_config["replication"]["replication_factor"],
-                            "cache_policy": enhanced_config["cache"]["cache_policy"],
-                            "retention_days": enhanced_config["retention"]["retention_days"]
-                        },
-                        "enabled": enhanced_config["basic"]["enabled"],
-                        "created_at": datetime.now(UTC).isoformat(),
-                        "last_updated": datetime.now(UTC).isoformat()
-                    })
-                
+                    backends.append(
+                        {
+                            "name": instance_name,
+                            "type": service_type,
+                            "tier": "standard",
+                            "description": enhanced_config["basic"]["description"],
+                            "config": enhanced_config,
+                            "policy": {
+                                "replication_factor": enhanced_config["replication"][
+                                    "replication_factor"
+                                ],
+                                "cache_policy": enhanced_config["cache"]["cache_policy"],
+                                "retention_days": enhanced_config["retention"]["retention_days"],
+                            },
+                            "enabled": enhanced_config["basic"]["enabled"],
+                            "created_at": datetime.now(UTC).isoformat(),
+                            "last_updated": datetime.now(UTC).isoformat(),
+                        }
+                    )
+
                 _atomic_write_json(self.paths.backends_file, backends)
-            
-            return {"jsonrpc": "2.0", "result": {
-                "success": True,
-                "instance_name": instance_name,
-                "service_type": service_type,
-                "message": f"Backend instance '{instance_name}' configured successfully",
-                "config": enhanced_config
-            }, "id": None}
-        
+
+            return {
+                "jsonrpc": "2.0",
+                "result": {
+                    "success": True,
+                    "instance_name": instance_name,
+                    "service_type": service_type,
+                    "message": f"Backend instance '{instance_name}' configured successfully",
+                    "config": enhanced_config,
+                },
+                "id": None,
+            }
+
         if name == "create_backend_instance":
             service_type = args.get("service_type")
             instance_name = args.get("instance_name")
             description = args.get("description", f"Instance of {service_type}")
-            
+
             if not service_type or not instance_name:
                 raise HTTPException(400, "Missing service_type or instance_name")
-            
+
             # Check if instance already exists
             config_dir = self.paths.data_dir / "service_configs"
             config_file = config_dir / f"{instance_name}_config.json"
-            
+
             if config_file.exists():
                 raise HTTPException(409, f"Instance '{instance_name}' already exists")
-            
+
             # Create new instance configuration with defaults
             new_config = {
                 "basic": {
                     "instance_name": instance_name,
                     "service_type": service_type,
                     "description": description,
-                    "enabled": True
+                    "enabled": True,
                 },
-                "cache": {
-                    "cache_policy": "none",
-                    "cache_size_mb": 1024,
-                    "cache_ttl_seconds": 3600
-                },
-                "storage": {
-                    "storage_quota_gb": 100.0,
-                    "max_files": 10000,
-                    "max_file_size_mb": 500
-                },
-                "retention": {
-                    "retention_days": 365,
-                    "auto_cleanup": False,
-                    "versioning": False
-                },
-                "replication": {
-                    "replication_factor": 3,
-                    "sync_strategy": "immediate"
-                },
-                "service_specific": {}
+                "cache": {"cache_policy": "none", "cache_size_mb": 1024, "cache_ttl_seconds": 3600},
+                "storage": {"storage_quota_gb": 100.0, "max_files": 10000, "max_file_size_mb": 500},
+                "retention": {"retention_days": 365, "auto_cleanup": False, "versioning": False},
+                "replication": {"replication_factor": 3, "sync_strategy": "immediate"},
+                "service_specific": {},
             }
-            
+
             # Save configuration
             config_dir.mkdir(exist_ok=True)
-            with open(config_file, 'w') as f:
+            with open(config_file, "w") as f:
                 json.dump(new_config, f, indent=2)
-            
+
             # Add to backends if it's a storage service
-            if service_type in ["s3", "github", "ipfs_cluster", "huggingface", "gdrive", "ftp", "sshfs", "apache_arrow", "parquet"]:
+            if service_type in [
+                "s3",
+                "github",
+                "ipfs_cluster",
+                "huggingface",
+                "gdrive",
+                "ftp",
+                "sshfs",
+                "apache_arrow",
+                "parquet",
+            ]:
                 backends = _normalize_backends(_read_json(self.paths.backends_file, default=[]))
-                backends.append({
-                    "name": instance_name,
-                    "type": service_type,
-                    "tier": "standard",
-                    "description": description,
-                    "config": new_config,
-                    "policy": {
-                        "replication_factor": new_config["replication"]["replication_factor"],
-                        "cache_policy": new_config["cache"]["cache_policy"],
-                        "retention_days": new_config["retention"]["retention_days"]
-                    },
-                    "enabled": True,
-                    "created_at": datetime.now(UTC).isoformat(),
-                    "last_updated": datetime.now(UTC).isoformat()
-                })
+                backends.append(
+                    {
+                        "name": instance_name,
+                        "type": service_type,
+                        "tier": "standard",
+                        "description": description,
+                        "config": new_config,
+                        "policy": {
+                            "replication_factor": new_config["replication"]["replication_factor"],
+                            "cache_policy": new_config["cache"]["cache_policy"],
+                            "retention_days": new_config["retention"]["retention_days"],
+                        },
+                        "enabled": True,
+                        "created_at": datetime.now(UTC).isoformat(),
+                        "last_updated": datetime.now(UTC).isoformat(),
+                    }
+                )
                 _atomic_write_json(self.paths.backends_file, backends)
-            
-            return {"jsonrpc": "2.0", "result": {
-                "success": True,
-                "instance_name": instance_name,
-                "service_type": service_type,
-                "message": f"Backend instance '{instance_name}' created successfully",
-                "config": new_config
-            }, "id": None}
-        
+
+            return {
+                "jsonrpc": "2.0",
+                "result": {
+                    "success": True,
+                    "instance_name": instance_name,
+                    "service_type": service_type,
+                    "message": f"Backend instance '{instance_name}' created successfully",
+                    "config": new_config,
+                },
+                "id": None,
+            }
+
         if name == "list_backend_instances":
             # List all configured backend instances with their enhanced settings
             config_dir = self.paths.data_dir / "service_configs"
             backends = _normalize_backends(_read_json(self.paths.backends_file, default=[]))
-            
+
             instances = []
             for backend in backends:
                 config_file = config_dir / f"{backend['name']}_config.json"
                 if config_file.exists():
                     try:
-                        with open(config_file, 'r') as f:
+                        with open(config_file, "r") as f:
                             config = json.load(f)
-                        instances.append({
-                            "name": backend["name"],
-                            "type": backend["type"],
-                            "description": backend.get("description", ""),
-                            "enabled": backend.get("enabled", False),
-                            "config": config,
-                            "policy": backend.get("policy", {}),
-                            "created_at": backend.get("created_at"),
-                            "last_updated": backend.get("last_updated")
-                        })
+                        instances.append(
+                            {
+                                "name": backend["name"],
+                                "type": backend["type"],
+                                "description": backend.get("description", ""),
+                                "enabled": backend.get("enabled", False),
+                                "config": config,
+                                "policy": backend.get("policy", {}),
+                                "created_at": backend.get("created_at"),
+                                "last_updated": backend.get("last_updated"),
+                            }
+                        )
                     except Exception as e:
                         self.log.warning(f"Failed to load config for {backend['name']}: {e}")
-                        instances.append({
+                        instances.append(
+                            {
+                                "name": backend["name"],
+                                "type": backend["type"],
+                                "description": backend.get("description", ""),
+                                "enabled": backend.get("enabled", False),
+                                "config": {},
+                                "policy": backend.get("policy", {}),
+                                "created_at": backend.get("created_at"),
+                                "last_updated": backend.get("last_updated"),
+                            }
+                        )
+                else:
+                    # Legacy backend without enhanced config
+                    instances.append(
+                        {
                             "name": backend["name"],
                             "type": backend["type"],
                             "description": backend.get("description", ""),
@@ -6099,161 +7932,184 @@ class ConsolidatedMCPDashboard:
                             "config": {},
                             "policy": backend.get("policy", {}),
                             "created_at": backend.get("created_at"),
-                            "last_updated": backend.get("last_updated")
-                        })
-                else:
-                    # Legacy backend without enhanced config
-                    instances.append({
-                        "name": backend["name"],
-                        "type": backend["type"],
-                        "description": backend.get("description", ""),
-                        "enabled": backend.get("enabled", False),
-                        "config": {},
-                        "policy": backend.get("policy", {}),
-                        "created_at": backend.get("created_at"),
-                        "last_updated": backend.get("last_updated")
-                    })
-            
-            return {"jsonrpc": "2.0", "result": {
-                "instances": instances,
-                "total": len(instances)
-            }, "id": None}
-        
+                            "last_updated": backend.get("last_updated"),
+                        }
+                    )
+
+            return {
+                "jsonrpc": "2.0",
+                "result": {"instances": instances, "total": len(instances)},
+                "id": None,
+            }
+
         if name == "backend_health_check":
             # Run comprehensive health check on all backends
             detailed = args.get("detailed", False)
             backends = _normalize_backends(_read_json(self.paths.backends_file, default=[]))
-            
+
             results = []
             healthy_count = 0
-            
+
             for backend in backends:
                 try:
                     # Direct backend health check without recursion
-                    backend_name = backend['name']
-                    backend_type = backend.get('type', 'unknown')
+                    backend_name = backend["name"]
+                    backend_type = backend.get("type", "unknown")
                     reachable = False
-                    
+
                     # Simple health check based on backend type
                     try:
-                        if backend_type in ['s3', 'storage']:
+                        if backend_type in ["s3", "storage"]:
                             # Check if we can access the backend
                             reachable = True  # Assume reachable for now
-                        elif backend_type in ['ipfs', 'network']:
-                            reachable = True  # Assume reachable for now 
+                        elif backend_type in ["ipfs", "network"]:
+                            reachable = True  # Assume reachable for now
                         else:
                             reachable = True  # Default to healthy
                     except:
                         reachable = False
-                    
+
                     status = "healthy" if reachable else "unhealthy"
                     if status == "healthy":
                         healthy_count += 1
-                    
+
                     test_data = {"reachable": reachable, "backend_type": backend_type}
-                    
-                    results.append({
-                        "name": backend['name'],
-                        "type": backend['type'],
-                        "status": status,
-                        "reachable": reachable,
-                        "details": test_data if detailed else None
-                    })
+
+                    results.append(
+                        {
+                            "name": backend["name"],
+                            "type": backend["type"],
+                            "status": status,
+                            "reachable": reachable,
+                            "details": test_data if detailed else None,
+                        }
+                    )
                 except Exception as e:
-                    results.append({
-                        "name": backend['name'],
-                        "type": backend['type'],
-                        "status": "error",
-                        "reachable": False,
-                        "error": str(e),
-                        "details": None
-                    })
-            
-            return {"jsonrpc": "2.0", "result": {
-                "healthy": healthy_count,
-                "total": len(backends),
-                "results": results,
-                "details": results if detailed else None
-            }, "id": None}
-        
+                    results.append(
+                        {
+                            "name": backend["name"],
+                            "type": backend["type"],
+                            "status": "error",
+                            "reachable": False,
+                            "error": str(e),
+                            "details": None,
+                        }
+                    )
+
+            return {
+                "jsonrpc": "2.0",
+                "result": {
+                    "healthy": healthy_count,
+                    "total": len(backends),
+                    "results": results,
+                    "details": results if detailed else None,
+                },
+                "id": None,
+            }
+
         if name == "sync_backend_replicas":
             backend_name = args.get("name")
             use_metadata_first = args.get("use_metadata_first", True)
             force_sync = args.get("force_sync", False)
-            
+
             if not backend_name:
                 raise HTTPException(400, "Missing backend name")
-            
+
             # Check if backend exists
             backends = _normalize_backends(_read_json(self.paths.backends_file, default=[]))
-            backend = next((b for b in backends if b['name'] == backend_name), None)
+            backend = next((b for b in backends if b["name"] == backend_name), None)
             if not backend:
                 raise HTTPException(404, f"Backend '{backend_name}' not found")
-            
+
             try:
                 # Simulate replica synchronization with metadata-first approach
                 config_dir = self.paths.data_dir / "service_configs"
                 config_file = config_dir / f"{backend_name}_config.json"
-                
+
                 if use_metadata_first:
                     # Check ~/.ipfs_kit/ metadata first
-                    metadata_path = self.paths.data_dir / "replica_metadata" / f"{backend_name}.json"
+                    metadata_path = (
+                        self.paths.data_dir / "replica_metadata" / f"{backend_name}.json"
+                    )
                     metadata_path.parent.mkdir(exist_ok=True)
-                    
+
                     # Create or update metadata
                     metadata = {
                         "backend_name": backend_name,
-                        "backend_type": backend['type'],
+                        "backend_type": backend["type"],
                         "last_sync": datetime.now(UTC).isoformat(),
                         "sync_method": "metadata_first",
                         "force_sync": force_sync,
-                        "status": "synced"
+                        "status": "synced",
                     }
-                    
-                    with open(metadata_path, 'w') as f:
+
+                    with open(metadata_path, "w") as f:
                         json.dump(metadata, f, indent=2)
-                
-                return {"jsonrpc": "2.0", "result": {
-                    "ok": True,
-                    "backend": backend_name,
-                    "sync_method": "metadata_first" if use_metadata_first else "direct",
-                    "message": f"Replicas synchronized successfully for '{backend_name}'"
-                }, "id": None}
-                
+
+                return {
+                    "jsonrpc": "2.0",
+                    "result": {
+                        "ok": True,
+                        "backend": backend_name,
+                        "sync_method": "metadata_first" if use_metadata_first else "direct",
+                        "message": f"Replicas synchronized successfully for '{backend_name}'",
+                    },
+                    "id": None,
+                }
+
             except Exception as e:
-                return {"jsonrpc": "2.0", "result": {
-                    "ok": False,
-                    "error": str(e),
-                    "backend": backend_name
-                }, "id": None}
-        
+                return {
+                    "jsonrpc": "2.0",
+                    "result": {"ok": False, "error": str(e), "backend": backend_name},
+                    "id": None,
+                }
 
     def _handle_peers(self, name: str, args: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         mgr = self._get_peer_manager()
         if name == "list_peers":
-            data = (mgr.list_peers() if mgr else {"peers": [], "total": 0})
+            data = mgr.list_peers() if mgr else {"peers": [], "total": 0}
             peers = data.get("peers", []) if isinstance(data, dict) else []
             total = data.get("total", len(peers)) if isinstance(data, dict) else len(peers)
-            return {"jsonrpc": "2.0", "result": {"ok": True, "peers": peers, "total": total}, "id": None}
+            return {
+                "jsonrpc": "2.0",
+                "result": {"ok": True, "peers": peers, "total": total},
+                "id": None,
+            }
         if name == "get_peer_stats":
             if not mgr:
-                return {"jsonrpc": "2.0", "result": {"total": 0, "connected": 0, "by_tag": {}, "peers": []}, "id": None}
+                return {
+                    "jsonrpc": "2.0",
+                    "result": {"total": 0, "connected": 0, "by_tag": {}, "peers": []},
+                    "id": None,
+                }
             data = mgr.list_peers()
             peers = data.get("peers", []) if isinstance(data, dict) else []
             total = len(peers)
-            connected = sum(1 for p in peers if (p.get("connection_status") or "").lower() == "connected")
+            connected = sum(
+                1 for p in peers if (p.get("connection_status") or "").lower() == "connected"
+            )
             by_tag: Dict[str, int] = {}
             for p in peers:
                 for t in p.get("tags", []) or []:
                     by_tag[t] = by_tag.get(t, 0) + 1
-            return {"jsonrpc": "2.0", "result": {"ok": True, "total": total, "connected": connected, "by_tag": by_tag, "peers": peers}, "id": None}
+            return {
+                "jsonrpc": "2.0",
+                "result": {
+                    "ok": True,
+                    "total": total,
+                    "connected": connected,
+                    "by_tag": by_tag,
+                    "peers": peers,
+                },
+                "id": None,
+            }
         if name == "connect_peer":
             peer_info = {
                 "peer_id": args.get("peer_id"),
                 "peer_address": args.get("peer_address"),
                 "tags": args.get("tags") or [],
             }
-            data = (mgr.connect_peer(peer_info) if mgr else {"error": "Peer manager unavailable"})
+            data = mgr.connect_peer(peer_info) if mgr else {"error": "Peer manager unavailable"}
             ok = not isinstance(data, dict) or ("error" not in data)
             # Standardize shape
             result: Dict[str, Any] = {"ok": ok}
@@ -6264,8 +8120,12 @@ class ConsolidatedMCPDashboard:
         if name == "disconnect_peer":
             pid = args.get("peer_id")
             if not pid:
-                return {"jsonrpc": "2.0", "error": {"code": -32602, "message": "peer_id is required"}, "id": None}
-            data = (mgr.disconnect_peer(pid) if mgr else {"error": "Peer manager unavailable"})
+                return {
+                    "jsonrpc": "2.0",
+                    "error": {"code": -32602, "message": "peer_id is required"},
+                    "id": None,
+                }
+            data = mgr.disconnect_peer(pid) if mgr else {"error": "Peer manager unavailable"}
             ok = not isinstance(data, dict) or ("error" not in data)
             result = {"ok": ok}
             if isinstance(data, dict):
@@ -6275,8 +8135,12 @@ class ConsolidatedMCPDashboard:
         if name == "get_peer_info":
             pid = args.get("peer_id")
             if not pid:
-                return {"jsonrpc": "2.0", "error": {"code": -32602, "message": "peer_id is required"}, "id": None}
-            data = (mgr.get_peer_info(pid) if mgr else {"error": "Peer manager unavailable"})
+                return {
+                    "jsonrpc": "2.0",
+                    "error": {"code": -32602, "message": "peer_id is required"},
+                    "id": None,
+                }
+            data = mgr.get_peer_info(pid) if mgr else {"error": "Peer manager unavailable"}
             ok = isinstance(data, dict) and ("error" not in data)
             result = {"ok": ok}
             if isinstance(data, dict):
@@ -6288,12 +8152,15 @@ class ConsolidatedMCPDashboard:
             timeout = int(args.get("timeout", 10) or 10)
             try:
                 from ipfs_kit_py.high_level_api import ipfs_kit  # type: ignore
+
                 api = ipfs_kit()
                 if hasattr(api, "discover_peers"):
                     result = api.discover_peers(max_peers=limit, timeout=timeout)
                     peers: list = []
                     if isinstance(result, dict):
-                        maybe = result.get("peers") or result.get("discovered") or result.get("results")
+                        maybe = (
+                            result.get("peers") or result.get("discovered") or result.get("results")
+                        )
                         if isinstance(maybe, list):
                             peers = maybe
                         elif isinstance(maybe, dict):
@@ -6304,26 +8171,46 @@ class ConsolidatedMCPDashboard:
                         else:
                             peers = [
                                 {**(v if isinstance(v, dict) else {"info": v}), "peer_id": k}
-                                for k, v in result.items() if isinstance(k, str)
+                                for k, v in result.items()
+                                if isinstance(k, str)
                             ]
                     elif isinstance(result, list):
                         peers = result
-                    return {"jsonrpc": "2.0", "result": {"ok": True, "peers": peers, "total_discovered": len(peers), "source": "libp2p"}, "id": None}
+                    return {
+                        "jsonrpc": "2.0",
+                        "result": {
+                            "ok": True,
+                            "peers": peers,
+                            "total_discovered": len(peers),
+                            "source": "libp2p",
+                        },
+                        "id": None,
+                    }
             except Exception:
                 pass
             # Fallback
-            data = (mgr.list_peers() if mgr else {"peers": [], "total": 0})
+            data = mgr.list_peers() if mgr else {"peers": [], "total": 0}
             peers_list: list[Any] = []
             if isinstance(data, dict):
                 maybe_peers = data.get("peers")
                 if isinstance(maybe_peers, list):
                     peers_list = maybe_peers
-            return {"jsonrpc": "2.0", "result": {"ok": True, "peers": peers_list, "total_discovered": len(peers_list), "source": "fallback"}, "id": None}
+            return {
+                "jsonrpc": "2.0",
+                "result": {
+                    "ok": True,
+                    "peers": peers_list,
+                    "total_discovered": len(peers_list),
+                    "source": "fallback",
+                },
+                "id": None,
+            }
         if name == "bootstrap_peers":
             action = (args.get("action") or "list").lower()
             peer_address = args.get("peer_address")
             try:
                 from ipfs_kit_py.libp2p.peer_manager import get_global_peer_manager  # type: ignore
+
                 libp2p_mgr = get_global_peer_manager()
             except Exception:
                 libp2p_mgr = None
@@ -6341,40 +8228,86 @@ class ConsolidatedMCPDashboard:
                                         s = line.strip()
                                         if s and not s.startswith("#"):
                                             peers.append(s)
-                    return {"jsonrpc": "2.0", "result": {"ok": True, "peers": peers, "total_bootstrapped": len(peers)}, "id": None}
+                    return {
+                        "jsonrpc": "2.0",
+                        "result": {"ok": True, "peers": peers, "total_bootstrapped": len(peers)},
+                        "id": None,
+                    }
                 if action == "from_ipfs":
                     if libp2p_mgr and hasattr(libp2p_mgr, "bootstrap_from_ipfs"):
                         res = libp2p_mgr.bootstrap_from_ipfs() or {"ok": True}
                         return {"jsonrpc": "2.0", "result": res, "id": None}
                     ipfs = _which("ipfs")
                     if not ipfs:
-                        return {"jsonrpc": "2.0", "error": {"code": 404, "message": "ipfs binary not found"}, "id": None}
+                        return {
+                            "jsonrpc": "2.0",
+                            "error": {"code": 404, "message": "ipfs binary not found"},
+                            "id": None,
+                        }
                     out = _run_cmd([ipfs, "bootstrap", "list"])  # list as a safe op
-                    return {"jsonrpc": "2.0", "result": {"ok": out.get("code") == 0, "out": out.get("out"), "err": out.get("err")}, "id": None}
+                    return {
+                        "jsonrpc": "2.0",
+                        "result": {
+                            "ok": out.get("code") == 0,
+                            "out": out.get("out"),
+                            "err": out.get("err"),
+                        },
+                        "id": None,
+                    }
                 if action == "from_cluster":
                     if libp2p_mgr and hasattr(libp2p_mgr, "bootstrap_from_cluster"):
                         res = libp2p_mgr.bootstrap_from_cluster() or {"ok": True}
                         return {"jsonrpc": "2.0", "result": res, "id": None}
                     ctl = _which("ipfs-cluster-ctl")
                     if not ctl:
-                        return {"jsonrpc": "2.0", "error": {"code": 404, "message": "ipfs-cluster-ctl binary not found"}, "id": None}
+                        return {
+                            "jsonrpc": "2.0",
+                            "error": {"code": 404, "message": "ipfs-cluster-ctl binary not found"},
+                            "id": None,
+                        }
                     out = _run_cmd([ctl, "peers", "ls"])  # safe listing
-                    return {"jsonrpc": "2.0", "result": {"ok": out.get("code") == 0, "out": out.get("out"), "err": out.get("err")}, "id": None}
+                    return {
+                        "jsonrpc": "2.0",
+                        "result": {
+                            "ok": out.get("code") == 0,
+                            "out": out.get("out"),
+                            "err": out.get("err"),
+                        },
+                        "id": None,
+                    }
                 if action == "add":
                     if not peer_address:
-                        return {"jsonrpc": "2.0", "error": {"code": -32602, "message": "peer_address is required for action=add"}, "id": None}
+                        return {
+                            "jsonrpc": "2.0",
+                            "error": {
+                                "code": -32602,
+                                "message": "peer_address is required for action=add",
+                            },
+                            "id": None,
+                        }
                     if libp2p_mgr and hasattr(libp2p_mgr, "add_bootstrap_peer"):
                         res = libp2p_mgr.add_bootstrap_peer(peer_address) or {"ok": True}
                         return {"jsonrpc": "2.0", "result": res, "id": None}
                     ipfs = _which("ipfs")
                     if not ipfs:
-                        return {"jsonrpc": "2.0", "error": {"code": 404, "message": "ipfs binary not found"}, "id": None}
+                        return {
+                            "jsonrpc": "2.0",
+                            "error": {"code": 404, "message": "ipfs binary not found"},
+                            "id": None,
+                        }
                     out = _run_cmd([ipfs, "bootstrap", "add", peer_address])
-                    return {"jsonrpc": "2.0", "result": {"ok": out.get("code") == 0, "out": out.get("out"), "err": out.get("err")}, "id": None}
+                    return {
+                        "jsonrpc": "2.0",
+                        "result": {
+                            "ok": out.get("code") == 0,
+                            "out": out.get("out"),
+                            "err": out.get("err"),
+                        },
+                        "id": None,
+                    }
             except Exception as e:
                 return {"jsonrpc": "2.0", "error": {"code": -32000, "message": str(e)}, "id": None}
         return None
-
 
     def _handle_cars(self, name: str, args: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         # Lightweight CAR store tools used by tests/clients.
@@ -6414,6 +8347,7 @@ class ConsolidatedMCPDashboard:
                 fname = f"{fname}.car"
 
             import base64
+
             data = base64.b64decode(str(content_b64))
             target = (cars_root / fname).resolve()
             if cars_root != target and cars_root not in target.parents:
@@ -6430,11 +8364,16 @@ class ConsolidatedMCPDashboard:
             if not fname.endswith(".car"):
                 fname = f"{fname}.car"
             import base64
+
             data = base64.b64decode(str(content_b64))
-            p = (self.paths.car_store / fname)
+            p = self.paths.car_store / fname
             p.parent.mkdir(parents=True, exist_ok=True)
             p.write_bytes(data)
-            return {"jsonrpc": "2.0", "result": {"status": "ok", "name": fname, "bytes": len(data)}, "id": None}
+            return {
+                "jsonrpc": "2.0",
+                "result": {"status": "ok", "name": fname, "bytes": len(data)},
+                "id": None,
+            }
 
         if name == "list_cars":
             cars = []
@@ -6456,8 +8395,13 @@ class ConsolidatedMCPDashboard:
             if not p.exists():
                 raise HTTPException(404, "CAR not found")
             import base64
+
             data = p.read_bytes()
-            return {"jsonrpc": "2.0", "result": {"name": fname, "content_b64": base64.b64encode(data).decode("ascii")}, "id": None}
+            return {
+                "jsonrpc": "2.0",
+                "result": {"name": fname, "content_b64": base64.b64encode(data).decode("ascii")},
+                "id": None,
+            }
 
         if name == "remove_car":
             car_name = args.get("name")
@@ -6473,36 +8417,47 @@ class ConsolidatedMCPDashboard:
 
         if name == "cars_list":
             items = []
-            for f in sorted(self.paths.car_store.glob('*.car')):
+            for f in sorted(self.paths.car_store.glob("*.car")):
                 try:
                     items.append({"name": f.name, "size": f.stat().st_size})
                 except Exception:
                     pass
             return {"jsonrpc": "2.0", "result": {"items": items}, "id": None}
         if name == "car_export":
-            path = args.get("path"); car = args.get("car")
+            path = args.get("path")
+            car = args.get("car")
             if not path or not car:
                 raise HTTPException(400, "Missing path/car")
             ipfs_bin = _which("ipfs")
             if not ipfs_bin:
                 raise HTTPException(404, "ipfs binary not found")
             p = _safe_vfs_path(self.paths.vfs_root, path)
-            add = _run_cmd([ipfs_bin, 'add', '-Qr', str(p)], timeout=120)
-            if not add.get('ok'):
+            add = _run_cmd([ipfs_bin, "add", "-Qr", str(p)], timeout=120)
+            if not add.get("ok"):
                 return {"jsonrpc": "2.0", "result": add, "id": None}
-            cid = (add.get('out') or '').strip()
+            cid = (add.get("out") or "").strip()
             car_path = self.paths.car_store / car
             car_path.parent.mkdir(parents=True, exist_ok=True)
-            exp = _run_cmd_bytes([ipfs_bin, 'dag', 'export', cid], timeout=180)
-            if exp.get('ok'):
+            exp = _run_cmd_bytes([ipfs_bin, "dag", "export", cid], timeout=180)
+            if exp.get("ok"):
                 try:
-                    with car_path.open('wb') as fh:
-                        fh.write(exp.get('out_bytes') or b'')
+                    with car_path.open("wb") as fh:
+                        fh.write(exp.get("out_bytes") or b"")
                 except Exception as e:
                     return {"jsonrpc": "2.0", "result": {"ok": False, "err": str(e)}, "id": None}
-            return {"jsonrpc": "2.0", "result": {"ok": bool(exp.get('ok')), "code": exp.get('code'), "err": exp.get('err'), "car": str(car_path)}, "id": None}
+            return {
+                "jsonrpc": "2.0",
+                "result": {
+                    "ok": bool(exp.get("ok")),
+                    "code": exp.get("code"),
+                    "err": exp.get("err"),
+                    "car": str(car_path),
+                },
+                "id": None,
+            }
         if name == "car_import":
-            car = args.get("car"); dest = args.get("dest")
+            car = args.get("car")
+            dest = args.get("dest")
             if not car or not dest:
                 raise HTTPException(400, "Missing car/dest")
             ipfs_bin = _which("ipfs")
@@ -6511,7 +8466,7 @@ class ConsolidatedMCPDashboard:
             car_path = self.paths.car_store / car
             if not car_path.exists():
                 raise HTTPException(404, "CAR not found")
-            res = _run_cmd([ipfs_bin, 'dag', 'import', str(car_path)], timeout=240)
+            res = _run_cmd([ipfs_bin, "dag", "import", str(car_path)], timeout=240)
             _safe_vfs_path(self.paths.vfs_root, dest).mkdir(parents=True, exist_ok=True)
             return {"jsonrpc": "2.0", "result": res, "id": None}
         return None
@@ -6523,24 +8478,28 @@ class ConsolidatedMCPDashboard:
                 "backends": _read_json(self.paths.backends_file, default={}),
                 "buckets": _normalize_buckets(_read_json(self.paths.buckets_file, default=[])),
                 "pins": _normalize_pins(_read_json(self.paths.pins_file, default=[])),
-                "car_files": [f.name for f in sorted(self.paths.car_store.glob('*.car'))],
+                "car_files": [f.name for f in sorted(self.paths.car_store.glob("*.car"))],
             }
             return {"jsonrpc": "2.0", "result": result, "id": None}
         if name == "state_backup":
-            backup_dir = self.paths.data_dir / 'backups'
+            backup_dir = self.paths.data_dir / "backups"
             backup_dir.mkdir(parents=True, exist_ok=True)
-            ts = datetime.now(UTC).strftime('%Y%m%d_%H%M%S')
-            tgz = backup_dir / f'state_{ts}.tar.gz'
+            ts = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
+            tgz = backup_dir / f"state_{ts}.tar.gz"
             try:
-                with tarfile.open(tgz, 'w:gz') as tar:
-                    for f in [self.paths.backends_file, self.paths.buckets_file, self.paths.pins_file]:
+                with tarfile.open(tgz, "w:gz") as tar:
+                    for f in [
+                        self.paths.backends_file,
+                        self.paths.buckets_file,
+                        self.paths.pins_file,
+                    ]:
                         if f.exists():
                             tar.add(f, arcname=f.name)
                 return {"jsonrpc": "2.0", "result": {"ok": True, "archive": str(tgz)}, "id": None}
             except Exception as e:
                 return {"jsonrpc": "2.0", "result": {"ok": False, "err": str(e)}, "id": None}
         if name == "state_reset":
-            ts = datetime.now(UTC).strftime('%Y%m%d_%H%M%S')
+            ts = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
             for f, default in [
                 (self.paths.backends_file, {}),
                 (self.paths.buckets_file, []),
@@ -6548,13 +8507,14 @@ class ConsolidatedMCPDashboard:
             ]:
                 try:
                     if f.exists():
-                        f.rename(f.with_suffix(f.suffix + f'.{ts}.bak'))
+                        f.rename(f.with_suffix(f.suffix + f".{ts}.bak"))
                 except Exception:
                     pass
                 _atomic_write_json(f, default)
             return {"jsonrpc": "2.0", "result": {"ok": True}, "id": None}
 
         if name == "get_parquet_summary":
+
             def _summarize_parquet(p: Path) -> Dict[str, Any]:
                 info: Dict[str, Any] = {
                     "path": str(p),
@@ -6569,7 +8529,11 @@ class ConsolidatedMCPDashboard:
                     import pyarrow.parquet as pq  # type: ignore
 
                     pf = pq.ParquetFile(p)
-                    info["rows"] = int(getattr(pf.metadata, "num_rows", 0)) if pf.metadata is not None else None
+                    info["rows"] = (
+                        int(getattr(pf.metadata, "num_rows", 0))
+                        if pf.metadata is not None
+                        else None
+                    )
                     info["columns"] = list(pf.schema.names)
                     return info
                 except Exception:
@@ -6607,19 +8571,31 @@ class ConsolidatedMCPDashboard:
         if name == "clear_logs":
             cleared = 0
             with suppress(Exception):
-                cleared = len([l for l in self.memlog.get(limit=0) if isinstance(l, dict) and l.get("component")])
+                cleared = len(
+                    [
+                        l
+                        for l in self.memlog.get(limit=0)
+                        if isinstance(l, dict) and l.get("component")
+                    ]
+                )
             self.memlog.clear()
             return {"ok": True, "cleared": cleared}
         if name == "server_shutdown":
             try:
                 pid = os.getpid()
+
                 def _later_kill():
                     time.sleep(0.2)
                     os.kill(pid, signal.SIGTERM)
+
                 threading.Thread(target=_later_kill, daemon=True).start()
             except Exception:
                 pass
-            return {"jsonrpc": "2.0", "result": {"ok": True, "message": "Shutting down"}, "id": None}
+            return {
+                "jsonrpc": "2.0",
+                "result": {"ok": True, "message": "Shutting down"},
+                "id": None,
+            }
         return None
 
     def _handle_config(self, name: str, args: Dict[str, Any]) -> Optional[Dict[str, Any]]:
@@ -6629,18 +8605,33 @@ class ConsolidatedMCPDashboard:
         elif name == "read_config_file":
             filename = args.get("filename")
             if not filename:
-                return {"jsonrpc": "2.0", "error": {"code": 400, "message": "filename parameter is required"}, "id": None}
+                return {
+                    "jsonrpc": "2.0",
+                    "error": {"code": 400, "message": "filename parameter is required"},
+                    "id": None,
+                }
             return self._handle_read_config_file(filename)
         elif name == "write_config_file":
             filename = args.get("filename")
             content = args.get("content")
             if not filename or content is None:
-                return {"jsonrpc": "2.0", "error": {"code": 400, "message": "filename and content parameters are required"}, "id": None}
+                return {
+                    "jsonrpc": "2.0",
+                    "error": {
+                        "code": 400,
+                        "message": "filename and content parameters are required",
+                    },
+                    "id": None,
+                }
             return self._handle_write_config_file(filename, content)
         elif name == "get_config_metadata":
             filename = args.get("filename")
             if not filename:
-                return {"jsonrpc": "2.0", "error": {"code": 400, "message": "filename parameter is required"}, "id": None}
+                return {
+                    "jsonrpc": "2.0",
+                    "error": {"code": 400, "message": "filename parameter is required"},
+                    "id": None,
+                }
             return self._handle_get_config_metadata(filename)
         return None
 
@@ -6648,31 +8639,35 @@ class ConsolidatedMCPDashboard:
         """List all configuration files with metadata-first approach."""
         config_files = ["pins.json", "buckets.json", "backends.json"]
         files_info = []
-        
+
         for filename in config_files:
             try:
                 file_info = self._read_config_file_internal(filename)
-                files_info.append({
-                    "filename": filename,
-                    "source": file_info["source"],
-                    "size": file_info["size"],
-                    "modified": file_info["modified"],
-                    "exists": True
-                })
+                files_info.append(
+                    {
+                        "filename": filename,
+                        "source": file_info["source"],
+                        "size": file_info["size"],
+                        "modified": file_info["modified"],
+                        "exists": True,
+                    }
+                )
             except Exception as e:
-                files_info.append({
-                    "filename": filename,
-                    "source": "none",
-                    "size": 0,
-                    "modified": None,
-                    "exists": False,
-                    "error": str(e)
-                })
-        
+                files_info.append(
+                    {
+                        "filename": filename,
+                        "source": "none",
+                        "size": 0,
+                        "modified": None,
+                        "exists": False,
+                        "error": str(e),
+                    }
+                )
+
         result = {
             "files": files_info,
             "metadata_dir": str(self.paths.data_dir),
-            "total_files": len([f for f in files_info if f["exists"]])
+            "total_files": len([f for f in files_info if f["exists"]]),
         }
         return {"jsonrpc": "2.0", "result": result, "id": None}
 
@@ -6691,17 +8686,17 @@ class ConsolidatedMCPDashboard:
             metadata_path = self.paths.data_dir / filename
             metadata_path.parent.mkdir(parents=True, exist_ok=True)
             metadata_path.write_text(content)
-            
+
             result = {
                 "success": True,
                 "filename": filename,
                 "source": "metadata",
                 "path": str(metadata_path),
                 "size": len(content.encode()),
-                "modified": datetime.now().isoformat()
+                "modified": datetime.now().isoformat(),
             }
             return {"jsonrpc": "2.0", "result": result, "id": None}
-            
+
         except Exception as e:
             return {"jsonrpc": "2.0", "error": {"code": 500, "message": str(e)}, "id": None}
 
@@ -6715,7 +8710,7 @@ class ConsolidatedMCPDashboard:
                 "size": file_info["size"],
                 "modified": file_info["modified"],
                 "path": file_info["path"],
-                "metadata_first": True
+                "metadata_first": True,
             }
             return {"jsonrpc": "2.0", "result": result, "id": None}
         except Exception as e:
@@ -6726,7 +8721,7 @@ class ConsolidatedMCPDashboard:
         # Metadata-first approach: check ~/.ipfs_kit/ first
         metadata_path = self.paths.data_dir / filename
         fallback_path = Path("ipfs_kit_py") / filename
-        
+
         try:
             if metadata_path.exists():
                 content = metadata_path.read_text()
@@ -6750,45 +8745,54 @@ class ConsolidatedMCPDashboard:
                 size = len(default_content.encode())
                 modified = datetime.now().isoformat()
                 path = str(metadata_path)
-            
+
             return {
                 "content": content,
                 "source": source,
                 "size": size,
                 "modified": modified,
                 "path": path,
-                "metadata_first": True
+                "metadata_first": True,
             }
-            
+
         except Exception as e:
             raise e
 
     def _get_default_config_content(self, filename: str) -> str:
         """Get default content for configuration files."""
         if filename == "pins.json":
-            return json.dumps({
-                "pins": [],
-                "total_count": 0,
-                "last_updated": datetime.now().isoformat(),
-                "replication_factor": 1,
-                "cache_policy": "memory"
-            }, indent=2)
+            return json.dumps(
+                {
+                    "pins": [],
+                    "total_count": 0,
+                    "last_updated": datetime.now().isoformat(),
+                    "replication_factor": 1,
+                    "cache_policy": "memory",
+                },
+                indent=2,
+            )
         elif filename == "buckets.json":
-            return json.dumps({
-                "buckets": [],
-                "total_count": 0,
-                "last_updated": datetime.now().isoformat(),
-                "default_replication_factor": 1,
-                "default_cache_policy": "disk"
-            }, indent=2)
+            return json.dumps(
+                {
+                    "buckets": [],
+                    "total_count": 0,
+                    "last_updated": datetime.now().isoformat(),
+                    "default_replication_factor": 1,
+                    "default_cache_policy": "disk",
+                },
+                indent=2,
+            )
         elif filename == "backends.json":
-            return json.dumps({
-                "backends": [],
-                "total_count": 0,
-                "last_updated": datetime.now().isoformat(),
-                "default_backend": "ipfs",
-                "health_check_interval": 30
-            }, indent=2)
+            return json.dumps(
+                {
+                    "backends": [],
+                    "total_count": 0,
+                    "last_updated": datetime.now().isoformat(),
+                    "default_backend": "ipfs",
+                    "health_check_interval": 30,
+                },
+                indent=2,
+            )
         else:
             return "{}"
 
@@ -6802,11 +8806,13 @@ class ConsolidatedMCPDashboard:
             raise HTTPException(400, "Path is a file")
         items = []
         for child in sorted(p.iterdir()):
-            items.append({
-                "name": child.name,
-                "is_dir": child.is_dir(),
-                "size": child.stat().st_size if child.exists() and child.is_file() else None,
-            })
+            items.append(
+                {
+                    "name": child.name,
+                    "is_dir": child.is_dir(),
+                    "size": child.stat().st_size if child.exists() and child.is_file() else None,
+                }
+            )
         return {"path": str(path), "items": items}
 
     async def _call_files_read(self, path: Optional[str]) -> Dict[str, Any]:
@@ -6843,16 +8849,16 @@ class ConsolidatedMCPDashboard:
         try:
             base_dir = Path(__file__).parent  # ipfs_kit_py/mcp/dashboard
             template_path = base_dir / "templates" / "enhanced_dashboard.html"
-            
+
             if template_path.exists():
-                with open(template_path, 'r', encoding='utf-8') as f:
+                with open(template_path, "r", encoding="utf-8") as f:
                     self.log.info(f"Loaded template from: {template_path}")
                     return f.read()
             else:
                 self.log.warning(f"Template not found at: {template_path}")
         except Exception as e:
             self.log.warning(f"Could not load enhanced template: {e}")
-        
+
         # Fallback to basic template
         return """
 <!doctype html>
@@ -6872,6 +8878,7 @@ class ConsolidatedMCPDashboard:
 
     def _app_js(self) -> str:
         import textwrap
+
         # Enhanced: keep raw textarea visible and always update, matching tests' visibility needs.
         helpers = textwrap.dedent("""
         // --- Minimal SDK helpers (used by tests and external embeds) ---
@@ -6925,7 +8932,9 @@ class ConsolidatedMCPDashboard:
         const toolSelect=document.getElementById('tool-select'); if(toolSelect) toolSelect.addEventListener('change', ()=> buildToolFormForSelected());
         const rawToggle=document.getElementById('btn-tool-raw-toggle'); if(rawToggle) rawToggle.addEventListener('click',()=>{ /* keep raw visible; no-op */ });
         """)
-        js_code = helpers + r"""
+        js_code = (
+            helpers
+            + r"""
 (function(){
     const POLL_INTERVAL = 5000; // ms
     const appRoot = document.getElementById('app');
@@ -10257,8 +12266,9 @@ class ConsolidatedMCPDashboard:
     try{ fetch('/api/system/deprecations').then(r=>r.json()).then(d=>{ if(d && Array.isArray(d.deprecated)) renderDeprecationBanner(d.deprecated); }).catch(()=>{}); }catch(e){}
 })();
 """
+        )
         js_code = textwrap.dedent(js_code)
-        js_code = ''.join(c for c in js_code if ord(c) < 128)
+        js_code = "".join(c for c in js_code if ord(c) < 128)
         return js_code
 
     def _mcp_client_js(self) -> str:
@@ -10912,14 +12922,34 @@ class ConsolidatedMCPDashboard:
 })(this);
 """
 
+
 if __name__ == "__main__":  # pragma: no cover
     # Support CLI flags with env fallbacks for convenience when run directly
     import argparse as _argparse
+
     p = _argparse.ArgumentParser(description="Start the Consolidated MCP Dashboard")
-    p.add_argument("--host", default=os.environ.get("MCP_HOST", "127.0.0.1"), help="Bind host (default: env MCP_HOST or 127.0.0.1)")
-    p.add_argument("--port", type=int, default=int(os.environ.get("MCP_PORT", "8081")), help="Bind port (default: env MCP_PORT or 8081)")
-    p.add_argument("--data-dir", default=os.environ.get("MCP_DATA_DIR"), help="Data directory (default: env MCP_DATA_DIR or ~/.ipfs_kit)")
-    p.add_argument("--debug", action="store_true", default=(os.environ.get("MCP_DEBUG", "0") in ("1", "true", "True")), help="Enable debug logging")
+    p.add_argument(
+        "--host",
+        default=os.environ.get("MCP_HOST", "127.0.0.1"),
+        help="Bind host (default: env MCP_HOST or 127.0.0.1)",
+    )
+    p.add_argument(
+        "--port",
+        type=int,
+        default=int(os.environ.get("MCP_PORT", "8081")),
+        help="Bind port (default: env MCP_PORT or 8081)",
+    )
+    p.add_argument(
+        "--data-dir",
+        default=os.environ.get("MCP_DATA_DIR"),
+        help="Data directory (default: env MCP_DATA_DIR or ~/.ipfs_kit)",
+    )
+    p.add_argument(
+        "--debug",
+        action="store_true",
+        default=(os.environ.get("MCP_DEBUG", "0") in ("1", "true", "True")),
+        help="Enable debug logging",
+    )
     args = p.parse_args()
     cfg = {
         "host": args.host,

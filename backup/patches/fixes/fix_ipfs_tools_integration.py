@@ -6,8 +6,11 @@ Fix the IPFS tools integration to use the correct tool registration approach
 import re
 import logging
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger(__name__)
+
 
 def fix_integration_file():
     """Fix the IPFS MCP tools integration file"""
@@ -60,6 +63,7 @@ def register_ipfs_tools(mcp_server):
     except Exception as e:
         logger.error(f"❌ Error fixing integration file: {e}")
         return False
+
 
 if __name__ == "__main__":
     fix_integration_file()

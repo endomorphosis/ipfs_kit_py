@@ -5,6 +5,7 @@ import time
 
 logger = logging.getLogger(__name__)
 
+
 def apply_daemon_control_patch():
     # Apply runtime patch to enable manual daemon control.
     try:
@@ -17,44 +18,53 @@ def apply_daemon_control_patch():
         async def patched_start_daemon(self, daemon_type: str):
             # Patched version that allows manual daemon control.
             # Validate daemon type
-            valid_types = ['ipfs', 'ipfs_cluster_service', 'ipfs_cluster_follow']
+            valid_types = ["ipfs", "ipfs_cluster_service", "ipfs_cluster_follow"]
             if daemon_type not in valid_types:
                 return {
                     "success": False,
                     "error": f"Invalid daemon type: {daemon_type}. Must be one of: {', '.join(valid_types)}",
-                    "error_type": "InvalidDaemonType"
+                    "error_type": "InvalidDaemonType",
                 }
 
             # Try to start the daemon directly using our helper functions
-            if daemon_type == 'ipfs':
+            if daemon_type == "ipfs":
                 from fix_mcp_daemons import start_ipfs_daemon
+
                 result = start_ipfs_daemon()
                 return {
                     "success": result,
-                    "message": "IPFS daemon started successfully" if result else "Failed to start IPFS daemon",
-                    "timestamp": time.time()
+                    "message": "IPFS daemon started successfully"
+                    if result
+                    else "Failed to start IPFS daemon",
+                    "timestamp": time.time(),
                 }
-            elif daemon_type == 'ipfs_cluster_service':
+            elif daemon_type == "ipfs_cluster_service":
                 from fix_mcp_daemons import start_ipfs_cluster_service
+
                 result = start_ipfs_cluster_service()
                 return {
                     "success": result,
-                    "message": "IPFS Cluster service started successfully" if result else "Failed to start IPFS Cluster service",
-                    "timestamp": time.time()
+                    "message": "IPFS Cluster service started successfully"
+                    if result
+                    else "Failed to start IPFS Cluster service",
+                    "timestamp": time.time(),
                 }
-            elif daemon_type == 'lotus':
+            elif daemon_type == "lotus":
                 from fix_mcp_daemons import start_lotus_daemon
+
                 result = start_lotus_daemon()
                 return {
                     "success": result,
-                    "message": "Lotus daemon started successfully" if result else "Failed to start Lotus daemon",
-                    "timestamp": time.time()
+                    "message": "Lotus daemon started successfully"
+                    if result
+                    else "Failed to start Lotus daemon",
+                    "timestamp": time.time(),
                 }
             else:
                 return {
                     "success": False,
                     "error": f"Daemon type not implemented: {daemon_type}",
-                    "error_type": "NotImplemented"
+                    "error_type": "NotImplemented",
                 }
 
         # Replace the method
@@ -64,6 +74,7 @@ def apply_daemon_control_patch():
     except (ImportError, AttributeError) as e:
         logger.error(f"Failed to patch daemon control: {e}")
         return False
+
 
 # Apply the patch when this module is imported
 apply_daemon_control_patch()

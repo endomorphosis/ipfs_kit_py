@@ -57,7 +57,9 @@ def handle_message(message: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     params = message.get("params") or {}
     msg_id = message.get("id")
 
-    if method == "notifications/initialized" or (isinstance(method, str) and method.startswith("notifications/")):
+    if method == "notifications/initialized" or (
+        isinstance(method, str) and method.startswith("notifications/")
+    ):
         return None
 
     try:

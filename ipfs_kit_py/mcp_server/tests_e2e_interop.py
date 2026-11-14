@@ -3,6 +3,7 @@
 Proves the four surfaces share one registry & contract: Python imports, CLI,
 MCP JSON-RPC (stdio + HTTP/Hypercorn), and the generated JS SDK.
 """
+
 import hashlib
 import json
 import socket
@@ -39,7 +40,6 @@ from ipfs_kit_py.mcp_server.mcplusplus.ucan import (  # noqa: E402
 )
 from ipfs_kit_py.mcp_server.server import MCPServer  # noqa: E402
 from ipfs_kit_py.mcp_server.tools import ipfs_tools  # noqa: E402
-
 
 ACTOR = "did:client:e2e"
 ISSUER = "did:key:e2e-root"
@@ -140,7 +140,10 @@ class _HermeticCoreBackend:
         return {"success": True, "unpinned": cid}
 
     async def ipfs_pin_ls(self) -> dict:
-        return {"success": True, "pins": {cid: {"type": "recursive"} for cid in sorted(self.pins)}}
+        return {
+            "success": True,
+            "pins": {cid: {"type": "recursive"} for cid in sorted(self.pins)},
+        }
 
     async def ipfs_get_pinset(self) -> dict:
         return {"success": True, "pinset": sorted(self.pins)}
@@ -263,7 +266,14 @@ class _AuthorizedServer:
             **({"profile_b": True} if profile_b else {}),
         }
 
-    def call(self, tool: str, arguments: dict, *, profile_b: bool = False, request_id: int = 1):
+    def call(
+        self,
+        tool: str,
+        arguments: dict,
+        *,
+        profile_b: bool = False,
+        request_id: int = 1,
+    ):
         return anyio.run(
             self.server.handle,
             {
@@ -290,16 +300,25 @@ def test_python_import_surface(tmp_path, hermetic_core_backend):
 def test_dispatch_and_schema_parity(hermetic_core_backend):
     tm = HierarchicalToolManager()
     schemas = tm.all_tool_schemas()
-    assert {s["name"] for s in schemas} >= {"ipfs_add", "pin_add", "dag_put", "cluster_status"}
+    assert {s["name"] for s in schemas} >= {
+        "ipfs_add",
+        "pin_add",
+        "dag_put",
+        "cluster_status",
+    }
     r = anyio.run(tm.dispatch, "dag_tools", "dag_put", {"data": {"a": 1}})
     assert r["status"] == "success"
 
 
 def test_mcp_jsonrpc_tools_list_and_call(tmp_path, hermetic_core_backend):
     harness = _server(tmp_path, "jsonrpc")
-    lst = anyio.run(harness.server.handle, {"jsonrpc": "2.0", "id": 1, "method": "tools/list"})
+    lst = anyio.run(
+        harness.server.handle, {"jsonrpc": "2.0", "id": 1, "method": "tools/list"}
+    )
     assert len(lst["result"]["tools"]) == len(harness.server.tm.all_tool_schemas()) + 1
-    init = anyio.run(harness.server.handle, {"jsonrpc": "2.0", "id": 2, "method": "initialize"})
+    init = anyio.run(
+        harness.server.handle, {"jsonrpc": "2.0", "id": 2, "method": "initialize"}
+    )
     assert init["result"]["serverInfo"]["name"] == "ipfs_kit_py-mcpplusplus"
     call = harness.call("pin_tools/pin_add", {"cid": "bafy"}, request_id=3)
     assert call["result"]["status"] == "success"
@@ -406,7 +425,10 @@ def test_mfs_and_swarm_groups(hermetic_core_backend):
     tm = HierarchicalToolManager()
     cats = {c["name"] for c in tm.list_categories()}
     assert {"mfs_tools", "swarm_tools"} <= cats
-    assert anyio.run(tm.dispatch, "mfs_tools", "files_ls", {"path": "/"})["status"] == "success"
+    assert (
+        anyio.run(tm.dispatch, "mfs_tools", "files_ls", {"path": "/"})["status"]
+        == "success"
+    )
     assert anyio.run(tm.dispatch, "swarm_tools", "node_id", {})["status"] == "success"
 
 
@@ -421,16 +443,30 @@ def test_name_car_pinset_groups(hermetic_core_backend):
     tm = HierarchicalToolManager()
     cats = {c["name"] for c in tm.list_categories()}
     assert {"name_tools", "car_tools"} <= cats
-    assert anyio.run(tm.dispatch, "name_tools", "name_publish", {"path": "/ipfs/bafy"})["status"] == "success"
-    assert anyio.run(tm.dispatch, "car_tools", "create_car", {"roots": ["bafy"]})["status"] == "success"
+    assert (
+        anyio.run(tm.dispatch, "name_tools", "name_publish", {"path": "/ipfs/bafy"})[
+            "status"
+        ]
+        == "success"
+    )
+    assert (
+        anyio.run(tm.dispatch, "car_tools", "create_car", {"roots": ["bafy"]})["status"]
+        == "success"
+    )
     assert anyio.run(tm.dispatch, "pin_tools", "get_pinset", {})["status"] == "success"
 
 
 def test_generated_artifacts_not_stale():
     """The committed JS SDK + manifest must equal a fresh regeneration."""
-    assert generate.SDK_PATH.read_text() == generate.render(), "JS SDK stale: run generate"
-    assert generate.MANIFEST_PATH.read_text() == generate.render_manifest(), "manifest stale: run generate"
-    assert generate.TS_SDK_PATH.read_text() == generate.render_ts(), "TS SDK stale: run generate"
+    assert (
+        generate.SDK_PATH.read_text() == generate.render()
+    ), "JS SDK stale: run generate"
+    assert (
+        generate.MANIFEST_PATH.read_text() == generate.render_manifest()
+    ), "manifest stale: run generate"
+    assert (
+        generate.TS_SDK_PATH.read_text() == generate.render_ts()
+    ), "TS SDK stale: run generate"
 
 
 def test_ts_sdk_typed_tool_names():
@@ -444,9 +480,17 @@ def test_ts_sdk_typed_tool_names():
 
 def test_swissknife_manifest_in_sync():
     """Dashboard manifest must match the server's generated manifest."""
-    dash = PKG.parents[2] / "swissknife" / "src" / "services" / "mcp-ipfs-kit-tools-manifest.json"
+    dash = (
+        PKG.parents[2]
+        / "swissknife"
+        / "src"
+        / "services"
+        / "mcp-ipfs-kit-tools-manifest.json"
+    )
     if dash.exists():
-        assert dash.read_text() == generate.render_manifest(), "swissknife manifest stale: resync"
+        assert (
+            dash.read_text() == generate.render_manifest()
+        ), "swissknife manifest stale: resync"
 
 
 def test_profile_b_receipt_emitted(tmp_path, hermetic_core_backend):
@@ -459,7 +503,14 @@ def test_profile_b_receipt_emitted(tmp_path, hermetic_core_backend):
         request_id=11,
     )
     meta = call["result"]["_mcppp"]
-    for k in ("input_cid", "intent_cid", "decision_cid", "output_cid", "receipt_cid", "success"):
+    for k in (
+        "input_cid",
+        "intent_cid",
+        "decision_cid",
+        "output_cid",
+        "receipt_cid",
+        "success",
+    ):
         assert k in meta
     assert meta["receipt_cid"].startswith("bafkrei") and meta["success"] is True
 
@@ -467,6 +518,7 @@ def test_profile_b_receipt_emitted(tmp_path, hermetic_core_backend):
 def test_cid_algorithm_is_kubo_cidv1_base32():
     """Kit's artifact CID is a Kubo-conformant CIDv1 (raw/sha256/base32)."""
     from ipfs_kit_py.mcp_server.mcplusplus import artifacts as kit_art
+
     cid = kit_art.compute_artifact_cid({"b": 2, "a": 1, "tool": "pin_rm"})
     assert cid.startswith("bafkrei") and len(cid) == 59
     try:
@@ -481,11 +533,21 @@ def test_cid_algorithm_is_kubo_cidv1_base32():
 def test_profile_a_interfaces():
     """Profile A: mcp++/interfaces yields descriptors for every tool."""
     s = MCPServer()
-    res = anyio.run(s.handle, {"jsonrpc": "2.0", "id": 12, "method": "mcp++/interfaces"})
+    res = anyio.run(
+        s.handle, {"jsonrpc": "2.0", "id": 12, "method": "mcp++/interfaces"}
+    )
     ifaces = res["result"]["interfaces"]
     assert len(ifaces) == len(s.tm.all_tool_schemas()) + 1
     d = ifaces[0]
-    for k in ("namespace", "name", "input_schema", "output_schema", "errors", "semantic_tags", "compatibility"):
+    for k in (
+        "namespace",
+        "name",
+        "input_schema",
+        "output_schema",
+        "errors",
+        "semantic_tags",
+        "compatibility",
+    ):
         assert k in d
     assert d["namespace"].startswith("ipfs_kit/")
 
@@ -515,16 +577,13 @@ def test_profile_e_dag_chains_events(tmp_path, hermetic_core_backend):
         and event.get("decision") == "allow"
     }
     effects = [
-        event
-        for event in events
-        if event.get("event_type") == "authorization.effect"
+        event for event in events if event.get("event_type") == "authorization.effect"
     ]
     profile_events = {
         event["event_cid"]: event
         for event in events
-        if event.get("event_cid") in {
-            call["result"]["_mcppp"]["event_cid"] for call in calls
-        }
+        if event.get("event_cid")
+        in {call["result"]["_mcppp"]["event_cid"] for call in calls}
     }
     assert fr["count"] == len(events) == 6
     assert len(decisions) == len(effects) == len(profile_events) == 2
@@ -623,9 +682,20 @@ def test_all_five_profiles_smoke(tmp_path, hermetic_core_backend):
     s = harness.server
     init = anyio.run(s.handle, {"jsonrpc": "2.0", "id": 1, "method": "initialize"})
     profs = init["result"]["capabilities"]["experimental"]["mcp++"]["profiles"]
-    assert all(profs.get(k) for k in ("A_interface_descriptors", "B_cid_envelopes", "C_ucan_signed", "D_policy", "E_dag_events"))
+    assert all(
+        profs.get(k)
+        for k in (
+            "A_interface_descriptors",
+            "B_cid_envelopes",
+            "C_ucan_signed",
+            "D_policy",
+            "E_dag_events",
+        )
+    )
     assert "C_ucan_unsigned" not in profs
-    assert anyio.run(s.handle, {"jsonrpc": "2.0", "id": 2, "method": "mcp++/interfaces"})["result"]["interfaces"]
+    assert anyio.run(
+        s.handle, {"jsonrpc": "2.0", "id": 2, "method": "mcp++/interfaces"}
+    )["result"]["interfaces"]
     tool = "pin_tools/pin_add"
     pol = anyio.run(
         s.handle,
@@ -659,24 +729,30 @@ def test_all_five_profiles_smoke(tmp_path, hermetic_core_backend):
     )["result"]["allowed"]
     call = harness.call(tool, {"cid": "bafy"}, profile_b=True, request_id=5)
     assert call["result"]["_mcppp"]["receipt_cid"].startswith("bafkrei")
-    assert anyio.run(
-        s.handle,
-        {"jsonrpc": "2.0", "id": 6, "method": "mcp++/dag/frontier"},
-    )["result"]["count"] == 3
+    assert (
+        anyio.run(
+            s.handle,
+            {"jsonrpc": "2.0", "id": 6, "method": "mcp++/dag/frontier"},
+        )["result"]["count"]
+        == 3
+    )
 
 
 def test_p2p_transport_roundtrip(tmp_path, hermetic_core_backend):
     """Profile E: a tools/call routed through the libp2p framing returns the
     same result as stdio/HTTP, without requiring py-libp2p to be installed."""
     from ipfs_kit_py.mcp_server.p2p_transport import PROTOCOL_ID, handle_stream_message
+
     assert PROTOCOL_ID == "/mcp+p2p/1.0.0"
     harness = _server(tmp_path, "p2p")
-    req = json.dumps({
-        "jsonrpc": "2.0",
-        "id": 7,
-        "method": "tools/call",
-        "params": harness.call_params("pin_tools/get_pinset", {}),
-    }).encode()
+    req = json.dumps(
+        {
+            "jsonrpc": "2.0",
+            "id": 7,
+            "method": "tools/call",
+            "params": harness.call_params("pin_tools/get_pinset", {}),
+        }
+    ).encode()
     resp = json.loads(anyio.run(handle_stream_message, req, harness.server.handle))
     assert resp["result"]["status"] == "success"
     assert resp["result"]["_authorization"]["decision"] == "allow"
@@ -688,8 +764,11 @@ def test_fastmcp_registrar_covers_full_registry(tmp_path, hermetic_core_backend)
     from ipfs_kit_py.mcp_server.fastmcp_app import register_fastmcp
 
     class _FakeApp:
-        def __init__(self): self.tools = {}
-        def add_tool(self, fn, name=None, description=""): self.tools[name] = fn
+        def __init__(self):
+            self.tools = {}
+
+        def add_tool(self, fn, name=None, description=""):
+            self.tools[name] = fn
 
     app = _FakeApp()
     harness = _server(tmp_path, "fastmcp")
@@ -724,8 +803,15 @@ def test_initialize_handshake():
     """Standard MCP clients call initialize first; server returns protocol +
     capabilities (backwards-compat handshake)."""
     s = MCPServer()
-    r = anyio.run(s.handle, {"jsonrpc": "2.0", "id": 1, "method": "initialize",
-                             "params": {"protocolVersion": "2025-06-18"}})
+    r = anyio.run(
+        s.handle,
+        {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "initialize",
+            "params": {"protocolVersion": "2025-06-18"},
+        },
+    )
     assert r["result"]["protocolVersion"]
     assert "tools" in r["result"]["capabilities"]
 
@@ -734,7 +820,12 @@ def test_notifications_get_no_reply():
     """JSON-RPC notifications (no id) — e.g. notifications/initialized — must be
     accepted silently with no response, per spec."""
     s = MCPServer()
-    assert anyio.run(s.handle, {"jsonrpc": "2.0", "method": "notifications/initialized"}) is None
+    assert (
+        anyio.run(s.handle, {"jsonrpc": "2.0", "method": "notifications/initialized"})
+        is None
+    )
     # An id-bearing unknown notifications/* is still a no-op result, not error
-    r = anyio.run(s.handle, {"jsonrpc": "2.0", "id": 2, "method": "notifications/cancelled"})
+    r = anyio.run(
+        s.handle, {"jsonrpc": "2.0", "id": 2, "method": "notifications/cancelled"}
+    )
     assert "error" not in r

@@ -9,8 +9,11 @@ import logging
 import re
 
 # Configure logging
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger(__name__)
+
 
 def fix_subprocess_popen():
     """Fix the subprocess.Popen call missing closing parenthesis"""
@@ -35,7 +38,7 @@ def fix_subprocess_popen():
                 comment_line_index = i
                 # Replace the comment with a proper closing parenthesis
                 lines[i] = "        )\n"
-                logger.info(f"Fixed subprocess.Popen call at line {i+1}")
+                logger.info(f"Fixed subprocess.Popen call at line {i + 1}")
                 break
 
         if comment_line_index is None and subprocess_start_index is not None:
@@ -44,7 +47,7 @@ def fix_subprocess_popen():
                 if "logger.info" in lines[i] and "Started other instance" in lines[i]:
                     # Insert closing parenthesis before this line
                     lines.insert(i, "        )\n")
-                    logger.info(f"Added closing parenthesis at line {i+1}")
+                    logger.info(f"Added closing parenthesis at line {i + 1}")
                     break
 
         # Write the fixed content back to the file
@@ -58,6 +61,7 @@ def fix_subprocess_popen():
         logger.error(f"Error fixing subprocess.Popen call: {e}")
         return False
 
+
 def main():
     """Main function"""
     logger.info("Starting to fix subprocess.Popen call in direct_mcp_server_with_tools.py...")
@@ -70,6 +74,7 @@ def main():
     logger.info("\n✅ Successfully fixed subprocess.Popen call in direct_mcp_server_with_tools.py")
     logger.info("You can now run the server with './restart_mcp_with_tools.sh'")
     return 0
+
 
 if __name__ == "__main__":
     sys.exit(main())

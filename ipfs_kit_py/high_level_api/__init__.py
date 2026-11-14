@@ -14,6 +14,7 @@ _IPFS_SIMPLE_API_IMPL = None
 _IPFS_SIMPLE_API_LOAD_ATTEMPTED = False
 _IPFS_SIMPLE_API_LOAD_ERROR = None
 
+
 def _init_libp2p_integration() -> None:
     global HAVE_LIBP2P
     try:
@@ -25,17 +26,22 @@ def _init_libp2p_integration() -> None:
         # Only attempt to import integration if libp2p is available
         if HAVE_LIBP2P:
             from . import libp2p_integration
+
             logger.info("LibP2P integration module imported")
         else:
-            logger.warning("LibP2P integration module not loaded: libp2p dependencies not available")
+            logger.warning(
+                "LibP2P integration module not loaded: libp2p dependencies not available"
+            )
     except ImportError as e:
         logger.warning(f"LibP2P integration module not available: {e}")
+
 
 # We intentionally avoid importing optional helper modules at package-import time.
 # Some helpers pull in large dependency trees which can trigger circular imports.
 WebRTCBenchmarkIntegration = None
 WebRTCBenchmarkIntegrationAnyIO = None
 HAVE_ANYIO_BENCHMARK = False
+
 
 class IPFSSimpleAPI:
     """Functional stub implementation of IPFSSimpleAPI.
@@ -80,14 +86,19 @@ def _try_load_ipfs_simple_api():
         return _IPFS_SIMPLE_API_IMPL
 
     _IPFS_SIMPLE_API_LOAD_ATTEMPTED = True
-    high_level_api_path = os.path.join(os.path.dirname(__file__), "..", "high_level_api.py")
+    high_level_api_path = os.path.join(
+        os.path.dirname(__file__), "..", "high_level_api.py"
+    )
     if not os.path.exists(high_level_api_path):
         return None
 
     module_name = "ipfs_kit_py._high_level_api_impl"
     try:
         existing = sys.modules.get(module_name)
-        if existing is not None and getattr(existing, "IPFSSimpleAPI", None) is not None:
+        if (
+            existing is not None
+            and getattr(existing, "IPFSSimpleAPI", None) is not None
+        ):
             _IPFS_SIMPLE_API_IMPL = existing.IPFSSimpleAPI
             globals()["IPFSSimpleAPI"] = existing.IPFSSimpleAPI
             return _IPFS_SIMPLE_API_IMPL
@@ -127,7 +138,9 @@ def _try_load_ipfs_simple_api():
 
 # Import optional helpers after IPFSSimpleAPI is resolved.
 try:
-    from .webrtc_benchmark_helpers import WebRTCBenchmarkIntegration as _WebRTCBenchmarkIntegration
+    from .webrtc_benchmark_helpers import (
+        WebRTCBenchmarkIntegration as _WebRTCBenchmarkIntegration,
+    )
 
     WebRTCBenchmarkIntegration = _WebRTCBenchmarkIntegration
 except Exception as e:
@@ -163,25 +176,25 @@ from .operation_adapter import (
 )
 
 # Export components
-__all__ = ['IPFSSimpleAPI']
+__all__ = ["IPFSSimpleAPI"]
 __all__.extend(
     [
-        'ADAPTER_RESPONSE_SCHEMA',
-        'ASYNC_PYTHON_ADAPTER_SCHEMA',
-        'PYTHON_ADAPTER_SCHEMA',
-        'AsyncPythonAdapter',
-        'AdapterOperationProjection',
-        'AdapterResponse',
-        'PythonAdapter',
-        'build_async_python_adapter',
-        'build_python_adapter',
+        "ADAPTER_RESPONSE_SCHEMA",
+        "ASYNC_PYTHON_ADAPTER_SCHEMA",
+        "PYTHON_ADAPTER_SCHEMA",
+        "AsyncPythonAdapter",
+        "AdapterOperationProjection",
+        "AdapterResponse",
+        "PythonAdapter",
+        "build_async_python_adapter",
+        "build_python_adapter",
     ]
 )
 
 if WebRTCBenchmarkIntegration is not None:
-    __all__.append('WebRTCBenchmarkIntegration')
+    __all__.append("WebRTCBenchmarkIntegration")
 
 # Add anyio components to exports if available
 if HAVE_ANYIO_BENCHMARK:
-    __all__.append('WebRTCBenchmarkIntegrationAnyIO')
-    __all__.append('HAVE_ANYIO_BENCHMARK')
+    __all__.append("WebRTCBenchmarkIntegrationAnyIO")
+    __all__.append("HAVE_ANYIO_BENCHMARK")

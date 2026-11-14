@@ -13,7 +13,10 @@ _LAZY_EXPORTS = {
     "serve_stdio": (".server", "serve_stdio"),
     "serve_http": (".server", "serve_http"),
     "serve_p2p": (".server", "serve_p2p"),
-    "HierarchicalToolManager": (".hierarchical_tool_manager", "HierarchicalToolManager"),
+    "HierarchicalToolManager": (
+        ".hierarchical_tool_manager",
+        "HierarchicalToolManager",
+    ),
     "TOOL_GROUPS": (".tools", "TOOL_GROUPS"),
 }
 

@@ -21,6 +21,7 @@ from ipfs_kit_py.cache.arc.metrics import (
     ARCIntegrationMetricsCollector,
     AccessTiming,
 )
+
 # These utility classes historically happened to live in this module.  Keep
 # their public import path without retaining a second implementation here.
 from ipfs_kit_py.cache.probabilistic_data_structures import (
@@ -29,7 +30,6 @@ from ipfs_kit_py.cache.probabilistic_data_structures import (
     HyperLogLog,
     MinHash,
 )
-
 
 GENERATION_BINDING_SCHEMA: Final[str] = "ipfs_kit_py/cache/arc/generation-binding@1"
 _BINDING_FIELDS: Final[frozenset[str]] = frozenset(
@@ -89,7 +89,9 @@ class CacheBinding:
 
     @property
     def cache_key(self) -> str:
-        canonical = json.dumps(self.to_dict(), sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+        canonical = json.dumps(
+            self.to_dict(), sort_keys=True, separators=(",", ":"), ensure_ascii=True
+        )
         return "arc:" + hashlib.sha256(canonical.encode("ascii")).hexdigest()
 
 
@@ -106,7 +108,12 @@ class GenerationBoundARC:
     cache hit from becoming an authorization or freshness bypass.
     """
 
-    def __init__(self, config: ARCConfig | None = None, *, cache: AdaptiveReplacementCache | None = None) -> None:
+    def __init__(
+        self,
+        config: ARCConfig | None = None,
+        *,
+        cache: AdaptiveReplacementCache | None = None,
+    ) -> None:
         if cache is not None and config is not None:
             raise TypeError("pass either config or cache, not both")
         self._lock = RLock()
@@ -132,7 +139,11 @@ class GenerationBoundARC:
 
     @staticmethod
     def _coerce_binding(binding: CacheBinding | dict[str, str]) -> CacheBinding:
-        return binding if isinstance(binding, CacheBinding) else CacheBinding.from_dict(binding)
+        return (
+            binding
+            if isinstance(binding, CacheBinding)
+            else CacheBinding.from_dict(binding)
+        )
 
     def _remove_key_locked(self, key: str) -> bool:
         removed = self._cache.delete(key)
@@ -159,7 +170,11 @@ class GenerationBoundARC:
             after = self._cache.metrics()
             if previous_location in {"B1", "B2"}:
                 self._metrics.increment("ghost_hits")
-            self._metrics.increment("evictions", (after.evictions_t1 + after.evictions_t2) - (before.evictions_t1 + before.evictions_t2))
+            self._metrics.increment(
+                "evictions",
+                (after.evictions_t1 + after.evictions_t2)
+                - (before.evictions_t1 + before.evictions_t2),
+            )
             if not admitted:
                 self._metrics.increment("admission_rejections")
                 return False
@@ -167,9 +182,15 @@ class GenerationBoundARC:
             # scope just like an explicit generation notification.  Do this
             # only after admission, so a rejected oversized value cannot make
             # otherwise-valid live data disappear.
-            if active_generation is not None and active_generation != identity.generation:
+            if (
+                active_generation is not None
+                and active_generation != identity.generation
+            ):
                 for stale_key, candidate in tuple(self._bindings.items()):
-                    if self._scope(candidate) == scope and candidate.generation != identity.generation:
+                    if (
+                        self._scope(candidate) == scope
+                        and candidate.generation != identity.generation
+                    ):
                         self._remove_key_locked(stale_key)
             self._bindings[key] = identity
             self._generations[scope] = identity.generation
@@ -189,7 +210,9 @@ class GenerationBoundARC:
         key = identity.cache_key
         with self._lock:
             stored = self._bindings.get(key)
-            active_generation = self._generations.get(self._scope(identity), identity.generation)
+            active_generation = self._generations.get(
+                self._scope(identity), identity.generation
+            )
             if stored != identity or active_generation != identity.generation:
                 if stored is not None:
                     self._remove_key_locked(key)
@@ -213,7 +236,9 @@ class GenerationBoundARC:
             return value
 
     @staticmethod
-    def _approved(predicate: Callable[[CacheBinding], bool], binding: CacheBinding) -> bool:
+    def _approved(
+        predicate: Callable[[CacheBinding], bool], binding: CacheBinding
+    ) -> bool:
         try:
             return bool(predicate(binding))
         except Exception:
@@ -222,9 +247,13 @@ class GenerationBoundARC:
     def contains(self, binding: CacheBinding | dict[str, str]) -> bool:
         identity = self._coerce_binding(binding)
         with self._lock:
-            return self._bindings.get(identity.cache_key) == identity and self._cache.contains(identity.cache_key)
+            return self._bindings.get(
+                identity.cache_key
+            ) == identity and self._cache.contains(identity.cache_key)
 
-    def invalidate(self, binding: CacheBinding | dict[str, str] | None = None, **exact: str) -> int:
+    def invalidate(
+        self, binding: CacheBinding | dict[str, str] | None = None, **exact: str
+    ) -> int:
         """Delete only identities matching every supplied identity dimension."""
 
         if binding is not None and exact:
@@ -237,12 +266,20 @@ class GenerationBoundARC:
         if any(not isinstance(value, str) for value in exact.values()):
             raise ValueError("invalidation identity fields must be strings")
         with self._lock:
-            keys = [key for key, candidate in self._bindings.items() if all(getattr(candidate, name) == value for name, value in exact.items())]
+            keys = [
+                key
+                for key, candidate in self._bindings.items()
+                if all(
+                    getattr(candidate, name) == value for name, value in exact.items()
+                )
+            ]
             for key in keys:
                 self._remove_key_locked(key)
             return len(keys)
 
-    def advance_generation(self, content_id: str, generation: str, *, namespace: str = "default") -> int:
+    def advance_generation(
+        self, content_id: str, generation: str, *, namespace: str = "default"
+    ) -> int:
         """Make prior generations of one namespace/content pair stale."""
 
         content_id = _bounded_text(content_id, "content_id")
@@ -251,7 +288,11 @@ class GenerationBoundARC:
         with self._lock:
             scope = namespace, content_id
             self._generations[scope] = generation
-            keys = [key for key, binding in self._bindings.items() if self._scope(binding) == scope and binding.generation != generation]
+            keys = [
+                key
+                for key, binding in self._bindings.items()
+                if self._scope(binding) == scope and binding.generation != generation
+            ]
             for key in keys:
                 self._remove_key_locked(key)
             return len(keys)
@@ -261,9 +302,14 @@ class GenerationBoundARC:
     def record_fill(self, state: str) -> None:
         normalized = str(getattr(state, "value", state)).lower()
         names = {
-            "started": "fills_started", "leader": "fills_started", "succeeded": "fills_succeeded",
-            "success": "fills_succeeded", "failed": "fills_failed", "failure": "fills_failed",
-            "cancelled": "fills_cancelled", "canceled": "fills_cancelled",
+            "started": "fills_started",
+            "leader": "fills_started",
+            "succeeded": "fills_succeeded",
+            "success": "fills_succeeded",
+            "failed": "fills_failed",
+            "failure": "fills_failed",
+            "cancelled": "fills_cancelled",
+            "canceled": "fills_cancelled",
         }
         if normalized not in names:
             raise ValueError("unknown fill state")
@@ -289,7 +335,9 @@ class GenerationBoundARC:
                 for key, entry in collection.items():
                     binding = self._bindings.get(key)
                     if binding is not None:
-                        entries.append({"binding": binding.to_dict(), "value": bytes(entry.value)})
+                        entries.append(
+                            {"binding": binding.to_dict(), "value": bytes(entry.value)}
+                        )
             return entries
 
     def _persistence_import(self, entries: list[dict[str, Any]]) -> bool:
@@ -307,7 +355,9 @@ class GenerationBoundARC:
                 if not isinstance(value, bytes) or identity.cache_key in candidate_keys:
                     return False
                 scope = self._scope(identity)
-                known_generation = candidate_generations.setdefault(scope, identity.generation)
+                known_generation = candidate_generations.setdefault(
+                    scope, identity.generation
+                )
                 # A saved facade has exactly one active generation per scope.
                 # Accepting two generations would recreate an incoherent state
                 # after restart, so treat it as stale rather than choosing one.
@@ -330,7 +380,9 @@ class GenerationBoundARC:
                     if not replacement.put(identity.cache_key, value):
                         return False
                     replacement_bindings[identity.cache_key] = identity
-                    replacement_generations.setdefault(self._scope(identity), identity.generation)
+                    replacement_generations.setdefault(
+                        self._scope(identity), identity.generation
+                    )
             except (TypeError, ValueError):
                 return False
             restored = replacement.snapshot()
@@ -371,7 +423,9 @@ class _ARCListView(MutableMapping[str, bytes | bool]):
         return len(self._snapshot())
 
     def __setitem__(self, key: str, value: bytes | bool) -> None:
-        if self._list_name not in {"T1", "T2"} or not isinstance(value, (bytes, bytearray, memoryview)):
+        if self._list_name not in {"T1", "T2"} or not isinstance(
+            value, (bytes, bytearray, memoryview)
+        ):
             raise TypeError("only live ARC compatibility views accept bytes values")
         self._owner.put(key, bytes(value))
 
@@ -410,14 +464,18 @@ class ARCache:
         elif config is None or isinstance(config, dict):
             settings = dict(config or {})
             option_capacity = legacy_options.pop("capacity", None)
-            configured_capacity = settings.pop("capacity_bytes", settings.pop("capacity", option_capacity))
+            configured_capacity = settings.pop(
+                "capacity_bytes", settings.pop("capacity", option_capacity)
+            )
             capacity = maxsize if configured_capacity is None else configured_capacity
             if capacity != maxsize and maxsize != 100 * 1024 * 1024:
                 raise ValueError("maxsize and config.capacity_bytes disagree")
             core_config = ARCConfig(
                 capacity_bytes=capacity,
                 max_live_entries=settings.pop("max_live_entries", 256),
-                max_ghost_entries=settings.pop("max_ghost_entries", settings.pop("ghost_list_size", 256)),
+                max_ghost_entries=settings.pop(
+                    "max_ghost_entries", settings.pop("ghost_list_size", 256)
+                ),
                 initial_p=settings.pop("initial_p", 0),
             )
         else:
@@ -481,7 +539,9 @@ class ARCache:
         after = self._cache.metrics()
         if previous_location in {"B1", "B2"}:
             self._metrics.increment("ghost_hits")
-        evicted = (after.evictions_t1 + after.evictions_t2) - (before.evictions_t1 + before.evictions_t2)
+        evicted = (after.evictions_t1 + after.evictions_t2) - (
+            before.evictions_t1 + before.evictions_t2
+        )
         self._metrics.increment("evictions", evicted)
         if not admitted:
             self._metrics.increment("admission_rejections")
@@ -524,7 +584,9 @@ class ARCache:
             "misses": core.misses,
             "operations": core.operations,
             "evictions": core.evictions_t1 + core.evictions_t2,
-            "promotions": core.promotions_t1_to_t2 + core.promotions_b1_to_t2 + core.promotions_b2_to_t2,
+            "promotions": core.promotions_t1_to_t2
+            + core.promotions_b1_to_t2
+            + core.promotions_b2_to_t2,
             "integration": self._metrics.snapshot().to_dict(),
         }
 
@@ -539,8 +601,19 @@ GenerationBoundCache = GenerationBoundARC
 PersistentARCache = GenerationBoundARC
 
 __all__ = [
-    "GENERATION_BINDING_SCHEMA", "CacheBinding", "GenerationBinding", "CacheIdentity",
-    "GenerationBoundARC", "GenerationBoundCache", "PersistentARC", "PersistentARCache",
-    "ARCache", "ARCCache", "LegacyARCache",
-    "BloomFilter", "HyperLogLog", "CountMinSketch", "MinHash",
+    "GENERATION_BINDING_SCHEMA",
+    "CacheBinding",
+    "GenerationBinding",
+    "CacheIdentity",
+    "GenerationBoundARC",
+    "GenerationBoundCache",
+    "PersistentARC",
+    "PersistentARCache",
+    "ARCache",
+    "ARCCache",
+    "LegacyARCache",
+    "BloomFilter",
+    "HyperLogLog",
+    "CountMinSketch",
+    "MinHash",
 ]

@@ -38,9 +38,7 @@ from typing import Any, Final
 
 _ENGINE_ROOT: Final[Path] = Path(__file__).resolve().parent / "graphrag"
 if not _ENGINE_ROOT.is_dir():
-    raise ImportError(
-        f"canonical GraphRAG engine directory is missing: {_ENGINE_ROOT}"
-    )
+    raise ImportError(f"canonical GraphRAG engine directory is missing: {_ENGINE_ROOT}")
 
 # Make this module a package so submodule imports resolve to the engine tree.
 __path__ = [str(_ENGINE_ROOT)]  # type: ignore[name-defined]
@@ -55,9 +53,7 @@ _ENGINE_MODULES: Final[tuple[str, ...]] = (
 )
 
 try:
-    _loaded = {
-        name: import_module(f"{__name__}.{name}") for name in _ENGINE_MODULES
-    }
+    _loaded = {name: import_module(f"{__name__}.{name}") for name in _ENGINE_MODULES}
 except Exception as exc:  # fail-closed: never leave a half-loaded facade
     raise ImportError(
         "canonical GraphRAG engine modules failed to import; "
@@ -351,7 +347,9 @@ def request_schema_for(operation: str) -> dict[str, Any]:
 
 
 def all_request_schemas() -> dict[str, dict[str, Any]]:
-    return {operation: request_schema_for(operation) for operation in GRAPHRAG_OPERATIONS}
+    return {
+        operation: request_schema_for(operation) for operation in GRAPHRAG_OPERATIONS
+    }
 
 
 def _require_mapping(value: Any, name: str) -> Mapping[str, Any]:
@@ -365,7 +363,9 @@ def _admit_request(operation: str, request: Mapping[str, Any]) -> Mapping[str, A
         raise GraphRAGInterfaceError(f"unknown GraphRAG operation: {operation}")
     body = _require_mapping(request, "request")
     if body.get("operation", operation) != operation:
-        raise GraphRAGInterfaceError("request.operation does not match dispatch operation")
+        raise GraphRAGInterfaceError(
+            "request.operation does not match dispatch operation"
+        )
     allowed = _REQUEST_FIELDS[operation] | {"operation", "request_id", "context"}
     unknown = set(body) - allowed
     if unknown:
@@ -396,7 +396,9 @@ def _relations_from(value: Any) -> tuple[Any, ...]:
             if isinstance(item, GraphRAGRelation):
                 out.append(item)
             else:
-                out.append(GraphRAGRelation.from_dict(_require_mapping(item, "relation")))
+                out.append(
+                    GraphRAGRelation.from_dict(_require_mapping(item, "relation"))
+                )
         return tuple(out)
     raise GraphRAGInterfaceError("relations must be a sequence")
 
@@ -410,7 +412,9 @@ def _embeddings_from(value: Any) -> tuple[Any, ...]:
             if isinstance(item, GraphRAGEmbedding):
                 out.append(item)
             else:
-                out.append(GraphRAGEmbedding.from_dict(_require_mapping(item, "embedding")))
+                out.append(
+                    GraphRAGEmbedding.from_dict(_require_mapping(item, "embedding"))
+                )
         return tuple(out)
     raise GraphRAGInterfaceError("embeddings must be a sequence")
 
@@ -425,18 +429,32 @@ def _generation_summary(generation: Any) -> dict[str, Any]:
     gen = generation.generation if hasattr(generation, "generation") else generation
     manifest = gen.manifest if hasattr(gen, "manifest") else generation.manifest
     projection = getattr(generation, "projection", None)
-    nodes = () if projection is None else tuple(item.document_id for item in projection.nodes)
-    edges = () if projection is None else tuple(item.relation_id for item in projection.edges)
+    nodes = (
+        ()
+        if projection is None
+        else tuple(item.document_id for item in projection.nodes)
+    )
+    edges = (
+        ()
+        if projection is None
+        else tuple(item.relation_id for item in projection.edges)
+    )
     return {
         "generation_id": manifest.generation_id,
-        "generation_cid": gen.content_id if hasattr(gen, "content_id") else content_identity(gen.to_record()),
+        "generation_cid": (
+            gen.content_id
+            if hasattr(gen, "content_id")
+            else content_identity(gen.to_record())
+        ),
         "manifest_cid": manifest.content_id,
         "source_event_id": getattr(generation, "source_event_id", ""),
         "projection_identity": None if projection is None else projection.identity,
         "nodes": list(nodes),
         "edges": list(edges),
         "content_count": len(gen.contents) if hasattr(gen, "contents") else len(nodes),
-        "relation_count": len(gen.relations) if hasattr(gen, "relations") else len(edges),
+        "relation_count": (
+            len(gen.relations) if hasattr(gen, "relations") else len(edges)
+        ),
         "embedding_count": len(gen.embeddings) if hasattr(gen, "embeddings") else 0,
     }
 
@@ -514,8 +532,12 @@ def _hybrid_results_to_records(response: Any) -> dict[str, Any]:
             {
                 "document_id": item.document_id,
                 "score": float(item.score),
-                "vector_score": None if item.vector_score is None else float(item.vector_score),
-                "lexical_score": None if item.lexical_score is None else float(item.lexical_score),
+                "vector_score": (
+                    None if item.vector_score is None else float(item.vector_score)
+                ),
+                "lexical_score": (
+                    None if item.lexical_score is None else float(item.lexical_score)
+                ),
                 "metadata": dict(item.metadata),
                 "authoritative": False,
             }
@@ -532,7 +554,9 @@ def _hybrid_results_to_records(response: Any) -> dict[str, Any]:
     }
 
 
-def _execute(operation: str, body: Mapping[str, Any]) -> tuple[dict[str, Any], str | None, str | None]:
+def _execute(
+    operation: str, body: Mapping[str, Any]
+) -> tuple[dict[str, Any], str | None, str | None]:
     """Run one admitted operation against the canonical engine.
 
     Returns ``(result, content_cid, generation_id)``.
@@ -582,11 +606,15 @@ def _execute(operation: str, body: Mapping[str, Any]) -> tuple[dict[str, Any], s
             raise GraphRAGInterfaceError("document_id is required")
         history = svc.version_history(document_id)
         records = [item.to_record() for item in history]
-        return {
-            "document_id": document_id,
-            "versions": records,
-            "content_cids": [item.content_id for item in history],
-        }, records[-1]["content_id"] if records else None, None
+        return (
+            {
+                "document_id": document_id,
+                "versions": records,
+                "content_cids": [item.content_id for item in history],
+            },
+            records[-1]["content_id"] if records else None,
+            None,
+        )
 
     if operation == OP_CURRENT:
         svc = _open_service(body["root"], body["manifest"])
@@ -596,10 +624,14 @@ def _execute(operation: str, body: Mapping[str, Any]) -> tuple[dict[str, Any], s
         current = svc.current_content(document_id)
         if current is None:
             return {"document_id": document_id, "content": None}, None, None
-        return {
-            "document_id": document_id,
-            "content": current.to_record(),
-        }, current.content_id, None
+        return (
+            {
+                "document_id": document_id,
+                "content": current.to_record(),
+            },
+            current.content_id,
+            None,
+        )
 
     if operation == OP_VECTOR_SEARCH:
         identity = _vector_identity_from(body.get("identity"))
@@ -642,7 +674,9 @@ def _execute(operation: str, body: Mapping[str, Any]) -> tuple[dict[str, Any], s
         k = int(body.get("k", 10))
         filters = body.get("filters")
         lexical_payload = body.get("lexical_results") or ()
-        if not isinstance(lexical_payload, Sequence) or isinstance(lexical_payload, (str, bytes)):
+        if not isinstance(lexical_payload, Sequence) or isinstance(
+            lexical_payload, (str, bytes)
+        ):
             raise GraphRAGInterfaceError("lexical_results must be a sequence")
 
         def lexical_search(_text: str, limit: int, _filters: Mapping[str, Any] | None):
@@ -738,31 +772,47 @@ def dispatch(
             category = "poisoning"
         elif isinstance(exc, (GraphRAGLedgerError, GraphRAGProjectionError)):
             category = "ledger"
-        elif isinstance(exc, (VectorIdentityMismatchError, GraphRAGIndexMismatchError, GraphRAGModelMismatchError, GraphRAGDimensionMismatchError)):
+        elif isinstance(
+            exc,
+            (
+                VectorIdentityMismatchError,
+                GraphRAGIndexMismatchError,
+                GraphRAGModelMismatchError,
+                GraphRAGDimensionMismatchError,
+            ),
+        ):
             category = "identity"
         elif isinstance(exc, GraphRAGVersionError):
             category = "version"
         return _failure_envelope(
             operation,
-            _error_record(code, str(exc) or code, operation=operation, category=category),
+            _error_record(
+                code, str(exc) or code, operation=operation, category=category
+            ),
             transport=transport,
             request_id=rid,
         )
 
 
-def package_call(operation: str, request: Mapping[str, Any] | None = None, **kwargs: Any) -> dict[str, Any]:
+def package_call(
+    operation: str, request: Mapping[str, Any] | None = None, **kwargs: Any
+) -> dict[str, Any]:
     """Package (Python) transport projection."""
 
     return dispatch(operation, request, transport="package", **kwargs)
 
 
-def cli_call(operation: str, request: Mapping[str, Any] | None = None, **kwargs: Any) -> dict[str, Any]:
+def cli_call(
+    operation: str, request: Mapping[str, Any] | None = None, **kwargs: Any
+) -> dict[str, Any]:
     """CLI transport projection (JSON-line friendly, not a stub)."""
 
     return dispatch(operation, request, transport="cli", **kwargs)
 
 
-def mcp_call(operation: str, request: Mapping[str, Any] | None = None, **kwargs: Any) -> dict[str, Any]:
+def mcp_call(
+    operation: str, request: Mapping[str, Any] | None = None, **kwargs: Any
+) -> dict[str, Any]:
     """MCP transport projection used by MCP and MCP++ tool adapters."""
 
     return dispatch(operation, request, transport="mcp", **kwargs)
@@ -897,13 +947,18 @@ class GraphRAGSearchEngine:
         **kwargs: Any,
     ) -> dict[str, Any]:
         document_id = kwargs.get("document_id") or cid
-        version_id = kwargs.get("version_id") or f"{document_id}-v{self.stats['total_indexed'] + 1}"
+        version_id = (
+            kwargs.get("version_id")
+            or f"{document_id}-v{self.stats['total_indexed'] + 1}"
+        )
         provenance = GraphRAGProvenance(
             self.manifest.source_id,
             self.manifest.source_version,
             kwargs.get("source_cid") or cid or document_id,
         )
-        record = GraphRAGContent(document_id, version_id, content or path or cid, provenance)
+        record = GraphRAGContent(
+            document_id, version_id, content or path or cid, provenance
+        )
         envelope = package_call(
             OP_APPLY,
             {
@@ -923,20 +978,28 @@ class GraphRAGSearchEngine:
             "generation_id": envelope.get("generation_id"),
         }
 
-    async def search(self, query: str, search_type: str = "hybrid", **kwargs: Any) -> Any:
+    async def search(
+        self, query: str, search_type: str = "hybrid", **kwargs: Any
+    ) -> Any:
         if search_type == "vector":
             return await self.vector_search(query, **kwargs)
         if search_type in ("hybrid", "text", "graph", "sparql"):
             return await self.hybrid_search(query, **kwargs)
         envelope = _failure_envelope(
             OP_HYBRID_SEARCH,
-            _error_record("UnsupportedSearchType", f"unsupported search_type: {search_type}", operation=OP_HYBRID_SEARCH),
+            _error_record(
+                "UnsupportedSearchType",
+                f"unsupported search_type: {search_type}",
+                operation=OP_HYBRID_SEARCH,
+            ),
             transport="package",
             request_id=f"graphrag-{secrets.token_hex(4)}",
         )
         return {"success": False, "error": envelope["error"]}
 
-    async def vector_search(self, query: str, limit: int = 10, **kwargs: Any) -> dict[str, Any]:
+    async def vector_search(
+        self, query: str, limit: int = 10, **kwargs: Any
+    ) -> dict[str, Any]:
         query_vector = kwargs.get("query_vector")
         if query_vector is None:
             # Deterministic pseudo-embedding from text without optional ML deps.
@@ -1005,9 +1068,13 @@ class GraphRAGSearchEngine:
         }
 
     async def text_search(self, query: str, limit: int = 10) -> dict[str, Any]:
-        return await self.hybrid_search(query, limit=limit, vector_weight=0.0, lexical_weight=1.0)
+        return await self.hybrid_search(
+            query, limit=limit, vector_weight=0.0, lexical_weight=1.0
+        )
 
-    async def graph_search(self, query: str, max_depth: int = 2, **kwargs: Any) -> dict[str, Any]:
+    async def graph_search(
+        self, query: str, max_depth: int = 2, **kwargs: Any
+    ) -> dict[str, Any]:
         # Graph traversal is a ranking projection only; reuse hybrid path.
         return await self.hybrid_search(query, **kwargs)
 

@@ -59,11 +59,7 @@ from fixes.webrtc_anyio_monitor_integration import apply_enhanced_fixes
 mcp_server = MCPServer(debug_mode=True)
 
 # Apply the enhanced fixes with monitoring
-monitor = apply_enhanced_fixes(
-    mcp_server, 
-    log_dir="./logs",
-    debug_mode=True
-)
+monitor = apply_enhanced_fixes(mcp_server, log_dir="./logs", debug_mode=True)
 
 # Use the enhanced server with monitoring
 ```

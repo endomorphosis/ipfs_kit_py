@@ -1,9 +1,9 @@
-#\!/usr/bin/env python3
+# \!/usr/bin/env python3
 
 import re
 
 # Read the file
-with open('ipfs_kit_py/mcp/models/ipfs_model.py', 'r') as f:
+with open("ipfs_kit_py/mcp/models/ipfs_model.py", "r") as f:
     content = f.read()
 
 # Find the method
@@ -17,11 +17,11 @@ if not match:
 # Fix indentation
 fixed_content = content.replace(
     match.group(0),
-    f"{match.group(1)}\n        {match.group(2).replace('"""', '"""').replace('\n', '\n        ')}{match.group(3)}"
+    f"{match.group(1)}\n        {match.group(2).replace('"""', '"""').replace('\n', '\n        ')}{match.group(3)}",
 )
 
 # Write back
-with open('ipfs_kit_py/mcp/models/ipfs_model.py', 'w') as f:
+with open("ipfs_kit_py/mcp/models/ipfs_model.py", "w") as f:
     f.write(fixed_content)
 
 print("Fixed the docstring indentation in ipfs_name_resolve")

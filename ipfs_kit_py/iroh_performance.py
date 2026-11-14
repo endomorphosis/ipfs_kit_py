@@ -165,13 +165,15 @@ def evaluate_sample(
         actual = values.get(field)
         if actual is None:
             continue
-        if isinstance(actual, bool) or not isinstance(actual, (int, float)) or not math.isfinite(actual):
+        if (
+            isinstance(actual, bool)
+            or not isinstance(actual, (int, float))
+            or not math.isfinite(actual)
+        ):
             violations.append(f"{field}:invalid")
             continue
         budget = budgets[budget_field]
-        if (direction == "max" and actual > budget) or (
-            direction == "min" and actual < budget
-        ):
+        if (direction == "max" and actual > budget) or (direction == "min" and actual < budget):
             violations.append(field)
     return violations
 

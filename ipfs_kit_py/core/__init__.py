@@ -93,7 +93,9 @@ class CoreJITManager:
             return self._jit_instance
         self._jit_load_attempted = True
         try:
-            self._jit_instance = import_module("ipfs_kit_py.jit_imports").get_jit_imports()
+            self._jit_instance = import_module(
+                "ipfs_kit_py.jit_imports"
+            ).get_jit_imports()
         except Exception:
             self._jit_instance = None
         return self._jit_instance
@@ -129,7 +131,11 @@ class CoreJITManager:
             return self._cached_modules[module_name]
         jit = self._get_jit()
         try:
-            module = jit.import_module(module_name) if jit is not None else import_module(module_name)
+            module = (
+                jit.import_module(module_name)
+                if jit is not None
+                else import_module(module_name)
+            )
         except (ImportError, AttributeError):
             return fallback
         if module is not None:
@@ -152,7 +158,10 @@ class CoreJITManager:
         return result
 
     def preload_features(self, feature_names: list[str]) -> dict[str, bool]:
-        return {feature_name: self.check_feature(feature_name) for feature_name in feature_names}
+        return {
+            feature_name: self.check_feature(feature_name)
+            for feature_name in feature_names
+        }
 
     def reset_cache(self) -> None:
         self._cached_modules.clear()
@@ -170,7 +179,9 @@ def _extra_for(feature_name: str) -> str:
     return _FEATURE_EXTRAS.get(feature_name, feature_name)
 
 
-def require_feature(feature_name: str, error_message: str | None = None) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+def require_feature(
+    feature_name: str, error_message: str | None = None
+) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
     """Require a feature only when the wrapped function is called."""
 
     def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
@@ -178,8 +189,12 @@ def require_feature(feature_name: str, error_message: str | None = None) -> Call
         def wrapper(*args: Any, **kwargs: Any) -> Any:
             if not jit_manager.check_feature(feature_name):
                 if error_message:
-                    raise OptionalDependencyError(error_message, extra=_extra_for(feature_name))
-                raise OptionalDependencyError(feature_name, extra=_extra_for(feature_name))
+                    raise OptionalDependencyError(
+                        error_message, extra=_extra_for(feature_name)
+                    )
+                raise OptionalDependencyError(
+                    feature_name, extra=_extra_for(feature_name)
+                )
             return func(*args, **kwargs)
 
         return wrapper
@@ -187,29 +202,43 @@ def require_feature(feature_name: str, error_message: str | None = None) -> Call
     return decorator
 
 
-def optional_feature(feature_name: str, fallback_result: Any = None) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+def optional_feature(
+    feature_name: str, fallback_result: Any = None
+) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
     """Return a declared fallback when an optional feature is unavailable."""
 
     def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
         @wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> Any:
-            return func(*args, **kwargs) if jit_manager.check_feature(feature_name) else fallback_result
+            return (
+                func(*args, **kwargs)
+                if jit_manager.check_feature(feature_name)
+                else fallback_result
+            )
 
         return wrapper
 
     return decorator
 
 
-def core_lazy_import(module_name: str, feature_name: str | None = None) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+def core_lazy_import(
+    module_name: str, feature_name: str | None = None
+) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
     """Ensure a module is importable at the point a decorated function runs."""
 
     def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
         @wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> Any:
             if feature_name and not jit_manager.check_feature(feature_name):
-                raise OptionalDependencyError(feature_name, extra=_extra_for(feature_name))
+                raise OptionalDependencyError(
+                    feature_name, extra=_extra_for(feature_name)
+                )
             if jit_manager.get_module(module_name) is None:
-                raise OptionalDependencyError(module_name, extra=_extra_for(feature_name or module_name), dependency=module_name)
+                raise OptionalDependencyError(
+                    module_name,
+                    extra=_extra_for(feature_name or module_name),
+                    dependency=module_name,
+                )
             return func(*args, **kwargs)
 
         return wrapper
@@ -228,7 +257,9 @@ def jit_import_from(module_name: str, attr_name: str, fallback: Any = None) -> A
     return getattr(module, attr_name, fallback) if module is not None else fallback
 
 
-def lazy_import(feature_name: str) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+def lazy_import(
+    feature_name: str,
+) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
     """Compatibility decorator that validates its feature at call time."""
 
     return require_feature(feature_name)
@@ -255,12 +286,34 @@ def __dir__() -> list[str]:
 
 
 __all__ = [
-    "CoreJITManager", "jit_manager", "require_feature", "optional_feature",
-    "core_lazy_import", "jit_import", "jit_import_from", "lazy_import", "get_jit_imports",
-    "OperationRegistryError", "InvalidOperationDefinitionError",
-    "DuplicateOperationIdentifierError", "UnknownOperationError", "UnsupportedOperationError",
-    "CapabilityTier", "AuthorizationClass", "AuthorizationRequirement", "OperationDefinition",
-    "OperationSpec", "OperationRegistry", "OperationRequest", "OperationResult", "StorageError",
-    "StateTransitionReceipt", "OperationState", "canonical_json", "content_identity",
-    "ServiceRouter", "DispatchContext", "CanonicalStorageService",
+    "CoreJITManager",
+    "jit_manager",
+    "require_feature",
+    "optional_feature",
+    "core_lazy_import",
+    "jit_import",
+    "jit_import_from",
+    "lazy_import",
+    "get_jit_imports",
+    "OperationRegistryError",
+    "InvalidOperationDefinitionError",
+    "DuplicateOperationIdentifierError",
+    "UnknownOperationError",
+    "UnsupportedOperationError",
+    "CapabilityTier",
+    "AuthorizationClass",
+    "AuthorizationRequirement",
+    "OperationDefinition",
+    "OperationSpec",
+    "OperationRegistry",
+    "OperationRequest",
+    "OperationResult",
+    "StorageError",
+    "StateTransitionReceipt",
+    "OperationState",
+    "canonical_json",
+    "content_identity",
+    "ServiceRouter",
+    "DispatchContext",
+    "CanonicalStorageService",
 ]

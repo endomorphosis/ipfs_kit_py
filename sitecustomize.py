@@ -41,7 +41,9 @@ def _bootstrap_symai_engines() -> None:
 
     if use_codex:
         try:
-            from ipfs_datasets_py.utils.symai_codex_engine import CodexExecNeurosymbolicEngine
+            from ipfs_datasets_py.utils.symai_codex_engine import (
+                CodexExecNeurosymbolicEngine,
+            )
 
             EngineRepository.register(
                 "neurosymbolic",
@@ -54,7 +56,9 @@ def _bootstrap_symai_engines() -> None:
 
     if _truthy(os.environ.get("IPFS_DATASETS_PY_USE_SYMAI_ENGINE_ROUTER")):
         try:
-            from ipfs_datasets_py.utils.symai_ipfs_engine import register_ipfs_symai_engines
+            from ipfs_datasets_py.utils.symai_ipfs_engine import (
+                register_ipfs_symai_engines,
+            )
 
             register_ipfs_symai_engines()
         except Exception:
@@ -100,7 +104,11 @@ if os.environ.get("PYTEST_CURRENT_TEST"):
                 return {"success": True, "indexed": len(self._indexed)}
 
             async def text_search(self, *args, **kwargs):
-                return {"success": False, "error": "text_search not implemented", "results": []}
+                return {
+                    "success": False,
+                    "error": "text_search not implemented",
+                    "results": [],
+                }
 
         stub.GraphRAGSearchEngine = GraphRAGSearchEngine
         sys.modules[stub_name] = stub

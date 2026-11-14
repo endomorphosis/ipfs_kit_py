@@ -5,6 +5,7 @@ or validation. Importing this package never imports optional providers or
 performs installation work. Durable state roots are exported lazily so their
 public API remains a thin facade over an injected coordination store.
 """
+
 from __future__ import annotations
 
 from typing import Any, Dict, Optional
@@ -14,11 +15,18 @@ HAVE_VALIDATOR = True  # The built-in packet shape validator is always present.
 HAVE_SPEC_VALIDATOR = False
 mcplusplus_version = "unknown"
 
-_ROOT_EXPORTS = frozenset((
-    "ArtifactWriteResult", "DurableStateRootAdapter", "DurableStateRoots",
-    "ProviderStatus", "RootUpdateStatus", "StateRootCASResult",
-    "StateRootRecoveryReport", "StateRootSnapshot",
-))
+_ROOT_EXPORTS = frozenset(
+    (
+        "ArtifactWriteResult",
+        "DurableStateRootAdapter",
+        "DurableStateRoots",
+        "ProviderStatus",
+        "RootUpdateStatus",
+        "StateRootCASResult",
+        "StateRootRecoveryReport",
+        "StateRootSnapshot",
+    )
+)
 
 
 def _optional_spec_validator() -> Any:
@@ -144,8 +152,14 @@ def validate_packet(envelope: Dict[str, Any]) -> Optional[str]:
 
 
 __all__ = [
-    "ArtifactWriteResult", "DurableStateRootAdapter", "DurableStateRoots",
-    "ProviderStatus", "RootUpdateStatus", "StateRootCASResult",
-    "StateRootRecoveryReport", "StateRootSnapshot", "get_capabilities",
+    "ArtifactWriteResult",
+    "DurableStateRootAdapter",
+    "DurableStateRoots",
+    "ProviderStatus",
+    "RootUpdateStatus",
+    "StateRootCASResult",
+    "StateRootRecoveryReport",
+    "StateRootSnapshot",
+    "get_capabilities",
     "validate_packet",
 ]

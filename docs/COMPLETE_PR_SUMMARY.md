@@ -130,6 +130,7 @@ result = await bridge.execute_wasm_function(module, "main")
 **Example:**
 ```python
 from ipfs_kit_py.mobile_sdk import MobileSDKGenerator
+
 gen = MobileSDKGenerator()
 gen.generate_ios_sdk()
 gen.generate_android_sdk()
@@ -180,7 +181,7 @@ await cluster.replicate_content(cid, regions=["us-west", "eu-west"])
 # Export
 exporter = BucketMetadataExporter(ipfs_client=ipfs)
 result = await exporter.export_bucket_metadata(bucket)
-cid = result['metadata_cid']  # Share this!
+cid = result["metadata_cid"]  # Share this!
 
 # Import
 importer = BucketMetadataImporter(ipfs_client=ipfs)
@@ -391,17 +392,16 @@ pytest tests/test_deep_coverage.py -v
 ```python
 # GraphRAG improvements (existing code works)
 from ipfs_kit_py.graphrag import GraphRAGSearchEngine
+
 engine = GraphRAGSearchEngine(enable_caching=True)  # New!
 
 # New S3 Gateway
 from ipfs_kit_py.s3_gateway import create_s3_gateway
+
 gateway = create_s3_gateway(ipfs_api=api)
 
 # New bucket export/import
-from ipfs_kit_py.bucket_metadata_transfer import (
-    BucketMetadataExporter,
-    BucketMetadataImporter
-)
+from ipfs_kit_py.bucket_metadata_transfer import BucketMetadataExporter, BucketMetadataImporter
 
 # Other new features...
 ```

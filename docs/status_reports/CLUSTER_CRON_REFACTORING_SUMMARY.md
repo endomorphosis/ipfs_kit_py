@@ -52,7 +52,10 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "scripts", "daemon"))
 from daemon_manager import DaemonManager as BaseDaemonManager, DaemonTypes
 
 # After
-from ipfs_kit_py.mcp.ipfs_kit.core.daemon_manager import DaemonManager as BaseDaemonManager, DaemonTypes
+from ipfs_kit_py.mcp.ipfs_kit.core.daemon_manager import (
+    DaemonManager as BaseDaemonManager,
+    DaemonTypes,
+)
 ```
 
 **practical_cluster_setup.py:**

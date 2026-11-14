@@ -218,9 +218,7 @@ from ipfs_kit_py.enhanced_secrets_manager import EnhancedSecretManager
 manager = EnhancedSecretManager()  # Uses AES-256-GCM by default
 
 secret_id = manager.store_secret(
-    service="github",
-    secret_value="ghp_xxxxxxxxxxxxx",
-    secret_type=SecretType.TOKEN
+    service="github", secret_value="ghp_xxxxxxxxxxxxx", secret_type=SecretType.TOKEN
 )
 ```
 

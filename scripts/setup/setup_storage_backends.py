@@ -13,10 +13,7 @@ import argparse
 from pathlib import Path
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
 # Dependencies for each backend
@@ -25,23 +22,24 @@ BACKEND_DEPENDENCIES = {
     "storacha": ["web3storage>=0.1.1"],
     "filecoin": ["filecoin-api-client>=0.9.0"],
     "lassie": ["lassie>=0.2.0"],
-    "s3": ["boto3>=1.26.0"]
+    "s3": ["boto3>=1.26.0"],
 }
+
 
 def install_dependencies(backends=None):
     """Install required dependencies for specified backends."""
     if backends is None:
         backends = BACKEND_DEPENDENCIES.keys()
-    
+
     all_dependencies = []
     for backend in backends:
         if backend in BACKEND_DEPENDENCIES:
             all_dependencies.extend(BACKEND_DEPENDENCIES[backend])
-    
+
     if not all_dependencies:
         logger.info("No dependencies to install")
         return True
-    
+
     # Create a unique list
     all_dependencies = list(set(all_dependencies))
 
@@ -49,7 +47,9 @@ def install_dependencies(backends=None):
     filtered_dependencies = []
     skipped_dependencies = []
     for dep in all_dependencies:
-        if dep.startswith("filecoin-api-client") and (os.name == "nt" or sys.version_info >= (3, 14)):
+        if dep.startswith("filecoin-api-client") and (
+            os.name == "nt" or sys.version_info >= (3, 14)
+        ):
             skipped_dependencies.append(dep)
             continue
         filtered_dependencies.append(dep)
@@ -63,7 +63,7 @@ def install_dependencies(backends=None):
     if not filtered_dependencies:
         logger.warning("No installable dependencies remain after filtering")
         return False
-    
+
     logger.info(f"Installing dependencies: {', '.join(filtered_dependencies)}")
     failures = []
     for dep in filtered_dependencies:
@@ -81,34 +81,25 @@ def install_dependencies(backends=None):
     logger.info("✅ Dependencies installed successfully")
     return True
 
+
 def create_credential_config(config_dir=None):
     """Create credential configuration for backends."""
     if config_dir is None:
         config_dir = Path.home() / ".ipfs_kit"
-    
+
     config_dir = Path(config_dir)
     config_dir.mkdir(parents=True, exist_ok=True)
-    
+
     credentials_path = config_dir / "credentials.json"
-    
+
     # Default empty configuration
     credentials = {
-        "huggingface": {
-            "token": ""
-        },
-        "storacha": {
-            "web3storage_token": ""
-        },
-        "filecoin": {
-            "lotus_api_token": ""
-        },
-        "s3": {
-            "aws_access_key_id": "",
-            "aws_secret_access_key": "",
-            "region_name": "us-east-1"
-        }
+        "huggingface": {"token": ""},
+        "storacha": {"web3storage_token": ""},
+        "filecoin": {"lotus_api_token": ""},
+        "s3": {"aws_access_key_id": "", "aws_secret_access_key": "", "region_name": "us-east-1"},
     }
-    
+
     # Check if file exists
     if credentials_path.exists():
         logger.info(f"Credentials file already exists at {credentials_path}")
@@ -126,69 +117,67 @@ def create_credential_config(config_dir=None):
                 credentials = existing_creds
         except Exception as e:
             logger.warning(f"Failed to read existing credentials: {e}")
-    
+
     # Write credentials file
     try:
         with open(credentials_path, "w") as f:
             json.dump(credentials, f, indent=2)
-        
+
         logger.info(f"✅ Credentials template created at {credentials_path}")
         logger.info(f"Please edit this file to add your API tokens/keys")
-        
+
         # Set correct permissions (readable only by the user)
         os.chmod(credentials_path, 0o600)
-        
+
         return credentials_path
     except Exception as e:
         logger.error(f"❌ Failed to create credentials file: {e}")
         return None
 
+
 def create_backend_config(config_dir=None):
     """Create configuration file for backend settings."""
     if config_dir is None:
         config_dir = Path.home() / ".ipfs_kit"
-    
+
     config_dir = Path(config_dir)
     config_dir.mkdir(parents=True, exist_ok=True)
-    
+
     config_path = config_dir / "storage_backends.json"
-    
+
     # Default configuration
     config = {
         "backends": {
             "huggingface": {
                 "enabled": True,
                 "simulation_mode": False,
-                "cache_dir": str(config_dir / "cache" / "huggingface")
+                "cache_dir": str(config_dir / "cache" / "huggingface"),
             },
             "storacha": {
                 "enabled": True,
                 "simulation_mode": False,
-                "cache_dir": str(config_dir / "cache" / "storacha")
+                "cache_dir": str(config_dir / "cache" / "storacha"),
             },
             "filecoin": {
                 "enabled": True,
                 "simulation_mode": False,
-                "cache_dir": str(config_dir / "cache" / "filecoin")
+                "cache_dir": str(config_dir / "cache" / "filecoin"),
             },
             "lassie": {
                 "enabled": True,
                 "simulation_mode": False,
-                "cache_dir": str(config_dir / "cache" / "lassie")
+                "cache_dir": str(config_dir / "cache" / "lassie"),
             },
             "s3": {
                 "enabled": True,
                 "simulation_mode": False,
                 "cache_dir": str(config_dir / "cache" / "s3"),
-                "default_bucket": "ipfs-data"
-            }
+                "default_bucket": "ipfs-data",
+            },
         },
-        "global": {
-            "default_cache_size": "1GB",
-            "log_level": "INFO"
-        }
+        "global": {"default_cache_size": "1GB", "log_level": "INFO"},
     }
-    
+
     # Check if file exists
     if config_path.exists():
         logger.info(f"Backend config file already exists at {config_path}")
@@ -201,7 +190,9 @@ def create_backend_config(config_dir=None):
                         if isinstance(values, dict):
                             for key, value in values.items():
                                 if key in existing_config[section]:
-                                    if isinstance(value, dict) and isinstance(existing_config[section][key], dict):
+                                    if isinstance(value, dict) and isinstance(
+                                        existing_config[section][key], dict
+                                    ):
                                         for subkey, subvalue in value.items():
                                             if subkey not in existing_config[section][key]:
                                                 existing_config[section][key][subkey] = subvalue
@@ -212,29 +203,30 @@ def create_backend_config(config_dir=None):
                 config = existing_config
         except Exception as e:
             logger.warning(f"Failed to read existing config: {e}")
-    
+
     # Create cache directories
     for backend, settings in config["backends"].items():
         cache_dir = Path(settings["cache_dir"])
         cache_dir.mkdir(parents=True, exist_ok=True)
         logger.debug(f"Created cache directory for {backend}: {cache_dir}")
-    
+
     # Write config file
     try:
         with open(config_path, "w") as f:
             json.dump(config, f, indent=2)
-        
+
         logger.info(f"✅ Backend configuration created at {config_path}")
         return config_path
     except Exception as e:
         logger.error(f"❌ Failed to create config file: {e}")
         return None
 
+
 def update_mcp_server():
     """Update MCP server to use real API implementations."""
     # Path to real API implementation
     impl_file = Path("ipfs_kit_py/backends/real_api_storage_backends.py")
-    
+
     # Write implementation file
     impl_code = """
 '''
@@ -355,12 +347,12 @@ def get_all_backends_status():
         backends[backend] = get_backend_status(backend)
     return backends
 """
-    
+
     with open(impl_file, "w", encoding="utf-8") as f:
         f.write(impl_code)
-    
+
     logger.info(f"✅ Created real API implementation at {impl_file}")
-    
+
     # Create MCP server patch
     server_patch_file = Path("patch_mcp_server_for_real_apis.py")
     server_patch_code = """#!/usr/bin/env python3
@@ -420,6 +412,7 @@ if __name__ == "__main__":
 
     try:
         import importlib.util
+
         impl_path = Path(impl_file).resolve()
         spec = importlib.util.spec_from_file_location("real_api_storage_backends", str(impl_path))
         real_apis = importlib.util.module_from_spec(spec)
@@ -428,24 +421,24 @@ if __name__ == "__main__":
     except Exception as e:
         logger.error(f"Failed to load backend status: {e}")
         return False
-    
+
     # Check if any backend is in real mode and needs patching
     needs_patching = False
     for backend, status in backends_status.items():
         if status["exists"] and status["enabled"] and not status["simulation"]:
             needs_patching = True
             break
-    
+
     if not needs_patching:
         logger.info("No backends need patching (all in simulation mode or disabled)")
         return True
-    
+
     # Patch the server to use real APIs
     logger.info("Applying patches for real API implementations...")
-    
+
     # Create server_with_real_apis.py
     server_file = "run_mcp_server_real_apis.py"
-    
+
     server_code = '''#!/usr/bin/env python3
 """
 MCP server with real API implementations for storage backends.
@@ -642,10 +635,10 @@ if __name__ == "__main__":
         log_level="info"
     )
 '''
-    
+
     with open(server_file, "w", encoding="utf-8") as f:
         f.write(server_code)
-    
+
     os.chmod(server_file, 0o755)
     logger.info(f"✅ Created real API MCP server at {server_file}")
 
@@ -665,43 +658,49 @@ echo $! > mcp_real_apis.pid
 echo "MCP Server started with real API implementations (PID: $(cat mcp_real_apis.pid))"
 echo "Log file: mcp_real_apis.log"
 """
-    
+
     with open(startup_script, "w", encoding="utf-8") as f:
         f.write(script_content)
-    
+
     os.chmod(startup_script, 0o755)
     logger.info(f"✅ Created startup script at {startup_script}")
-    
+
     return True
 
+
 def main():
-    parser = argparse.ArgumentParser(description="Setup MCP storage backends with real API implementations")
+    parser = argparse.ArgumentParser(
+        description="Setup MCP storage backends with real API implementations"
+    )
     parser.add_argument("--install-deps", action="store_true", help="Install dependencies")
     parser.add_argument("--backends", nargs="+", help="Specific backends to configure")
     parser.add_argument("--config-dir", help="Configuration directory (default: ~/.ipfs_kit)")
     args = parser.parse_args()
-    
+
     config_dir = args.config_dir or Path.home() / ".ipfs_kit"
-    
+
     print("\n=== MCP STORAGE BACKENDS SETUP ===\n")
-    
+
     if args.install_deps:
         print("\n== Installing Dependencies ==")
         install_dependencies(args.backends)
-    
+
     print("\n== Creating Configuration ==")
     credentials_path = create_credential_config(config_dir)
     config_path = create_backend_config(config_dir)
-    
+
     print("\n== Updating MCP Server ==")
     update_mcp_server()
-    
+
     print("\n=== SETUP COMPLETE ===")
     print("\nNext steps:")
     print(f"1. Edit your credentials file: {credentials_path}")
     print("2. Configure backend settings in your config file")
     print("3. Start the MCP server with real APIs: ./start_mcp_real_apis.sh")
-    print("4. Test the backends with: python test_storage_backends.py --url http://localhost:9992/api/v0")
+    print(
+        "4. Test the backends with: python test_storage_backends.py --url http://localhost:9992/api/v0"
+    )
+
 
 if __name__ == "__main__":
     main()

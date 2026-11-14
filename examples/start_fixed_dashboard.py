@@ -24,15 +24,20 @@ USAGE:
 
 import logging
 import uvicorn
-from ipfs_kit_py.mcp.servers.integrated_mcp_server_with_dashboard import IntegratedMCPDashboardServer
+from ipfs_kit_py.mcp.servers.integrated_mcp_server_with_dashboard import (
+    IntegratedMCPDashboardServer,
+)
 
 # Setup logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger(__name__)
+
 
 def main():
     """Start the fixed MCP server with dashboard."""
-    
+
     print("🎉 Starting MCP Server Dashboard with FIXED Observability Tab")
     print("=" * 60)
     print("✅ Log Manager 'id' field errors: FIXED")
@@ -44,7 +49,7 @@ def main():
     print("")
     print("Press Ctrl+C to stop the server")
     print("=" * 60)
-    
+
     try:
         # Start the integrated server
         uvicorn.run(
@@ -52,12 +57,13 @@ def main():
             host="127.0.0.1",
             port=8765,
             log_level="info",
-            reload=False
+            reload=False,
         )
     except KeyboardInterrupt:
         logger.info("Server stopped by user")
     except Exception as e:
         logger.error(f"Server error: {e}")
+
 
 if __name__ == "__main__":
     main()

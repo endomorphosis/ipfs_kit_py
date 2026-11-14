@@ -27,24 +27,27 @@ def run_cli_command(args: list, description: str | None = None):
     if description:
         print(f"\n📋 {description}")
     print(f"   Command: ipfs-kit {' '.join(args)}")
-    
-    result = subprocess.run([
-        sys.executable, '-m', 'ipfs_kit_py.cli'
-    ] + args, capture_output=True, text=True, cwd=Path(__file__).parent)
-    
+
+    result = subprocess.run(
+        [sys.executable, "-m", "ipfs_kit_py.cli"] + args,
+        capture_output=True,
+        text=True,
+        cwd=Path(__file__).parent,
+    )
+
     print(f"   ✅ Exit code: {result.returncode}")
-    
+
     # Show first few lines of output
     if result.stdout:
-        lines = result.stdout.strip().split('\n')[:5]
+        lines = result.stdout.strip().split("\n")[:5]
         for line in lines:
             print(f"      {line}")
-        if len(result.stdout.split('\n')) > 5:
+        if len(result.stdout.split("\n")) > 5:
             print("      ...")
-    
+
     if result.stderr and result.returncode != 0:
         print(f"   ❌ Error: {result.stderr.strip()}")
-    
+
     return result.returncode == 0
 
 
@@ -52,7 +55,7 @@ def main():
     """Demonstrate all CLI enhancements."""
     print("🚀 IPFS-Kit CLI Enhancement Summary")
     print("=" * 60)
-    
+
     print("""
 📝 Key Improvements Implemented:
 
@@ -80,48 +83,48 @@ def main():
    - Proper secret handling and validation
    - Extensible architecture for new backends
     """)
-    
+
     print_section("Configuration System Demonstration", "⚙️")
-    
+
     # Test configuration display
-    run_cli_command(['config', 'show'], "Current configuration overview")
-    
+    run_cli_command(["config", "show"], "Current configuration overview")
+
     # Test specific backend configuration
-    run_cli_command(['config', 'show', '--backend', 'daemon'], "Daemon-specific configuration")
-    
+    run_cli_command(["config", "show", "--backend", "daemon"], "Daemon-specific configuration")
+
     # Test configuration validation
-    run_cli_command(['config', 'validate'], "Configuration validation")
-    
+    run_cli_command(["config", "validate"], "Configuration validation")
+
     print_section("Enhanced VFS Extractor", "📦")
-    
+
     # Test VFS extractor help
-    run_cli_command(['bucket', 'download-vfs', '--help'], "VFS download command help")
-    
+    run_cli_command(["bucket", "download-vfs", "--help"], "VFS download command help")
+
     print_section("Backend Management", "🔧")
-    
+
     # Test backend listing
-    run_cli_command(['backend', 'list'], "Available storage backends")
-    
+    run_cli_command(["backend", "list"], "Available storage backends")
+
     print_section("Real Data Verification", "📊")
-    
+
     # Test real data commands
     real_data_commands = [
-        (['daemon', 'status'], "Daemon status (real state)"),
-        (['pin', 'list', '--limit', '3'], "Pin listing (real data)"),
-        (['bucket', 'list'], "Bucket listing (real data)"),
+        (["daemon", "status"], "Daemon status (real state)"),
+        (["pin", "list", "--limit", "3"], "Pin listing (real data)"),
+        (["bucket", "list"], "Bucket listing (real data)"),
     ]
-    
+
     for cmd_args, description in real_data_commands:
         success = run_cli_command(cmd_args, description)
         if not success:
             print(f"      ⚠️  Command may need daemon or data setup")
-    
+
     print_section("Configuration Files Created", "📁")
-    
-    config_dir = Path.home() / '.ipfs_kit'
+
+    config_dir = Path.home() / ".ipfs_kit"
     if config_dir.exists():
         print(f"\n📂 Configuration directory: {config_dir}")
-        yaml_files = list(config_dir.glob('*.yaml'))
+        yaml_files = list(config_dir.glob("*.yaml"))
         if yaml_files:
             print(f"✅ Found {len(yaml_files)} configuration files:")
             for yaml_file in sorted(yaml_files):
@@ -131,9 +134,9 @@ def main():
             print("⚠️  No YAML configuration files found")
     else:
         print("⚠️  Configuration directory not found")
-    
+
     print_section("Summary of Achievements", "🎯")
-    
+
     print("""
 ✅ COMPLETED REQUIREMENTS:
 
@@ -185,5 +188,5 @@ ipfs-kit backend test --backend s3     # Test specific backend
     """)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

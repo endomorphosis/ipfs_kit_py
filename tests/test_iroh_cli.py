@@ -141,9 +141,7 @@ def test_legacy_binary_commands_delegate_and_rollback_requires_confirmation() ->
         def rollback(self, **_kwargs: Any) -> dict[str, Any]:
             raise AssertionError("unconfirmed rollback executed")
 
-    code, document, _ = invoke(
-        ["inspect", "--check"], install_manager_factory=Manager
-    )
+    code, document, _ = invoke(["inspect", "--check"], install_manager_factory=Manager)
     assert code == EXIT_SUCCESS
     assert document["operation"] == "binary.inspect"
     assert document["result"] == {"check": True, "installed": True}
@@ -426,9 +424,7 @@ def test_sync_delete_requires_confirmation_before_adapter_creation(tmp_path: Pat
         created.append(True)
         raise AssertionError("unconfirmed sync constructed an adapter")
 
-    code, document, _ = invoke(
-        ["sync", "run", "--file", os.fspath(request)], sync_factory=factory
-    )
+    code, document, _ = invoke(["sync", "run", "--file", os.fspath(request)], sync_factory=factory)
     assert code == EXIT_CONFIRMATION
     assert document["error"]["code"] == "confirmation_required"
     assert created == []
