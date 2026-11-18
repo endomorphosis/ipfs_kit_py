@@ -76,10 +76,18 @@ async def test_new_service_object_adopts_owned_orphan_and_can_stop_it(tmp_path: 
         await owner.stop()
 
 
-def test_canonical_registry_registers_iroh() -> None:
+def test_canonical_registry_registers_iroh(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import ipfs_kit_py.metadata_manager as metadata_manager
     from ipfs_kit_py.service_registry import ServiceRegistry
 
-    assert "iroh" in ServiceRegistry().get_available_service_types()
+    metadata = metadata_manager.MetadataManager(base_path=tmp_path)
+    monkeypatch.setattr(metadata_manager, "_metadata_manager", metadata)
+    registry = ServiceRegistry()
+
+    assert registry.metadata_manager is metadata
+    assert "iroh" in registry.get_available_service_types()
 
 
 @pytest.mark.asyncio
@@ -146,7 +154,10 @@ async def test_fixed_port_conflict_fails_before_spawn(tmp_path: Path) -> None:
             await service.start()
         assert not service.layout.pid_path.exists()
     finally:
-        listener.close()
+        try:
+            listener.close()
+        finally:
+            await service.stop()
 
 
 @pytest.mark.asyncio
@@ -175,9 +186,12 @@ async def test_startup_failures_activate_persistent_crash_loop(tmp_path: Path) -
         probe_interval=0.01,
         crash_limit=2,
     )
-    for _ in range(2):
-        with pytest.raises(IrohUnavailableError, match="ready"):
+    try:
+        for _ in range(2):
+            with pytest.raises(IrohUnavailableError, match="ready"):
+                await service.start()
+        with pytest.raises(IrohUnavailableError, match="crash-loop"):
             await service.start()
-    with pytest.raises(IrohUnavailableError, match="crash-loop"):
-        await service.start()
-    assert (await service.status())["crash_count"] == 2
+        assert (await service.status())["crash_count"] == 2
+    finally:
+        await service.stop()

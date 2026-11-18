@@ -67,12 +67,12 @@ jobs:
           set -euo pipefail
 
           python - <<'PY'
-from ipfs_kit_py.install_ipfs import install_ipfs
+          from ipfs_kit_py.install_ipfs import install_ipfs
 
-installer = install_ipfs(metadata={"role": "leecher"})
-result = installer.install_ipfs_daemon()
-print(f"install_ipfs_daemon result: {result}")
-PY
+          installer = install_ipfs(metadata={"role": "leecher"})
+          result = installer.install_ipfs_daemon()
+          print(f"install_ipfs_daemon result: {result}")
+          PY
 
           echo "${GITHUB_WORKSPACE}/ipfs_kit_py/bin" >> $GITHUB_PATH
           ipfs --version
